@@ -1,1 +1,1 @@
-## S-Store
+## T-Store (Transition Store)
