@@ -3,7 +3,7 @@ project/target
 target
 examples/queries
 examples/data
-conf/ddbt.properties
+conf/config.properties
 test/gen
 test/queries
 bin/*

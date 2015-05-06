@@ -69,7 +69,7 @@ addCommandAlias("bench-all-tpch", ";unit -x -xsc -xvm -p 2 -w 2 -s 3 -t 60000 -c
 InputKey[Unit]("pkg") <<= InputTask(_ => Def.spaceDelimited("<args>")) { result =>
  (result, baseDirectory, classDirectory in Compile, classDirectory in Test, fullClasspath in Runtime, scalaVersion, compile in Compile, compile in Test, copyResources in Compile) map {
   (args,base,cls,test,cp,vers,_,_,_) =>
-    val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/ddbt.properties")) } catch { case _:Throwable => }
+    val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/config.properties")) } catch { case _:Throwable => }
     def pr(n:String,d:String="") = prop.getProperty("ddbt."+n,d)
     import scala.collection.JavaConversions._
     import scala.sys.process._
@@ -87,7 +87,7 @@ InputKey[Unit]("pkg") <<= InputTask(_ => Def.spaceDelimited("<args>")) { result 
       mk_script("run","-classpath \"$CP_DEPS:"+cp0+"classes:"+cp0+"test-classes\" \"$@\"")
     } else {
       print("Packaging DDBT libraries: ")
-      mk_jar("ddbt_lib",cls,"ddbt/lib","ddbt.properties") // runtime libraries
+      mk_jar("ddbt_lib",cls,"ddbt/lib","config.properties") // runtime libraries
       mk_jar("ddbt_gen",test,"ddbt/test/gen") // tests
       mk_script("run","-classpath \"$CP_DEPS:ddbt_lib.jar:ddbt_gen.jar\" \"$@\"")
       if (args.contains("full")) { mk_jar("ddbt",cls,".") // compiler
@@ -115,7 +115,7 @@ InputKey[Unit]("pkg") <<= InputTask(_ => Def.spaceDelimited("<args>")) { result 
 // -W = number of (local@worker/total@master) workers
 // -C = cluster_mode:hosts_count
 commands += Command.args("exec","")((state:State, args:Seq[String]) => {
-  val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/ddbt.properties")) } catch { case _:Throwable => }
+  val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/config.properties")) } catch { case _:Throwable => }
   def pr(n:String,d:String) = prop.getProperty("ddbt."+n,d)
   import scala.collection.JavaConversions._
   import scala.sys.process._
@@ -169,7 +169,7 @@ commands += Command.command("release")((state:State) => {
     }.mkString
   }
   //load all the properties
-  val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/ddbt.properties")) } catch { case _:Throwable => }
+  val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/config.properties")) } catch { case _:Throwable => }
   println("defining base and release paths")
   val base = baseDirectory.value
   val releaseDir = base/"release";
@@ -267,9 +267,9 @@ commands += Command.command("release")((state:State) => {
   state
 })
 
-// --------- LMS codegen, enabled with ddbt.lms = 1 in conf/ddbt.properties
+// --------- LMS codegen, enabled with ddbt.lms = 1 in conf/config.properties
 {
-  val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/ddbt.properties")) } catch { case _:Throwable => }
+  val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/config.properties")) } catch { case _:Throwable => }
   if (prop.getProperty("ddbt.lms","0")!="1") Seq() else Seq(
     // assemblyOption in assembly ~= { _.copy(includeScala = false) }
     sources in Compile ~= (fs => fs.filter(f=> !f.toString.endsWith("codegen/LMSGen.scala"))), // ++ (new java.io.File("lms") ** "*.scala").get
