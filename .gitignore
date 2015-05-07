@@ -35,3 +35,7 @@ release/doc
 mmap
 dist/*
 CHANGELOG
+conf/log4j2.xml
+conf/tpcc.properties
+sstore.sublime-project
+sstore.sublime-workspace
