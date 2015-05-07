@@ -1,0 +1,59 @@
+#!/bin/sh
+#
+# set max_heap_table_size=10G in /etc/my.ini
+# to use memory tables
+
+WAREHOUSES=$1
+RUNS=$2
+STORAGE=$3
+if [ -z "$RUNS" ] || [ -z "$WAREHOUSES" ] || [ -z "$STORAGE" ]; then echo "$0 <warehouses> <runs> memory|innodb"; exit 1; fi
+if [ -z "$MY_INI" -a -f "/etc/my.ini" ]; then MY_INI="/etc/my.ini"; fi
+if [ -z "$MY_INI" -a -f "/etc/my.cnf" ]; then MY_INI="/etc/my.cnf"; fi
+if [ ! -f $MY_INI ]; then echo "$MY_INI does not exist! Set up MY_INI var to a right value."; exit 1; fi
+
+[ -z "$DBUSER" ] &&  DBUSER=root
+if [ -z "$PASS" ]; then PASS=""; fi
+[ -z "$DB" ] && DB=tpcctest
+
+max_heap_table_size=`grep  max_heap_table_size $MY_INI | cut -f2 -d= | sed 's/^ *//g' |  cut -f1 -dG`
+[ $max_heap_table_size -lt 10 ] && echo "max_heap_table_size must be greater then 9G in $MY_INI" && exit 1
+
+# Compile the time mesaurment tool. 
+if [ ! -f t2 ]; then gcc t2.c -O3 -o t2; fi
+
+cd `dirname $0`
+me=$0
+my() { mysql -u$DBUSER -p$PASS $DB; }
+
+if [ ! -f "w$WAREHOUSES-$STORAGE.sql.bz2" ]; then 
+    my < tpcc_$STORAGE.sql
+    cd ..
+    sbt "test:run-main ddbt.tpcc.loadtest.TpccLoad -w $WAREHOUSES -u $DBUSER -p $PASS"
+    [ $? -eq 0 ] || exit 1
+    cd mysql
+    mysqldump -u$DBUSER -p$PASS $DB | bzip2 > w$WAREHOUSES-$STORAGE.sql.bz2
+fi
+# Loads the data to the database
+# $1 - memory|innodb  $2 - number of warehouses
+load() {
+    # definitions
+    my < tpcc_$STORAGE.sql
+    my < tpcc_proc.sql
+    # data
+    bzcat w$WAREHOUSES-$STORAGE.sql.bz2 | my
+}
+
+load
+
+RES=$(./t2 mysql -u$DBUSER -p$PASS $DB <<EOF
+SET @res = 0;
+CALL exec($RUNS, $WAREHOUSES, @res);
+SELECT @res;
+EOF
+)
+
+TRANSACTIONS=`echo $RES | cut -d' ' -f 2`
+TIME=`echo $RES | cut -d' ' -f5`
+
+TPMIN=$(($TRANSACTIONS*60000/$TIME))
+echo $TPMIN
