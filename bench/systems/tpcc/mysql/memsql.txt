@@ -1,0 +1,25 @@
+1. Install MemSQL
+   MemSQL Trial License Key: 5ad213f0bd0a49968a62999ec2058621
+   $ wget http://download.memsql.com/5ad213f0bd0a49968a62999ec2058621/memsqlbin_amd64.tar.gz
+   $ tar -xzf memsqlbin_amd64.tar.gz
+   $ cd memsqlbin
+   $ ./check_system
+   $ ./memsqld --port 3306
+
+2. Connect to that host using MySQL client
+   - create a database named 'tpcctest'
+   - execute memsql_init.sql
+
+3. Setup access from JDBC
+   GRANT ALL ON *.* TO "root"@"%" IDENTIFIED BY 'ROOT' WITH GRANT OPTION; FLUSH PRIVILEGES; ==> does not work (trial version?!)
+   ==> edit conf/tpcc.properties and remove the password
+
+4. Populate the table
+   sbt> test:run-main ddbt.tpcc.loadtest.Tpcc
+   ==> crashes due to incorrect syntax
+
+   solution: dump into SQL (mysqldump?) and reload using
+   mysql -h127.0.0.1 -uroot tpcctest < file.sql
+
+5. Run transactions
+   sbt> test:run-main ddbt.tpcc.loadtest.TpccLoad
