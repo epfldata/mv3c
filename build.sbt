@@ -47,6 +47,9 @@ Seq(
   javaOptions <+= (fullClasspath in Runtime) map (cp => "-Dsbt.classpath="+cp.files.absString) // propagate paths
 )
 
+// --------- Custom tasks
+addCommandAlias("bench", ";run-main benchmark.OltpBenchmark ")
+
 // --------- LMS codegen, enabled with ddbt.lms = 1 in conf/config.properties
 {
   val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/config.properties")) } catch { case _:Throwable => }
