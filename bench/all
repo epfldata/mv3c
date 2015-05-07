@@ -1,0 +1,10 @@
+#!/bin/sh
+cd `dirname $0`; BASE=`pwd`
+#cd $BASE; ./bench mysql
+cd $BASE; ./bench voltdb
+cd $BASE; ./bench 1
+cd $BASE; ./bench hstore
+cd $BASE; ./bench 5
+cd $BASE; ./bench -1
+#cd $BASE; ./bench 4
+
