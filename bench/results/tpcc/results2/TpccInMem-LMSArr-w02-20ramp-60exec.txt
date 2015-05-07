@@ -1,0 +1,1717 @@
+[~/Dropbox/workspaces/toasterbooster 20:11:54]$ $JAVA_HOME/bin/java -server -Xss1g -Xmx10g -Xms10g -XX:MaxPermSize=2g -XX:-DontCompileHugeMethods -classpath $CP ddbt.tpcc.tx.TpccInMem -w 2 -i -1 -r 20 -t 60
+TPCC version 1.0.1 Number of Arguments: 8
+2014-02-03 20:19:38,964 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: os.name = Mac OS X
+ 2014-02-03 20:19:38,967 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: os.arch = x86_64
+ 2014-02-03 20:19:38,967 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: os.version = 10.8.5
+ 2014-02-03 20:19:38,967 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: java.runtime.name = Java(TM) SE Runtime Environment
+ 2014-02-03 20:19:38,967 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: java.vm.version = 24.45-b08
+ 2014-02-03 20:19:38,967 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: java.library.path = /Users/dashti/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:.
+ maxMemory = 9,814f MB
+2014-02-03 20:19:38,974 INFO d.t.t.TpccInMem [main] Loading properties from: ./conf/tpcc.properties
+ Using the properties file for configuration.
+***************************************
+****** Java TPC-C Load Generator ******
+***************************************
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:19:40,113 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:19:40,118 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:19:45,648 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:19:46,122 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:19:46,122 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.0 seconds
+Current execution time lapse: 3.0 seconds
+Current execution time lapse: 4.0 seconds
+Current execution time lapse: 5.0 seconds
+Current execution time lapse: 6.0 seconds
+Current execution time lapse: 7.0 seconds
+Current execution time lapse: 8.0 seconds
+Current execution time lapse: 9.0 seconds
+Current execution time lapse: 10.0 seconds
+Current execution time lapse: 11.0 seconds
+Current execution time lapse: 12.0 seconds
+Current execution time lapse: 13.0 seconds
+Current execution time lapse: 14.0 seconds
+Current execution time lapse: 15.0 seconds
+Current execution time lapse: 16.0 seconds
+Current execution time lapse: 17.0 seconds
+Current execution time lapse: 18.0 seconds
+Current execution time lapse: 19.0 seconds
+Current execution time lapse: 20.5 seconds
+Current execution time lapse: 21.5 seconds
+Current execution time lapse: 22.5 seconds
+Current execution time lapse: 23.5 seconds
+Current execution time lapse: 24.5 seconds
+Current execution time lapse: 25.5 seconds
+Current execution time lapse: 26.5 seconds
+Current execution time lapse: 27.5 seconds
+Current execution time lapse: 28.5 seconds
+Current execution time lapse: 29.5 seconds
+Current execution time lapse: 30.5 seconds
+Current execution time lapse: 32.0 seconds
+Current execution time lapse: 33.0 seconds
+Current execution time lapse: 34.0 seconds
+Current execution time lapse: 35.0 seconds
+Current execution time lapse: 36.0 seconds
+Current execution time lapse: 37.0 seconds
+Current execution time lapse: 38.0 seconds
+Current execution time lapse: 39.0 seconds
+Current execution time lapse: 40.0 seconds
+Current execution time lapse: 41.9 seconds
+Current execution time lapse: 42.9 seconds
+Current execution time lapse: 43.9 seconds
+Current execution time lapse: 44.9 seconds
+Current execution time lapse: 46.2 seconds
+Current execution time lapse: 47.2 seconds
+Current execution time lapse: 48.2 seconds
+Current execution time lapse: 49.2 seconds
+Current execution time lapse: 50.3 seconds
+Current execution time lapse: 51.3 seconds
+Current execution time lapse: 52.3 seconds
+Current execution time lapse: 54.0 seconds
+Current execution time lapse: 55.0 seconds
+Current execution time lapse: 56.0 seconds
+Current execution time lapse: 57.7 seconds
+Current execution time lapse: 58.7 seconds
+Current execution time lapse: 59.7 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:1874141  lt:0  rt:0  fl:0 
+  |Payment| sc:1874149  lt:0  rt:0  fl:0 
+  |Order Stat| sc:187415  lt:0  rt:0  fl:0 
+  |Delivery| sc:187415  lt:0  rt:0  fl:0 
+  |Slev| sc:187415  lt:0  rt:0  fl:0 
+ in 60.657001 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:1874210  lt:0  rt:0  fl:0 
+  |Payment| sc:1874209  lt:0  rt:0  fl:0 
+  |Order Stat| sc:187422  lt:0  rt:0  fl:0 
+  |Delivery| sc:187422  lt:0  rt:0  fl:0 
+  |Slev| sc:187422  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478256% (>=43.0%) [OK]
+   Order-Status: 4.347851% (>= 4.0%) [OK]
+       Delivery: 4.347851% (>= 4.0%) [OK]
+    Stock-Level: 4.347851% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 1874284
+ Payment Total: 1874285
+ Order Stat Total: 187429
+ Delivery Total: 187428
+ Slev Total: 187429
+
+<TpmC>
+1853984.9 TpmC
+
+STOPPING THREADS
+2014-02-03 20:21:06,808 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 2341
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 2217931
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 22172691
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:21:23,441 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:21:23,441 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:21:26,914 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:21:27,153 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:21:27,153 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.0 seconds
+Current execution time lapse: 3.0 seconds
+Current execution time lapse: 4.0 seconds
+Current execution time lapse: 5.0 seconds
+Current execution time lapse: 6.3 seconds
+Current execution time lapse: 7.3 seconds
+Current execution time lapse: 8.3 seconds
+Current execution time lapse: 9.3 seconds
+Current execution time lapse: 10.3 seconds
+Current execution time lapse: 11.3 seconds
+Current execution time lapse: 12.3 seconds
+Current execution time lapse: 13.3 seconds
+Current execution time lapse: 14.3 seconds
+Current execution time lapse: 15.3 seconds
+Current execution time lapse: 16.3 seconds
+Current execution time lapse: 17.3 seconds
+Current execution time lapse: 18.4 seconds
+Current execution time lapse: 19.4 seconds
+Current execution time lapse: 20.4 seconds
+Current execution time lapse: 21.4 seconds
+Current execution time lapse: 22.4 seconds
+Current execution time lapse: 23.4 seconds
+Current execution time lapse: 30.7 seconds
+Current execution time lapse: 31.7 seconds
+Current execution time lapse: 32.7 seconds
+Current execution time lapse: 33.7 seconds
+Current execution time lapse: 34.7 seconds
+Current execution time lapse: 35.9 seconds
+Current execution time lapse: 36.9 seconds
+Current execution time lapse: 37.9 seconds
+Current execution time lapse: 38.9 seconds
+Current execution time lapse: 39.9 seconds
+Current execution time lapse: 40.9 seconds
+Current execution time lapse: 41.9 seconds
+Current execution time lapse: 42.9 seconds
+Current execution time lapse: 43.9 seconds
+Current execution time lapse: 44.9 seconds
+Current execution time lapse: 45.9 seconds
+Current execution time lapse: 46.9 seconds
+Current execution time lapse: 47.9 seconds
+Current execution time lapse: 48.9 seconds
+Current execution time lapse: 49.9 seconds
+Current execution time lapse: 50.9 seconds
+Current execution time lapse: 51.9 seconds
+Current execution time lapse: 52.9 seconds
+Current execution time lapse: 54.0 seconds
+Current execution time lapse: 55.0 seconds
+Current execution time lapse: 56.0 seconds
+Current execution time lapse: 57.0 seconds
+Current execution time lapse: 58.0 seconds
+Current execution time lapse: 59.0 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:1932315  lt:0  rt:0  fl:0 
+  |Payment| sc:1932322  lt:0  rt:0  fl:0 
+  |Order Stat| sc:193232  lt:0  rt:0  fl:0 
+  |Delivery| sc:193232  lt:0  rt:0  fl:0 
+  |Slev| sc:193233  lt:0  rt:0  fl:0 
+ in 60.036999 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:1932330  lt:0  rt:0  fl:0 
+  |Payment| sc:1932330  lt:0  rt:0  fl:0 
+  |Order Stat| sc:193233  lt:0  rt:0  fl:0 
+  |Delivery| sc:193232  lt:0  rt:0  fl:0 
+  |Slev| sc:193233  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478268% (>=43.0%) [OK]
+   Order-Status: 4.347827% (>= 4.0%) [OK]
+       Delivery: 4.347805% (>= 4.0%) [OK]
+    Stock-Level: 4.347827% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 1932339
+ Payment Total: 1932337
+ Order Stat Total: 193234
+ Delivery Total: 193233
+ Slev Total: 193233
+
+<TpmC>
+1931148.2 TpmC
+
+STOPPING THREADS
+2014-02-03 20:22:47,203 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 5831
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 1973133
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 19732101
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 1931148.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:22:59,639 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:22:59,640 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:23:03,051 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:23:03,279 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:23:03,279 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.0 seconds
+Current execution time lapse: 3.0 seconds
+Current execution time lapse: 4.0 seconds
+Current execution time lapse: 5.0 seconds
+Current execution time lapse: 6.0 seconds
+Current execution time lapse: 7.3 seconds
+Current execution time lapse: 8.3 seconds
+Current execution time lapse: 9.3 seconds
+Current execution time lapse: 10.3 seconds
+Current execution time lapse: 11.3 seconds
+Current execution time lapse: 12.3 seconds
+Current execution time lapse: 13.3 seconds
+Current execution time lapse: 14.3 seconds
+Current execution time lapse: 15.3 seconds
+Current execution time lapse: 16.3 seconds
+Current execution time lapse: 17.3 seconds
+Current execution time lapse: 18.3 seconds
+Current execution time lapse: 19.3 seconds
+Current execution time lapse: 20.3 seconds
+Current execution time lapse: 21.3 seconds
+Current execution time lapse: 22.3 seconds
+Current execution time lapse: 23.3 seconds
+Current execution time lapse: 24.3 seconds
+Current execution time lapse: 25.3 seconds
+Current execution time lapse: 26.3 seconds
+Current execution time lapse: 27.3 seconds
+Current execution time lapse: 35.8 seconds
+Current execution time lapse: 36.8 seconds
+Current execution time lapse: 37.8 seconds
+Current execution time lapse: 38.8 seconds
+Current execution time lapse: 39.8 seconds
+Current execution time lapse: 40.8 seconds
+Current execution time lapse: 41.8 seconds
+Current execution time lapse: 42.8 seconds
+Current execution time lapse: 43.8 seconds
+Current execution time lapse: 44.8 seconds
+Current execution time lapse: 45.8 seconds
+Current execution time lapse: 46.8 seconds
+Current execution time lapse: 47.8 seconds
+Current execution time lapse: 48.8 seconds
+Current execution time lapse: 49.8 seconds
+Current execution time lapse: 50.8 seconds
+Current execution time lapse: 52.1 seconds
+Current execution time lapse: 53.1 seconds
+Current execution time lapse: 54.1 seconds
+Current execution time lapse: 55.1 seconds
+Current execution time lapse: 56.1 seconds
+Current execution time lapse: 57.1 seconds
+Current execution time lapse: 58.1 seconds
+Current execution time lapse: 59.1 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:2145953  lt:0  rt:0  fl:0 
+  |Payment| sc:2145951  lt:1  rt:0  fl:0 
+  |Order Stat| sc:214595  lt:0  rt:0  fl:0 
+  |Delivery| sc:214596  lt:0  rt:0  fl:0 
+  |Slev| sc:214596  lt:0  rt:0  fl:0 
+ in 60.106998 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:2145962  lt:0  rt:0  fl:0 
+  |Payment| sc:2145960  lt:1  rt:0  fl:0 
+  |Order Stat| sc:214596  lt:0  rt:0  fl:0 
+  |Delivery| sc:214596  lt:0  rt:0  fl:0 
+  |Slev| sc:214596  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478252% (>=43.0%) [OK]
+   Order-Status: 4.347813% (>= 4.0%) [OK]
+       Delivery: 4.347833% (>= 4.0%) [OK]
+    Stock-Level: 4.347833% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 99.999954%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 2145978
+ Payment Total: 2145980
+ Order Stat Total: 214598
+ Delivery Total: 214598
+ Slev Total: 214598
+
+<TpmC>
+2142166.8 TpmC
+
+STOPPING THREADS
+2014-02-03 20:24:23,407 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 1759
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 2184538
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 21843545
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 1931148.2, 2142166.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:24:36,861 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:24:36,862 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:24:40,309 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:24:40,547 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:24:40,547 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.0 seconds
+Current execution time lapse: 3.0 seconds
+Current execution time lapse: 4.0 seconds
+Current execution time lapse: 5.0 seconds
+Current execution time lapse: 6.0 seconds
+Current execution time lapse: 7.1 seconds
+Current execution time lapse: 8.1 seconds
+Current execution time lapse: 9.1 seconds
+Current execution time lapse: 10.1 seconds
+Current execution time lapse: 11.1 seconds
+Current execution time lapse: 12.1 seconds
+Current execution time lapse: 13.1 seconds
+Current execution time lapse: 14.1 seconds
+Current execution time lapse: 15.1 seconds
+Current execution time lapse: 16.1 seconds
+Current execution time lapse: 17.1 seconds
+Current execution time lapse: 18.1 seconds
+Current execution time lapse: 24.6 seconds
+Current execution time lapse: 25.6 seconds
+Current execution time lapse: 26.6 seconds
+Current execution time lapse: 27.6 seconds
+Current execution time lapse: 28.6 seconds
+Current execution time lapse: 29.6 seconds
+Current execution time lapse: 30.6 seconds
+Current execution time lapse: 31.6 seconds
+Current execution time lapse: 32.6 seconds
+Current execution time lapse: 33.6 seconds
+Current execution time lapse: 34.6 seconds
+Current execution time lapse: 35.6 seconds
+Current execution time lapse: 36.6 seconds
+Current execution time lapse: 37.6 seconds
+Current execution time lapse: 38.6 seconds
+Current execution time lapse: 39.6 seconds
+Current execution time lapse: 40.6 seconds
+Current execution time lapse: 41.6 seconds
+Current execution time lapse: 42.8 seconds
+Current execution time lapse: 43.8 seconds
+Current execution time lapse: 44.8 seconds
+Current execution time lapse: 45.8 seconds
+Current execution time lapse: 46.9 seconds
+Current execution time lapse: 47.9 seconds
+Current execution time lapse: 48.9 seconds
+Current execution time lapse: 49.9 seconds
+Current execution time lapse: 50.9 seconds
+Current execution time lapse: 51.9 seconds
+Current execution time lapse: 52.9 seconds
+Current execution time lapse: 53.9 seconds
+Current execution time lapse: 54.9 seconds
+Current execution time lapse: 55.9 seconds
+Current execution time lapse: 57.2 seconds
+Current execution time lapse: 58.2 seconds
+Current execution time lapse: 59.2 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:2243557  lt:0  rt:0  fl:0 
+  |Payment| sc:2243555  lt:1  rt:0  fl:0 
+  |Order Stat| sc:224355  lt:0  rt:0  fl:0 
+  |Delivery| sc:224355  lt:0  rt:0  fl:0 
+  |Slev| sc:224356  lt:0  rt:0  fl:0 
+ in 60.805000 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:2243559  lt:0  rt:0  fl:0 
+  |Payment| sc:2243557  lt:1  rt:0  fl:0 
+  |Order Stat| sc:224356  lt:0  rt:0  fl:0 
+  |Delivery| sc:224356  lt:0  rt:0  fl:0 
+  |Slev| sc:224356  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478271% (>=43.0%) [OK]
+   Order-Status: 4.347837% (>= 4.0%) [OK]
+       Delivery: 4.347837% (>= 4.0%) [OK]
+    Stock-Level: 4.347818% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 99.999954%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 2243578
+ Payment Total: 2243579
+ Order Stat Total: 224358
+ Delivery Total: 224358
+ Slev Total: 224357
+
+<TpmC>
+2213877.2 TpmC
+
+STOPPING THREADS
+2014-02-03 20:26:01,364 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 1970
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 2281156
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 22810881
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 1931148.2, 2142166.8, 2213877.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:26:15,523 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:26:15,523 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:26:18,959 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:26:19,192 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:26:19,192 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.0 seconds
+Current execution time lapse: 3.0 seconds
+Current execution time lapse: 4.0 seconds
+Current execution time lapse: 5.0 seconds
+Current execution time lapse: 6.0 seconds
+Current execution time lapse: 7.0 seconds
+Current execution time lapse: 8.0 seconds
+Current execution time lapse: 9.0 seconds
+Current execution time lapse: 10.0 seconds
+Current execution time lapse: 11.0 seconds
+Current execution time lapse: 12.0 seconds
+Current execution time lapse: 13.0 seconds
+Current execution time lapse: 14.0 seconds
+Current execution time lapse: 15.0 seconds
+Current execution time lapse: 16.0 seconds
+Current execution time lapse: 17.0 seconds
+Current execution time lapse: 18.0 seconds
+Current execution time lapse: 25.2 seconds
+Current execution time lapse: 26.2 seconds
+Current execution time lapse: 27.2 seconds
+Current execution time lapse: 28.2 seconds
+Current execution time lapse: 29.2 seconds
+Current execution time lapse: 30.2 seconds
+Current execution time lapse: 31.2 seconds
+Current execution time lapse: 32.2 seconds
+Current execution time lapse: 33.2 seconds
+Current execution time lapse: 34.2 seconds
+Current execution time lapse: 35.2 seconds
+Current execution time lapse: 36.2 seconds
+Current execution time lapse: 37.2 seconds
+Current execution time lapse: 38.2 seconds
+Current execution time lapse: 39.3 seconds
+Current execution time lapse: 40.3 seconds
+Current execution time lapse: 41.3 seconds
+Current execution time lapse: 42.3 seconds
+Current execution time lapse: 43.3 seconds
+Current execution time lapse: 44.3 seconds
+Current execution time lapse: 45.3 seconds
+Current execution time lapse: 46.3 seconds
+Current execution time lapse: 47.3 seconds
+Current execution time lapse: 48.3 seconds
+Current execution time lapse: 49.3 seconds
+Current execution time lapse: 50.3 seconds
+Current execution time lapse: 51.7 seconds
+Current execution time lapse: 52.7 seconds
+Current execution time lapse: 53.7 seconds
+Current execution time lapse: 54.7 seconds
+Current execution time lapse: 55.7 seconds
+Current execution time lapse: 56.7 seconds
+Current execution time lapse: 57.7 seconds
+Current execution time lapse: 58.7 seconds
+Current execution time lapse: 59.7 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:2215338  lt:0  rt:0  fl:0 
+  |Payment| sc:2215343  lt:0  rt:0  fl:0 
+  |Order Stat| sc:221534  lt:0  rt:0  fl:0 
+  |Delivery| sc:221534  lt:0  rt:0  fl:0 
+  |Slev| sc:221534  lt:0  rt:0  fl:0 
+ in 60.667999 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:2215345  lt:0  rt:0  fl:0 
+  |Payment| sc:2215346  lt:0  rt:0  fl:0 
+  |Order Stat| sc:221535  lt:0  rt:0  fl:0 
+  |Delivery| sc:221534  lt:0  rt:0  fl:0 
+  |Slev| sc:221535  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478279% (>=43.0%) [OK]
+   Order-Status: 4.347840% (>= 4.0%) [OK]
+       Delivery: 4.347820% (>= 4.0%) [OK]
+    Stock-Level: 4.347840% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 2215366
+ Payment Total: 2215367
+ Order Stat Total: 221536
+ Delivery Total: 221537
+ Slev Total: 221537
+
+<TpmC>
+2190977.0 TpmC
+
+STOPPING THREADS
+2014-02-03 20:27:39,871 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 2250
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 2253231
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 22539334
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 1931148.2, 2142166.8, 2213877.2, 2190977.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:27:54,089 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:27:54,090 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:27:57,513 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:27:57,742 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:27:57,742 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.2 seconds
+Current execution time lapse: 3.2 seconds
+Current execution time lapse: 4.2 seconds
+Current execution time lapse: 5.2 seconds
+Current execution time lapse: 6.2 seconds
+Current execution time lapse: 7.2 seconds
+Current execution time lapse: 8.2 seconds
+Current execution time lapse: 9.2 seconds
+Current execution time lapse: 10.2 seconds
+Current execution time lapse: 11.2 seconds
+Current execution time lapse: 12.2 seconds
+Current execution time lapse: 13.2 seconds
+Current execution time lapse: 14.2 seconds
+Current execution time lapse: 15.2 seconds
+Current execution time lapse: 16.2 seconds
+Current execution time lapse: 17.2 seconds
+Current execution time lapse: 18.2 seconds
+Current execution time lapse: 19.2 seconds
+Current execution time lapse: 20.2 seconds
+Current execution time lapse: 27.2 seconds
+Current execution time lapse: 28.2 seconds
+Current execution time lapse: 29.2 seconds
+Current execution time lapse: 30.2 seconds
+Current execution time lapse: 31.2 seconds
+Current execution time lapse: 32.4 seconds
+Current execution time lapse: 33.4 seconds
+Current execution time lapse: 34.4 seconds
+Current execution time lapse: 35.4 seconds
+Current execution time lapse: 36.4 seconds
+Current execution time lapse: 37.4 seconds
+Current execution time lapse: 38.4 seconds
+Current execution time lapse: 39.4 seconds
+Current execution time lapse: 40.4 seconds
+Current execution time lapse: 41.7 seconds
+Current execution time lapse: 42.7 seconds
+Current execution time lapse: 43.7 seconds
+Current execution time lapse: 44.7 seconds
+Current execution time lapse: 45.9 seconds
+Current execution time lapse: 46.9 seconds
+Current execution time lapse: 47.9 seconds
+Current execution time lapse: 48.9 seconds
+Current execution time lapse: 49.9 seconds
+Current execution time lapse: 50.9 seconds
+Current execution time lapse: 51.9 seconds
+Current execution time lapse: 52.9 seconds
+Current execution time lapse: 54.1 seconds
+Current execution time lapse: 55.1 seconds
+Current execution time lapse: 56.1 seconds
+Current execution time lapse: 57.1 seconds
+Current execution time lapse: 58.1 seconds
+Current execution time lapse: 59.1 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:2050318  lt:0  rt:0  fl:0 
+  |Payment| sc:2050320  lt:0  rt:0  fl:0 
+  |Order Stat| sc:205032  lt:0  rt:0  fl:0 
+  |Delivery| sc:205032  lt:0  rt:0  fl:0 
+  |Slev| sc:205032  lt:0  rt:0  fl:0 
+ in 60.060001 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:2050325  lt:0  rt:0  fl:0 
+  |Payment| sc:2050325  lt:0  rt:0  fl:0 
+  |Order Stat| sc:205032  lt:0  rt:0  fl:0 
+  |Delivery| sc:205032  lt:0  rt:0  fl:0 
+  |Slev| sc:205033  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478237% (>=43.0%) [OK]
+   Order-Status: 4.347841% (>= 4.0%) [OK]
+       Delivery: 4.347820% (>= 4.0%) [OK]
+    Stock-Level: 4.347841% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 2050344
+ Payment Total: 2050346
+ Order Stat Total: 205034
+ Delivery Total: 205035
+ Slev Total: 205035
+
+<TpmC>
+2048299.6 TpmC
+
+STOPPING THREADS
+2014-02-03 20:29:17,821 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 2241
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 2089969
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 20900087
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 1931148.2, 2142166.8, 2213877.2, 2190977.0, 2048299.6, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:29:31,337 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:29:31,337 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:29:34,800 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:29:35,032 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:29:35,033 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.0 seconds
+Current execution time lapse: 3.0 seconds
+Current execution time lapse: 4.0 seconds
+Current execution time lapse: 5.0 seconds
+Current execution time lapse: 6.0 seconds
+Current execution time lapse: 7.0 seconds
+Current execution time lapse: 8.0 seconds
+Current execution time lapse: 9.0 seconds
+Current execution time lapse: 10.0 seconds
+Current execution time lapse: 11.0 seconds
+Current execution time lapse: 12.0 seconds
+Current execution time lapse: 13.0 seconds
+Current execution time lapse: 14.1 seconds
+Current execution time lapse: 15.1 seconds
+Current execution time lapse: 16.1 seconds
+Current execution time lapse: 17.1 seconds
+Current execution time lapse: 18.1 seconds
+Current execution time lapse: 19.1 seconds
+Current execution time lapse: 20.1 seconds
+Current execution time lapse: 21.1 seconds
+Current execution time lapse: 22.1 seconds
+Current execution time lapse: 23.1 seconds
+Current execution time lapse: 24.1 seconds
+Current execution time lapse: 25.1 seconds
+Current execution time lapse: 26.1 seconds
+Current execution time lapse: 33.5 seconds
+Current execution time lapse: 34.5 seconds
+Current execution time lapse: 35.5 seconds
+Current execution time lapse: 36.5 seconds
+Current execution time lapse: 37.5 seconds
+Current execution time lapse: 38.5 seconds
+Current execution time lapse: 39.5 seconds
+Current execution time lapse: 40.5 seconds
+Current execution time lapse: 41.5 seconds
+Current execution time lapse: 42.5 seconds
+Current execution time lapse: 43.5 seconds
+Current execution time lapse: 44.5 seconds
+Current execution time lapse: 45.5 seconds
+Current execution time lapse: 46.6 seconds
+Current execution time lapse: 47.6 seconds
+Current execution time lapse: 48.6 seconds
+Current execution time lapse: 49.6 seconds
+Current execution time lapse: 50.6 seconds
+Current execution time lapse: 51.6 seconds
+Current execution time lapse: 52.6 seconds
+Current execution time lapse: 53.6 seconds
+Current execution time lapse: 54.7 seconds
+Current execution time lapse: 55.7 seconds
+Current execution time lapse: 56.7 seconds
+Current execution time lapse: 58.4 seconds
+Current execution time lapse: 59.4 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:2018183  lt:1  rt:0  fl:0 
+  |Payment| sc:2018188  lt:0  rt:0  fl:0 
+  |Order Stat| sc:201819  lt:0  rt:0  fl:0 
+  |Delivery| sc:201819  lt:0  rt:0  fl:0 
+  |Slev| sc:201819  lt:0  rt:0  fl:0 
+ in 60.382999 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:2018194  lt:1  rt:0  fl:0 
+  |Payment| sc:2018199  lt:0  rt:0  fl:0 
+  |Order Stat| sc:201820  lt:0  rt:0  fl:0 
+  |Delivery| sc:201819  lt:0  rt:0  fl:0 
+  |Slev| sc:201819  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478264% (>=43.0%) [OK]
+   Order-Status: 4.347822% (>= 4.0%) [OK]
+       Delivery: 4.347822% (>= 4.0%) [OK]
+    Stock-Level: 4.347844% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 99.999947%  [OK]
+      Payment: 99.999992%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 2018216
+ Payment Total: 2018216
+ Order Stat Total: 201822
+ Delivery Total: 201821
+ Slev Total: 201822
+
+<TpmC>
+2005414.8 TpmC
+
+STOPPING THREADS
+2014-02-03 20:30:55,425 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 2635
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 2058108
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 20579513
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 1931148.2, 2142166.8, 2213877.2, 2190977.0, 2048299.6, 2005414.8, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:31:08,083 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:31:08,083 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:31:11,518 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:31:11,746 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:31:11,746 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.0 seconds
+Current execution time lapse: 3.0 seconds
+Current execution time lapse: 4.0 seconds
+Current execution time lapse: 5.3 seconds
+Current execution time lapse: 6.3 seconds
+Current execution time lapse: 7.3 seconds
+Current execution time lapse: 8.3 seconds
+Current execution time lapse: 9.3 seconds
+Current execution time lapse: 10.3 seconds
+Current execution time lapse: 11.3 seconds
+Current execution time lapse: 12.3 seconds
+Current execution time lapse: 13.3 seconds
+Current execution time lapse: 14.3 seconds
+Current execution time lapse: 15.3 seconds
+Current execution time lapse: 16.3 seconds
+Current execution time lapse: 17.3 seconds
+Current execution time lapse: 18.3 seconds
+Current execution time lapse: 19.3 seconds
+Current execution time lapse: 20.3 seconds
+Current execution time lapse: 21.3 seconds
+Current execution time lapse: 22.7 seconds
+Current execution time lapse: 23.7 seconds
+Current execution time lapse: 24.7 seconds
+Current execution time lapse: 25.7 seconds
+Current execution time lapse: 26.7 seconds
+Current execution time lapse: 36.0 seconds
+Current execution time lapse: 37.0 seconds
+Current execution time lapse: 38.0 seconds
+Current execution time lapse: 39.0 seconds
+Current execution time lapse: 40.0 seconds
+Current execution time lapse: 41.0 seconds
+Current execution time lapse: 42.0 seconds
+Current execution time lapse: 43.0 seconds
+Current execution time lapse: 44.0 seconds
+Current execution time lapse: 45.0 seconds
+Current execution time lapse: 46.0 seconds
+Current execution time lapse: 47.0 seconds
+Current execution time lapse: 48.0 seconds
+Current execution time lapse: 49.1 seconds
+Current execution time lapse: 50.1 seconds
+Current execution time lapse: 51.1 seconds
+Current execution time lapse: 52.1 seconds
+Current execution time lapse: 53.1 seconds
+Current execution time lapse: 54.1 seconds
+Current execution time lapse: 55.2 seconds
+Current execution time lapse: 56.2 seconds
+Current execution time lapse: 57.2 seconds
+Current execution time lapse: 58.2 seconds
+Current execution time lapse: 59.3 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:1997086  lt:1  rt:0  fl:0 
+  |Payment| sc:1997087  lt:0  rt:0  fl:0 
+  |Order Stat| sc:199709  lt:0  rt:0  fl:0 
+  |Delivery| sc:199709  lt:0  rt:0  fl:0 
+  |Slev| sc:199709  lt:0  rt:0  fl:0 
+ in 60.276001 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:1997093  lt:1  rt:0  fl:0 
+  |Payment| sc:1997095  lt:0  rt:0  fl:0 
+  |Order Stat| sc:199709  lt:0  rt:0  fl:0 
+  |Delivery| sc:199709  lt:0  rt:0  fl:0 
+  |Slev| sc:199710  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478271% (>=43.0%) [OK]
+   Order-Status: 4.347832% (>= 4.0%) [OK]
+       Delivery: 4.347832% (>= 4.0%) [OK]
+    Stock-Level: 4.347832% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 99.999947%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 1997110
+ Payment Total: 1997113
+ Order Stat Total: 199712
+ Delivery Total: 199711
+ Slev Total: 199712
+
+<TpmC>
+1987972.4 TpmC
+
+STOPPING THREADS
+2014-02-03 20:32:32,034 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 3291
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 2037124
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 20363016
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 1931148.2, 2142166.8, 2213877.2, 2190977.0, 2048299.6, 2005414.8, 1987972.4, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:32:45,264 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:32:45,265 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:32:48,700 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:32:48,935 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:32:48,935 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.0 seconds
+Current execution time lapse: 3.0 seconds
+Current execution time lapse: 4.0 seconds
+Current execution time lapse: 5.0 seconds
+Current execution time lapse: 6.0 seconds
+Current execution time lapse: 7.0 seconds
+Current execution time lapse: 8.0 seconds
+Current execution time lapse: 9.0 seconds
+Current execution time lapse: 10.0 seconds
+Current execution time lapse: 11.0 seconds
+Current execution time lapse: 12.0 seconds
+Current execution time lapse: 13.0 seconds
+Current execution time lapse: 14.0 seconds
+Current execution time lapse: 15.0 seconds
+Current execution time lapse: 16.0 seconds
+Current execution time lapse: 17.0 seconds
+Current execution time lapse: 18.0 seconds
+Current execution time lapse: 19.0 seconds
+Current execution time lapse: 20.0 seconds
+Current execution time lapse: 21.0 seconds
+Current execution time lapse: 22.0 seconds
+Current execution time lapse: 23.0 seconds
+Current execution time lapse: 24.0 seconds
+Current execution time lapse: 25.0 seconds
+Current execution time lapse: 26.0 seconds
+Current execution time lapse: 27.0 seconds
+Current execution time lapse: 28.0 seconds
+Current execution time lapse: 29.0 seconds
+Current execution time lapse: 30.0 seconds
+Current execution time lapse: 31.0 seconds
+Current execution time lapse: 32.0 seconds
+Current execution time lapse: 33.0 seconds
+Current execution time lapse: 34.2 seconds
+Current execution time lapse: 35.2 seconds
+Current execution time lapse: 36.2 seconds
+Current execution time lapse: 37.2 seconds
+Current execution time lapse: 48.9 seconds
+Current execution time lapse: 49.9 seconds
+Current execution time lapse: 50.9 seconds
+Current execution time lapse: 51.9 seconds
+Current execution time lapse: 52.9 seconds
+Current execution time lapse: 53.9 seconds
+Current execution time lapse: 54.9 seconds
+Current execution time lapse: 55.9 seconds
+Current execution time lapse: 56.9 seconds
+Current execution time lapse: 57.9 seconds
+Current execution time lapse: 58.9 seconds
+Current execution time lapse: 59.9 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:1915637  lt:1  rt:0  fl:0 
+  |Payment| sc:1915639  lt:0  rt:0  fl:0 
+  |Order Stat| sc:191564  lt:0  rt:0  fl:0 
+  |Delivery| sc:191564  lt:0  rt:0  fl:0 
+  |Slev| sc:191564  lt:0  rt:0  fl:0 
+ in 60.883999 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:1915646  lt:1  rt:0  fl:0 
+  |Payment| sc:1915648  lt:0  rt:0  fl:0 
+  |Order Stat| sc:191564  lt:0  rt:0  fl:0 
+  |Delivery| sc:191564  lt:0  rt:0  fl:0 
+  |Slev| sc:191565  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478310% (>=43.0%) [OK]
+   Order-Status: 4.347838% (>= 4.0%) [OK]
+       Delivery: 4.347815% (>= 4.0%) [OK]
+    Stock-Level: 4.347838% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 99.999947%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 1915661
+ Payment Total: 1915662
+ Order Stat Total: 191567
+ Delivery Total: 191567
+ Slev Total: 191567
+
+<TpmC>
+1887854.6 TpmC
+
+STOPPING THREADS
+2014-02-03 20:34:09,831 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 2430
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 1956312
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 19558737
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 1931148.2, 2142166.8, 2213877.2, 2190977.0, 2048299.6, 2005414.8, 1987972.4, 1887854.6, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 2
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 20:34:22,253 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:34:22,253 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 20:34:25,698 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 18000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 60000
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 600285
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ 2014-02-03 20:34:25,928 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 20:34:25,928 WARN d.t.l.DatabaseConnector$ [main] /Users/dashti/Dropbox/workspaces/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+Current execution time lapse: 0.0 seconds
+Current execution time lapse: 1.0 seconds
+Current execution time lapse: 2.0 seconds
+Current execution time lapse: 3.0 seconds
+Current execution time lapse: 4.0 seconds
+Current execution time lapse: 5.0 seconds
+Current execution time lapse: 6.0 seconds
+Current execution time lapse: 7.0 seconds
+Current execution time lapse: 8.0 seconds
+Current execution time lapse: 9.2 seconds
+Current execution time lapse: 10.2 seconds
+Current execution time lapse: 11.2 seconds
+Current execution time lapse: 12.2 seconds
+Current execution time lapse: 13.2 seconds
+Current execution time lapse: 14.2 seconds
+Current execution time lapse: 15.3 seconds
+Current execution time lapse: 16.3 seconds
+Current execution time lapse: 17.3 seconds
+Current execution time lapse: 18.3 seconds
+Current execution time lapse: 19.3 seconds
+Current execution time lapse: 20.3 seconds
+Current execution time lapse: 21.3 seconds
+Current execution time lapse: 22.3 seconds
+Current execution time lapse: 23.3 seconds
+Current execution time lapse: 24.3 seconds
+Current execution time lapse: 25.3 seconds
+Current execution time lapse: 33.0 seconds
+Current execution time lapse: 34.0 seconds
+Current execution time lapse: 35.0 seconds
+Current execution time lapse: 36.0 seconds
+Current execution time lapse: 37.0 seconds
+Current execution time lapse: 38.0 seconds
+Current execution time lapse: 39.0 seconds
+Current execution time lapse: 40.0 seconds
+Current execution time lapse: 41.0 seconds
+Current execution time lapse: 42.4 seconds
+Current execution time lapse: 43.4 seconds
+Current execution time lapse: 44.4 seconds
+Current execution time lapse: 45.4 seconds
+Current execution time lapse: 46.4 seconds
+Current execution time lapse: 47.4 seconds
+Current execution time lapse: 48.4 seconds
+Current execution time lapse: 49.4 seconds
+Current execution time lapse: 50.4 seconds
+Current execution time lapse: 51.4 seconds
+Current execution time lapse: 52.4 seconds
+Current execution time lapse: 53.4 seconds
+Current execution time lapse: 54.4 seconds
+Current execution time lapse: 55.4 seconds
+Current execution time lapse: 56.5 seconds
+Current execution time lapse: 57.5 seconds
+Current execution time lapse: 58.5 seconds
+Current execution time lapse: 59.5 seconds
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:1986363  lt:0  rt:0  fl:0 
+  |Payment| sc:1986361  lt:1  rt:0  fl:0 
+  |Order Stat| sc:198636  lt:0  rt:0  fl:0 
+  |Delivery| sc:198636  lt:0  rt:0  fl:0 
+  |Slev| sc:198636  lt:0  rt:0  fl:0 
+ in 60.466999 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:1986370  lt:0  rt:0  fl:0 
+  |Payment| sc:1986369  lt:1  rt:0  fl:0 
+  |Order Stat| sc:198637  lt:0  rt:0  fl:0 
+  |Delivery| sc:198637  lt:0  rt:0  fl:0 
+  |Slev| sc:198637  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478287% (>=43.0%) [OK]
+   Order-Status: 4.347817% (>= 4.0%) [OK]
+       Delivery: 4.347817% (>= 4.0%) [OK]
+    Stock-Level: 4.347839% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 99.999954%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 1986382
+ Payment Total: 1986382
+ Order Stat Total: 198639
+ Delivery Total: 198638
+ Slev Total: 198639
+
+<TpmC>
+1971045.8 TpmC
+
+STOPPING THREADS
+2014-02-03 20:35:46,404 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 4641
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 2
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 2026739
+}
+districtTbl => MapInfo => {
+	size => 20
+}
+orderLineTbl => MapInfo => {
+	size => 20264077
+}
+customerTbl => MapInfo => {
+	size => 60000
+}
+stockTbl => MapInfo => {
+	size => 200000
+}
+ tpmc array = [1853984.9, 1931148.2, 2142166.8, 2213877.2, 2190977.0, 2048299.6, 2005414.8, 1987972.4, 1887854.6, 1971045.8]
+TpmC<min,max,median> = (1853984.88,2213877.25,2005414.75)
+Terminating process now
+[~/Dropbox/workspaces/toasterbooster 20:35:47]$ 

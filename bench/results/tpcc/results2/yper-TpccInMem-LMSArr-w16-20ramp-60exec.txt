@@ -1,0 +1,1185 @@
+TPCC version 1.0.1 Number of Arguments: 8
+2014-02-03 23:12:03,589 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: os.name = Linux
+ 2014-02-03 23:12:03,591 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: os.arch = amd64
+ 2014-02-03 23:12:03,592 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: os.version = 2.6.32-431.3.1.el6.x86_64
+ 2014-02-03 23:12:03,592 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: java.runtime.name = Java(TM) SE Runtime Environment
+ 2014-02-03 23:12:03,592 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: java.vm.version = 24.51-b03
+ 2014-02-03 23:12:03,592 INFO d.t.t.TpccInMem$$anonfun$main$1 [main] System Property: java.library.path = /usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib
+ maxMemory = 39,254f MB
+2014-02-03 23:12:03,599 INFO d.t.t.TpccInMem [main] Loading properties from: ./conf/tpcc.properties
+ Using the properties file for configuration.
+***************************************
+****** Java TPC-C Load Generator ******
+***************************************
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:12:04,793 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:12:04,802 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:12:51,854 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:12:54,355 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:12:54,355 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:369849  lt:0  rt:0  fl:0 
+  |Payment| sc:369850  lt:0  rt:0  fl:0 
+  |Order Stat| sc:36985  lt:0  rt:0  fl:0 
+  |Delivery| sc:36985  lt:0  rt:0  fl:0 
+  |Slev| sc:36985  lt:0  rt:0  fl:0 
+ in 60.664001 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:369852  lt:0  rt:0  fl:0 
+  |Payment| sc:369853  lt:0  rt:0  fl:0 
+  |Order Stat| sc:36985  lt:0  rt:0  fl:0 
+  |Delivery| sc:36986  lt:0  rt:0  fl:0 
+  |Slev| sc:36985  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478157% (>=43.0%) [OK]
+   Order-Status: 4.347816% (>= 4.0%) [OK]
+       Delivery: 4.347933% (>= 4.0%) [OK]
+    Stock-Level: 4.347933% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 369873
+ Payment Total: 369872
+ Order Stat Total: 36987
+ Delivery Total: 36987
+ Slev Total: 36987
+
+<TpmC>
+365824.53 TpmC
+
+STOPPING THREADS
+2014-02-03 23:14:15,045 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 138694
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 1003410
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 10030666
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:14:27,061 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:14:27,062 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:15:06,784 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:15:09,066 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:15:09,067 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:412097  lt:0  rt:0  fl:0 
+  |Payment| sc:412095  lt:0  rt:0  fl:0 
+  |Order Stat| sc:41209  lt:0  rt:0  fl:0 
+  |Delivery| sc:41209  lt:0  rt:0  fl:0 
+  |Slev| sc:41209  lt:0  rt:0  fl:0 
+ in 61.088001 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:412097  lt:0  rt:0  fl:0 
+  |Payment| sc:412095  lt:0  rt:0  fl:0 
+  |Order Stat| sc:41209  lt:0  rt:0  fl:0 
+  |Delivery| sc:41209  lt:0  rt:0  fl:0 
+  |Slev| sc:41209  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478237% (>=43.0%) [OK]
+   Order-Status: 4.347771% (>= 4.0%) [OK]
+       Delivery: 4.347771% (>= 4.0%) [OK]
+    Stock-Level: 4.347771% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 412097
+ Payment Total: 412095
+ Order Stat Total: 41210
+ Delivery Total: 41210
+ Slev Total: 41210
+
+<TpmC>
+404764.25 TpmC
+
+STOPPING THREADS
+2014-02-03 23:16:30,170 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 139879
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 887979
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 8880146
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 404764.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:16:41,050 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:16:41,050 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:17:23,114 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:17:25,685 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:17:25,685 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:552266  lt:0  rt:0  fl:0 
+  |Payment| sc:552263  lt:0  rt:0  fl:0 
+  |Order Stat| sc:55226  lt:0  rt:0  fl:0 
+  |Delivery| sc:55226  lt:0  rt:0  fl:0 
+  |Slev| sc:55226  lt:0  rt:0  fl:0 
+ in 60.004002 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:552266  lt:0  rt:0  fl:0 
+  |Payment| sc:552263  lt:0  rt:0  fl:0 
+  |Order Stat| sc:55226  lt:0  rt:0  fl:0 
+  |Delivery| sc:55227  lt:0  rt:0  fl:0 
+  |Slev| sc:55226  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478271% (>=43.0%) [OK]
+   Order-Status: 4.347819% (>= 4.0%) [OK]
+       Delivery: 4.347819% (>= 4.0%) [OK]
+    Stock-Level: 4.347819% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 552271
+ Payment Total: 552271
+ Order Stat Total: 55227
+ Delivery Total: 55227
+ Slev Total: 55227
+
+<TpmC>
+552234.2 TpmC
+
+STOPPING THREADS
+2014-02-03 23:18:45,703 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 138468
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 1026744
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 10261848
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 404764.25, 552234.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:18:58,745 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:18:58,746 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:19:42,121 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:19:44,503 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:19:44,504 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:543390  lt:0  rt:0  fl:0 
+  |Payment| sc:543389  lt:0  rt:0  fl:0 
+  |Order Stat| sc:54339  lt:0  rt:0  fl:0 
+  |Delivery| sc:54338  lt:0  rt:0  fl:0 
+  |Slev| sc:54339  lt:0  rt:0  fl:0 
+ in 60.002998 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:543390  lt:0  rt:0  fl:0 
+  |Payment| sc:543389  lt:0  rt:0  fl:0 
+  |Order Stat| sc:54339  lt:0  rt:0  fl:0 
+  |Delivery| sc:54338  lt:0  rt:0  fl:0 
+  |Slev| sc:54339  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478249% (>=43.0%) [OK]
+   Order-Status: 4.347833% (>= 4.0%) [OK]
+       Delivery: 4.347753% (>= 4.0%) [OK]
+    Stock-Level: 4.347833% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 543397
+ Payment Total: 543398
+ Order Stat Total: 54340
+ Delivery Total: 54339
+ Slev Total: 54340
+
+<TpmC>
+543371.9 TpmC
+
+STOPPING THREADS
+2014-02-03 23:21:04,522 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 138514
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 1017907
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 10179135
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 404764.25, 552234.2, 543371.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:21:16,317 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:21:16,317 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:22:00,032 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:22:02,499 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:22:02,500 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:540848  lt:0  rt:0  fl:0 
+  |Payment| sc:540846  lt:0  rt:0  fl:0 
+  |Order Stat| sc:54084  lt:0  rt:0  fl:0 
+  |Delivery| sc:54084  lt:0  rt:0  fl:0 
+  |Slev| sc:54085  lt:0  rt:0  fl:0 
+ in 60.005001 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:540848  lt:0  rt:0  fl:0 
+  |Payment| sc:540846  lt:0  rt:0  fl:0 
+  |Order Stat| sc:54084  lt:0  rt:0  fl:0 
+  |Delivery| sc:54084  lt:0  rt:0  fl:0 
+  |Slev| sc:54085  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478218% (>=43.0%) [OK]
+   Order-Status: 4.347774% (>= 4.0%) [OK]
+       Delivery: 4.347774% (>= 4.0%) [OK]
+    Stock-Level: 4.347854% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 540848
+ Payment Total: 540846
+ Order Stat Total: 54084
+ Delivery Total: 54085
+ Slev Total: 54085
+
+<TpmC>
+540804.94 TpmC
+
+STOPPING THREADS
+2014-02-03 23:23:22,518 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 138619
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 1015469
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 10154703
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 404764.25, 552234.2, 543371.9, 540804.94, 0.0, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:23:34,528 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:23:34,529 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:24:19,586 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:24:21,976 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:24:21,976 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:540790  lt:0  rt:0  fl:0 
+  |Payment| sc:540790  lt:0  rt:0  fl:0 
+  |Order Stat| sc:54079  lt:0  rt:0  fl:0 
+  |Delivery| sc:54079  lt:0  rt:0  fl:0 
+  |Slev| sc:54079  lt:0  rt:0  fl:0 
+ in 60.002998 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:540790  lt:0  rt:0  fl:0 
+  |Payment| sc:540790  lt:0  rt:0  fl:0 
+  |Order Stat| sc:54079  lt:0  rt:0  fl:0 
+  |Delivery| sc:54079  lt:0  rt:0  fl:0 
+  |Slev| sc:54079  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478260% (>=43.0%) [OK]
+   Order-Status: 4.347826% (>= 4.0%) [OK]
+       Delivery: 4.347826% (>= 4.0%) [OK]
+    Stock-Level: 4.347826% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 540794
+ Payment Total: 540797
+ Order Stat Total: 54080
+ Delivery Total: 54080
+ Slev Total: 54080
+
+<TpmC>
+540772.94 TpmC
+
+STOPPING THREADS
+2014-02-03 23:25:41,992 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 138677
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 1015477
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 10153291
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 404764.25, 552234.2, 543371.9, 540804.94, 540772.94, 0.0, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:25:53,780 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:25:53,780 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:26:38,903 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:26:41,367 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:26:41,367 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:538266  lt:0  rt:0  fl:0 
+  |Payment| sc:538269  lt:0  rt:0  fl:0 
+  |Order Stat| sc:53826  lt:0  rt:0  fl:0 
+  |Delivery| sc:53826  lt:0  rt:0  fl:0 
+  |Slev| sc:53827  lt:0  rt:0  fl:0 
+ in 60.005001 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:538266  lt:0  rt:0  fl:0 
+  |Payment| sc:538269  lt:0  rt:0  fl:0 
+  |Order Stat| sc:53826  lt:0  rt:0  fl:0 
+  |Delivery| sc:53826  lt:0  rt:0  fl:0 
+  |Slev| sc:53827  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478424% (>=43.0%) [OK]
+   Order-Status: 4.347770% (>= 4.0%) [OK]
+       Delivery: 4.347770% (>= 4.0%) [OK]
+    Stock-Level: 4.347851% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 538266
+ Payment Total: 538269
+ Order Stat Total: 53826
+ Delivery Total: 53826
+ Slev Total: 53827
+
+<TpmC>
+538221.2 TpmC
+
+STOPPING THREADS
+2014-02-03 23:28:01,384 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 138667
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 1012934
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 10124376
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 404764.25, 552234.2, 543371.9, 540804.94, 540772.94, 538221.2, 0.0, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:28:13,092 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:28:13,092 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:28:57,397 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:28:59,730 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:28:59,731 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:542022  lt:0  rt:0  fl:0 
+  |Payment| sc:542022  lt:0  rt:0  fl:0 
+  |Order Stat| sc:54202  lt:0  rt:0  fl:0 
+  |Delivery| sc:54202  lt:0  rt:0  fl:0 
+  |Slev| sc:54202  lt:0  rt:0  fl:0 
+ in 60.276001 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:542022  lt:0  rt:0  fl:0 
+  |Payment| sc:542022  lt:0  rt:0  fl:0 
+  |Order Stat| sc:54202  lt:0  rt:0  fl:0 
+  |Delivery| sc:54202  lt:0  rt:0  fl:0 
+  |Slev| sc:54202  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478283% (>=43.0%) [OK]
+   Order-Status: 4.347812% (>= 4.0%) [OK]
+       Delivery: 4.347812% (>= 4.0%) [OK]
+    Stock-Level: 4.347812% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 542022
+ Payment Total: 542022
+ Order Stat Total: 54202
+ Delivery Total: 54203
+ Slev Total: 54202
+
+<TpmC>
+539543.1 TpmC
+
+STOPPING THREADS
+2014-02-03 23:30:20,021 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 138699
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 1016729
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 10166685
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 404764.25, 552234.2, 543371.9, 540804.94, 540772.94, 538221.2, 539543.1, 0.0, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:30:31,923 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:30:31,923 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:31:13,341 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:31:15,549 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:31:15,550 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:387092  lt:0  rt:0  fl:0 
+  |Payment| sc:387097  lt:0  rt:0  fl:0 
+  |Order Stat| sc:38709  lt:0  rt:0  fl:0 
+  |Delivery| sc:38709  lt:0  rt:0  fl:0 
+  |Slev| sc:38710  lt:0  rt:0  fl:0 
+ in 60.006001 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:387098  lt:0  rt:0  fl:0 
+  |Payment| sc:387097  lt:0  rt:0  fl:0 
+  |Order Stat| sc:38709  lt:0  rt:0  fl:0 
+  |Delivery| sc:38709  lt:0  rt:0  fl:0 
+  |Slev| sc:38710  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478264% (>=43.0%) [OK]
+   Order-Status: 4.347748% (>= 4.0%) [OK]
+       Delivery: 4.347748% (>= 4.0%) [OK]
+    Stock-Level: 4.347860% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 387098
+ Payment Total: 387097
+ Order Stat Total: 38709
+ Delivery Total: 38709
+ Slev Total: 38710
+
+<TpmC>
+387059.3 TpmC
+
+STOPPING THREADS
+2014-02-03 23:32:35,567 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 140256
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 863353
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 8629944
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 404764.25, 552234.2, 543371.9, 540804.94, 540772.94, 538221.2, 539543.1, 387059.3, 0.0]
+<Parameters>
+     [driver]: com.mysql.jdbc.Driver
+        [URL]: jdbc:mysql://localhost:3306/tpcctest
+       [user]: root
+       [pass]: ROOT
+  [warehouse]: 16
+ [connection]: 1
+     [rampup]: 20 (sec.)
+    [measure]: 60 (sec.)
+TOTAL:232014-02-03 23:32:47,543 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:32:47,544 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 2014-02-03 23:33:30,421 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 144000
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 480000
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 4798289
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ 2014-02-03 23:33:32,604 INFO d.t.l.DatabaseConnector$ [main] Connection to database: driver: com.mysql.jdbc.Driver url: jdbc:mysql://localhost:3306/tpcctest
+ 2014-02-03 23:33:32,604 WARN d.t.l.DatabaseConnector$ [main] /home/vjovanov/toasterbooster/conf/jdbc-connection.properties does not exist! Using default connection properties
+ 
+RAMPUP START.
+
+
+RAMPUP END.
+
+
+MEASURING START.
+
+---------------------------------------------------
+<Raw Results>
+  |NewOrder| sc:376360  lt:0  rt:0  fl:0 
+  |Payment| sc:376360  lt:0  rt:0  fl:0 
+  |Order Stat| sc:37636  lt:0  rt:0  fl:0 
+  |Delivery| sc:37636  lt:0  rt:0  fl:0 
+  |Slev| sc:37636  lt:0  rt:0  fl:0 
+ in 60.007000 sec.
+<Raw Results2(sum ver.)>
+  |NewOrder| sc:376360  lt:0  rt:0  fl:0 
+  |Payment| sc:376360  lt:0  rt:0  fl:0 
+  |Order Stat| sc:37636  lt:0  rt:0  fl:0 
+  |Delivery| sc:37636  lt:0  rt:0  fl:0 
+  |Slev| sc:37636  lt:0  rt:0  fl:0 
+<Constraint Check> (all must be [OK])
+ [transaction percentage]
+        Payment: 43.478432% (>=43.0%) [OK]
+   Order-Status: 4.347866% (>= 4.0%) [OK]
+       Delivery: 4.347866% (>= 4.0%) [OK]
+    Stock-Level: 4.347866% (>= 4.0%) [OK]
+ [response time (at least 90%% passed)]
+      NewOrder: 100.000000%  [OK]
+      Payment: 100.000000%  [OK]
+      Order Stat: 100.000000%  [OK]
+      Delivery: 100.000000%  [OK]
+      Slev: 100.000000%  [OK]
+ NewOrder Total: 376370
+ Payment Total: 376371
+ Order Stat Total: 37638
+ Delivery Total: 37637
+ Slev Total: 37637
+
+<TpmC>
+376326.1 TpmC
+
+STOPPING THREADS
+2014-02-03 23:34:52,623 INFO d.t.t.TpccInMem [main] 
+Tables Info:
+newOrderTbl => MapInfo => {
+	size => 140383
+}
+historyTbl => MapInfo => {
+	size => 0
+}
+warehouseTbl => MapInfo => {
+	size => 16
+}
+itemPartialTbl => MapInfo => {
+	size => 100000
+}
+orderTbl => MapInfo => {
+	size => 852760
+}
+districtTbl => MapInfo => {
+	size => 160
+}
+orderLineTbl => MapInfo => {
+	size => 8522987
+}
+customerTbl => MapInfo => {
+	size => 480000
+}
+stockTbl => MapInfo => {
+	size => 1600000
+}
+ tpmc array = [365824.53, 404764.25, 552234.2, 543371.9, 540804.94, 540772.94, 538221.2, 539543.1, 387059.3, 376326.1]
+TpmC<min,max,median> = (365824.53,552234.19,539543.13)
+Terminating process now
