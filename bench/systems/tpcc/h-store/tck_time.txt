@@ -1,0 +1,57 @@
+Benchmarks @TCK
+
+
+CORRECTED
+--------------------------- W=1
+user time=89.470001
+system time=3.150000
+real time=92.620003
+Committed 7963931 transactions, TP = 85985.003239
+Committed 3600563 new order transactions, TP = 38874.573526
+--------------------------- W=5
+user time=84.089996
+system time=3.060000
+real time=87.150002
+Committed 7964050 transactions, TP = 91383.247275
+Committed 3598525 new order transactions, TP = 41291.164659
+--------------------------- W=10
+user time=85.980003
+system time=3.170000
+real time=89.160004
+Committed 7963864 transactions, TP = 89321.040825
+Committed 3598444 new order transactions, TP = 40359.398834
+
+TPMC
+W= 1: 2'332'474
+W= 5: 2'477'469
+W=10: 2'421'563
+
+ORIGINAL
+--------------------------- W=1
+user time=0.180000
+system time=0.010000
+real time=0.200000
+Committed 39821 transactions, TP = 199105.000000
+Committed 17877 new order transactions, TP = 89385.000000
+--------------------------- W=5
+user time=0.220000
+system time=0.010000
+real time=0.240000
+Committed 39814 transactions, TP = 165891.666667
+Committed 18049 new order transactions, TP = 75204.166667
+--------------------------- W=10
+user time=0.250000
+system time=0.010000
+real time=0.260000
+Committed 39816 transactions, TP = 153138.461538
+Committed 17995 new order transactions, TP = 69211.538462
+
+TPMC
+W= 1: 5'363'100
+W= 5: 4'512'250
+W=10: 4'152'692
+
+LONG RUN (PATCHED)
+W= 1: 3'298'729
+W= 5: 4'114'951
+W=10: 3'960'862

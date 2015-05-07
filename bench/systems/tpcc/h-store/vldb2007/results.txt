@@ -1,0 +1,22 @@
+Committed 99532 transactions, TP = 38728.404669
+
+PAYMENT:
+Instructions
+Chkpoint #1: 102 instructions
+Chkpoint #2: 43 instructions
+Chkpoint #3: 228 instructions
+Chkpoint #4: 45 instructions
+Chkpoint #5: 577 instructions
+Chkpoint #6: 39 instructions
+Chkpoint #7: 353 instructions
+Chkpoint #8: 0 instructions
+
+Cycles
+Chkpoint #1: 263 cycles
+Chkpoint #2: 272 cycles
+Chkpoint #3: 487 cycles
+Chkpoint #4: 286 cycles
+Chkpoint #5: 3000 cycles
+Chkpoint #6: 980 cycles
+Chkpoint #7: 958 cycles
+Chkpoint #8: 0 cycles
