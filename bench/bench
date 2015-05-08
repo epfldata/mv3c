@@ -1,5 +1,6 @@
 #!/bin/sh
 
+#export JAVA_HOME=/home/vjovanov/bin/jdk1.7.0_51/
 WARES="2 4" # "2 4 8 16"
 SAMPLES=5
 
@@ -16,7 +17,6 @@ MYDB=tpcctest
 # VoltDB
 VOLTDB=/home/vjovanov/voltdb
 VTIME=60
-export JAVA_HOME=/home/vjovanov/bin/jdk1.7.0_51/
 
 # output format: <name>,<warehouses>,<value>,<time>
 
@@ -27,9 +27,9 @@ if [ "$BOOST" ]; then export DYLD_LIBRARY_PATH=$BOOST/lib; export LD_LIBRARY_PAT
 if [ ! -z "$MYPASS" ]; then myargs="-p$MYPASS"; fi; myargs="-u$MYUSER $myargs $MYDB"
 
 load() { # $1=warehouses, $2=type
- myf="$BENCH/db$1$2.sql.bz2"
- mysql $myargs < $BASE/mysql/tpcc_$2.sql
- mysql $myargs < $BASE/mysql/tpcc_proc.sql
+ myf="$BENCH/systems/tpcc/mysql/db$1$2.sql.bz2"
+ mysql $myargs < $BENCH/systems/tpcc/mysql/tpcc_$2.sql
+ mysql $myargs < $BENCH/systems/tpcc/mysql/tpcc_proc.sql
  if [ ! -f "$myf" ]; then
    echo "Recreating Database..."
    cd $BASE; sbt "test:run-main ddbt.tpcc.loadtest.TpccLoad -w $1 -u $MYUSER -p $MYPASS" || exit 1; cd $BENCH
@@ -44,20 +44,20 @@ case "$1" in
 # ------------------------------------------------------------------------------
 hstore)
   SOURCES="TupleBuffer.cpp test.cpp HashIndex.cpp UnexpectedException.cpp Exception.cpp Socket.cpp ClientSocket.cpp ServerSocket.cpp StopWatch.cpp util.cpp"
-  comp() { cd "$BASE/h-store/$1"; g++ -o "$BENCH/test" -D"NUM_LOOPS=$HLOOPS" -O3 -lboost_system $BOOST $SOURCES; }
+  comp() { cd "$BASE/h-store/$1"; g++ -o "$BENCH/systems/tpcc/hstore/test" -D"NUM_LOOPS=$HLOOPS" -O3 -lboost_system $BOOST $SOURCES; }
   bench() {
     cd "$BENCH";
     for W in $WARES; do
       i=0; while [ "$i" != "$SAMPLES" ]; do i="`expr $i + 1`";
         RAW=`./t2 ./test W 1 | grep -E 'new order|^Time' | sed 's/.*= *//g'`
         ### XXX: RESULT NEEDS TO BE MULTIPLIED BY 60 TO GET TPMC
-        echo "$1,$W,"`echo $RAW | sed 's/ /,/g'` | tee -a $BENCH/hstore.csv
+        echo "$1,$W,"`echo $RAW | sed 's/ /,/g'` | tee -a $BENCH/results/tpcc/hstore.csv
       done
     done
   }
   comp tck; bench 'HStoreFixed'
   comp vldb2007; bench 'HStoreOriginal'
-  rm $BENCH/test
+  rm -rf $BENCH/systems/tpcc/hstore/test
 ;;
 # ------------------------------------------------------------------------------
 mysql)
@@ -76,7 +76,7 @@ EOF
       i=0; while [ "$i" != "$SAMPLES" ]; do i="`expr $i + 1`";
         load $W $1
         OUT=`run $W`
-        echo "$2,$W,"`echo $OUT | sed 's/[^0-9=.]//g' | sed 's/=/,/g'` | tee -a $BENCH/mysql.csv
+        echo "$2,$W,"`echo $OUT | sed 's/[^0-9=.]//g' | sed 's/=/,/g'` | tee -a $BENCH/results/tpcc/mysql.csv
       done
     done
   }
@@ -85,8 +85,8 @@ EOF
 ;;
 # ------------------------------------------------------------------------------
 voltdb)
-  pid="$BENCH/server_pid"
-  dep="$BENCH/deployment.xml"
+  #pid="$BENCH/server_pid"
+  dep="$BENCH/systems/tpcc/voltdb/deployment.xml"
   cat>$dep<<EOF
   <deployment>
     <cluster hostcount="1" sitesperhost="1" kfactor="0" />
@@ -106,13 +106,13 @@ EOF
       PID="$!"
       # run client
       OUT=`WAREHOUSES=$W DURATION=$VTIME ./run.sh client | grep "New Order:.*txn/m" | awk '{print $7}'`
-      echo "VoltDB,$W,$OUT" | tee -a $BENCH/voltdb.csv
+      echo "VoltDB,$W,$OUT" | tee -a $BENCH/results/tpcc/voltdb.csv
       # shutdown server
       PIDS="`ps -f | grep $PID | cut -d ' ' -f 2,3`"
       kill $PIDS 2>/dev/null; sleep 1
     done
   done
-  rm $dep
+  rm -rf $dep
 ;;
 # ------------------------------------------------------------------------------
 load) load $2 innodb;;
@@ -121,12 +121,12 @@ load) load $2 innodb;;
   for W in $WARES; do
     load $W innodb
     cd $BASE
-    export JAVA_HOME=/home/vjovanov/bin/jdk1.7.0_51
     sbt compile
     sbt test:compile
     CP="$HOME/.sbt/boot/scala-2.10.2/lib/scala-library.jar:target/scala-2.10/classes:target/scala-2.10/test-classes:lib/dbtlib.jar:lib/log4j-api-2.0-beta9.jar:lib/log4j-core-2.0-beta9.jar:lib/log4j-slf4j-impl-2.0-beta9.jar:lib/mysql-connector-java-5.1.26-bin.jar:lib/slf4j-api-1.7.2.jar:lib/slf4j-ext-1.7.2.jar"
-    $JAVA_HOME/bin/java -server -Xss512m -Xmx12G -Xms12G -XX:MaxPermSize=8G -XX:-DontCompileHugeMethods -classpath $CP ddbt.tpcc.tx.TpccInMem -w $W -i $1 -t 60 | tee -a $BENCH/sstore_$1_$W_60exec.txt
-    $BENCH/tpcc_process.sh
+    OUT_FILE="$BENCH/results/tpcc/sstore_"$1"_"$W"_60exec.txt"
+    eval "$JAVA_HOME/bin/java -server -Xss512m -Xmx12G -Xms12G -XX:MaxPermSize=8G -XX:-DontCompileHugeMethods -classpath $CP ddbt.tpcc.tx.TpccInMem -w $W -i $1 -t 60 | tee -a $OUT_FILE"
+    eval "$BENCH/tpcc_process.sh"
   done
 ;;
 # ------------------------------------------------------------------------------
@@ -134,4 +134,4 @@ load) load $2 innodb;;
   echo "Usage: `basename $0` hstore|mysql|voltdb|-1|1|2|3|4|5"
 ;;
 esac
-rm $BENCH/t2
+rm -rf $BENCH/t2

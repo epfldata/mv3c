@@ -39,3 +39,6 @@ conf/log4j2.xml
 conf/tpcc.properties
 sstore.sublime-project
 sstore.sublime-workspace
+sstore*.csv
+sstore_*.txt
+*.sql.bz2
