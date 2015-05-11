@@ -19,6 +19,15 @@ class InMemoryTxImpl extends IInMemoryTx {
 		SharedData = db.asInstanceOf[TpccTable]
 		this
 	}
+}
+
+class InMemoryTxImplViaITpccTable extends InMemoryTxImpl {
+	var ISharedData:ITpccTable = null
+
+	override def setSharedData(db:AnyRef) = {
+		ISharedData = db.asInstanceOf[ITpccTable]
+		this
+	}
 } 
 
 trait INewOrderInMem extends INewOrder with IInMemoryTx

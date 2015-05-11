@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #export JAVA_HOME=/home/vjovanov/bin/jdk1.7.0_51/
-WARES="2 4" # "2 4 8 16"
+WARES="1" # "2 4 8 16"
 SAMPLES=5
 
 # H-Store
@@ -117,7 +117,7 @@ EOF
 # ------------------------------------------------------------------------------
 load) load $2 innodb;;
 # ------------------------------------------------------------------------------
--1|1|2|3|4|5)
+-1|1|2|3|4|5|6)
   for W in $WARES; do
     load $W innodb
     cd $BASE
@@ -125,13 +125,13 @@ load) load $2 innodb;;
     sbt test:compile
     CP="$HOME/.sbt/boot/scala-2.10.2/lib/scala-library.jar:target/scala-2.10/classes:target/scala-2.10/test-classes:lib/dbtlib.jar:lib/log4j-api-2.0-beta9.jar:lib/log4j-core-2.0-beta9.jar:lib/log4j-slf4j-impl-2.0-beta9.jar:lib/mysql-connector-java-5.1.26-bin.jar:lib/slf4j-api-1.7.2.jar:lib/slf4j-ext-1.7.2.jar"
     OUT_FILE="$BENCH/results/tpcc/sstore_"$1"_"$W"_60exec.txt"
-    eval "$JAVA_HOME/bin/java -server -Xss512m -Xmx12G -Xms12G -XX:MaxPermSize=8G -XX:-DontCompileHugeMethods -classpath $CP ddbt.tpcc.tx.TpccInMem -w $W -i $1 -t 60 | tee -a $OUT_FILE"
+    eval "$JAVA_HOME/bin/java -server -Xss512m -Xmx12G -Xms8G -XX:-DontCompileHugeMethods -classpath $CP ddbt.tpcc.tx.TpccInMem -w $W -i $1 -t 60 | tee -a $OUT_FILE"
     eval "$BENCH/tpcc_process.sh"
   done
 ;;
 # ------------------------------------------------------------------------------
 *)
-  echo "Usage: `basename $0` hstore|mysql|voltdb|-1|1|2|3|4|5"
+  echo "Usage: `basename $0` hstore|mysql|voltdb|-1|1|2|3|4|5|6"
 ;;
 esac
 rm -rf $BENCH/t2

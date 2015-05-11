@@ -840,6 +840,21 @@ class TpccTable(implVersion:Int) {
 		.append("customerTbl => ").append(customerTbl.getInfoStr).append("\n")
 		.append("stockTbl => ").append(stockTbl.getInfoStr).toString
 	}
+
+	def toITpccTable = {
+		val res = new ITpccTable
+		val THE_VALUE_DOES_NOT_EXIST = -1 //TODO: should be FIXED
+		newOrderTbl.foreach { case (k,v) => res.onInsert_NewOrder(k._1,k._2,k._3) }
+		historyTbl.foreach { case (k,v) => res.onInsert_HistoryTbl(k._1,k._2,k._3,k._4,k._5,k._6,k._7,k._8) }
+		warehouseTbl.foreach { case (k,v) => res.onInsert_Warehouse(k,v._1,v._2,v._3,v._4,v._5,v._6,v._7,v._8) }
+		itemPartialTbl.foreach { case (k,v) => res.onInsert_Item(k,THE_VALUE_DOES_NOT_EXIST,v._1,v._2,v._3) }
+		customerTbl.foreach { case (k,v) => res.onInsertCustomer(k._1,k._2,k._3,v._1,v._2,v._3,v._4,v._5,v._6,v._7,v._8,v._9,v._10,v._11,v._12,v._13,v._14,v._15,v._16,v._17,v._18) }
+		orderTbl.foreach { case (k,v) => res.onInsert_Order(k._1,k._2,k._3,v._1,v._2,v._3,v._4,v._5) }
+		districtTbl.foreach { case (k,v) => res.onInsert_District(k._1,k._2,v._1,v._2,v._3,v._4,v._5,v._6,v._7,v._8,v._9) }
+		orderLineTbl.foreach { case (k,v) => res.onInsertOrderLine(k._1,k._2,k._3,k._4,v._1,v._2,v._3,v._4,v._5,v._6) }
+		stockTbl.foreach { case (k,v) => res.onInsertStock(k._1,k._2,v._1,v._2,v._3,v._4,v._5,v._6,v._7,v._8,v._9,v._10,v._11,v._12,v._13,v._14,v._15) }
+	    res
+	}
 }
 
 object TpccSelectQueries {

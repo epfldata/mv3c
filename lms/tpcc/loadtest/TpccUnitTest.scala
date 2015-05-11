@@ -76,7 +76,13 @@ object TpccUnitTest {
     var delivery: IDeliveryInMem = null
     var slev: IStockLevelInMem = null
 
-    if(IMPL_VERSION_UNDER_TEST == 5) {
+    if(IMPL_VERSION_UNDER_TEST == 6) {
+      newOrder = new ddbt.tpcc.tx6.NewOrder
+      payment = new ddbt.tpcc.tx6.Payment
+      orderStat = new ddbt.tpcc.tx6.OrderStatus
+      delivery = new ddbt.tpcc.tx6.Delivery
+      slev = new ddbt.tpcc.tx6.StockLevel
+    } else if(IMPL_VERSION_UNDER_TEST == 5) {
       newOrder = new ddbt.tpcc.tx5.NewOrder
       payment = new ddbt.tpcc.tx5.Payment
       orderStat = new ddbt.tpcc.tx5.OrderStatus
@@ -334,6 +340,9 @@ class TpccUnitTest(val newOrder: INewOrderInMem,
       SharedDataScala = new TpccTable
       SharedDataScala.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
       logger.info(SharedDataScala.getAllMapsInfoStr)
+      if(IMPL_VERSION_UNDER_TEST == 6) {
+        SharedDataScala = SharedDataScala.toITpccTable
+      }
       newOrder.setSharedData(SharedDataScala)
       payment.setSharedData(SharedDataScala)
       orderStat.setSharedData(SharedDataScala)
