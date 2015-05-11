@@ -232,9 +232,7 @@ class TpccInMem() {
           fetchSize = Integer.parseInt(argv(i + 1))
         } else if (argv(i) == "-i") {
           implVersionUnderTest = Integer.parseInt(argv(i + 1))
-          IN_MEMORY_IMPL_VERSION_UNDER_TEST = implVersionUnderTest
-          TpccTable.testSpecialDsUsed = IN_MEMORY_IMPL_VERSION_UNDER_TEST >= 5
-          TpccTable.testAdditionalSpecialDsUsed = IN_MEMORY_IMPL_VERSION_UNDER_TEST >= 5
+          TpccConstants.IN_MEMORY_IMPL_VERSION_UNDER_TEST = implVersionUnderTest
         } else {
           println("Incorrect Argument: " + argv(i))
           println("The possible arguments are as follows: ")

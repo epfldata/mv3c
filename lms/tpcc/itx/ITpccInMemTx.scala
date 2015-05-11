@@ -1,7 +1,7 @@
 package ddbt.tpcc.itx
 
 import java.util.Date
-import ddbt.tpcc.tx.TpccTable
+import ddbt.tpcc.tx._
 
 /**
  * NewOrder Transaction for TPC-C Benchmark

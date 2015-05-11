@@ -19,9 +19,8 @@ object TpccTable {
 	var NUM_WAREHOUSES:Int = 1
 	val DISTRICTS_UNDER_A_WAREHOUSE:Int = 10
 
-	var testSpecialDsUsed = IN_MEMORY_IMPL_VERSION_UNDER_TEST >= 5
-
-	var testAdditionalSpecialDsUsed = IN_MEMORY_IMPL_VERSION_UNDER_TEST >= 5
+	def testSpecialDs:Boolean = testSpecialDs(IN_MEMORY_IMPL_VERSION_UNDER_TEST)
+	def testSpecialDs(implVersion:Int):Boolean = implVersion == 5
 }
 
 /**
@@ -29,7 +28,9 @@ object TpccTable {
  *
  * @author Mohammad Dashti
  */
-class TpccTable {
+class TpccTable(implVersion:Int) {
+	def this() = this(IN_MEMORY_IMPL_VERSION_UNDER_TEST)
+	def testSpecialDsUsed = TpccTable.testSpecialDs(implVersion)
 	//NewOrder: W
 	//Delivery: RW
 
@@ -268,7 +269,7 @@ class TpccTable {
       stockTbl.update((s_i_id,s_w_id), updateFunc)
     }
 
-	class MiniCustomer(val cust_id:Int, val cust_first:String) extends Ordered[MiniCustomer] {
+	private class MiniCustomer(val cust_id:Int, val cust_first:String) extends Ordered[MiniCustomer] {
 		def compare(that: MiniCustomer) = this.cust_first.compareToIgnoreCase(that.cust_first)
 		override def toString = "MiniCustomer(%s,%s)".format(cust_id, cust_first)
 	} 
@@ -325,6 +326,9 @@ class TpccTable {
       (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data,c_id)
     }
 
+    /////////////////////////////////////////////
+    //// Comparison Funcions
+    /////////////////////////////////////////////
     def wareHouseCmp(t1:Product, t2:Product) = {
 		val v1 = t1.asInstanceOf[(String,String,String,String,String,String,Float,Double)]
 		val v2 = t2.asInstanceOf[(String,String,String,String,String,String,Float,Double)]
@@ -463,7 +467,11 @@ class TpccTable {
 					testSpecialDsUsed && ((itemPartialArr equals other.itemPartialArr) || deepEqualArr(itemPartialArr, other.itemPartialArr, itemCmp))
 				)) &&
 				((orderTbl equals other.orderTbl) || deepEqual(orderTbl, other.orderTbl, orderCmp)) &&
-				((districtTbl equals other.districtTbl) || deepEqual(districtTbl, other.districtTbl, districtCmp)) &&
+				((
+					!testSpecialDsUsed && ((districtTbl equals other.districtTbl) || deepEqual(districtTbl, other.districtTbl, districtCmp))
+				) || (
+					testSpecialDsUsed && ((districtArr equals other.districtArr) || deepEqualArr(districtArr, other.districtArr, districtCmp))
+				)) &&
 				((orderLineTbl equals other.orderLineTbl) || deepEqual(orderLineTbl, other.orderLineTbl, orderLineCmp)) &&
 				((customerTbl equals other.customerTbl) || deepEqual(customerTbl, other.customerTbl, customerCmp)) &&
 				((stockTbl equals other.stockTbl) || deepEqual(stockTbl, other.stockTbl, stockCmp))
@@ -515,17 +523,23 @@ class TpccTable {
 				if(!valx && !testSpecialDsUsed) {
 					showDiff(itemPartialTbl , other.itemPartialTbl, itemCmp)
 				} else if(!valx && testSpecialDsUsed) {
-					showDiffArr(itemPartialArr , other.itemPartialArr, wareHouseCmp)
+					showDiffArr(itemPartialArr , other.itemPartialArr, itemCmp)
 				}
 				valx = ((orderTbl equals other.orderTbl) || deepEqual(orderTbl, other.orderTbl, orderCmp))
 				println("(orderTbl equals other.orderTbl) => %s".format(valx))
 				if(!valx) {
 					showDiff(orderTbl , other.orderTbl, orderCmp)
 				}
-				valx = ((districtTbl equals other.districtTbl) || deepEqual(districtTbl, other.districtTbl, districtCmp))
+				valx = ((
+					!testSpecialDsUsed && ((districtTbl equals other.districtTbl) || deepEqual(districtTbl, other.districtTbl, districtCmp))
+				) || (
+					testSpecialDsUsed && ((districtArr equals other.districtArr) || deepEqualArr(districtArr, other.districtArr, districtCmp))
+				))
 				println("(districtTbl equals other.districtTbl) => %s".format(valx))
-				if(!valx) {
+				if(!valx && !testSpecialDsUsed) {
 					showDiff(districtTbl , other.districtTbl, districtCmp)
+				} else if(!valx && testSpecialDsUsed) {
+					showDiffArr(districtArr , other.districtArr, districtCmp)
 				}
 				valx = ((orderLineTbl equals other.orderLineTbl) || deepEqual(orderLineTbl, other.orderLineTbl, orderLineCmp))
 				println("(orderLineTbl equals other.orderLineTbl) => %s".format(valx))
@@ -779,14 +793,18 @@ class TpccTable {
     	val addedElements: SHMap[Int,V] = new SHMap[Int,V]
     	val removedElements: SHMap[Int,V] = new SHMap[Int,V]
     	map2.zipWithIndex.foreach{ case (v,k) =>
-    		if(map1.size <= k || !(v == null && map1(k) == null) || (!(map1(k) equals v) && !f(v.asInstanceOf[Product], map1(k).asInstanceOf[Product]))) {
-    			addedElements += (k, v)
-    		}
+    		if(!(v == null && map1(k) == null)) {
+	    		if(map1.size <= k || (!(map1(k) equals v) && !f(v.asInstanceOf[Product], map1(k).asInstanceOf[Product]))) {
+	    			addedElements += (k, v)
+	    		}
+	    	}
     	}
     	map1.zipWithIndex.foreach{ case (v,k) =>
-    		if(map2.size <= k || !(v == null && map2(k) == null) || (!(map2(k) equals v) && !f(v.asInstanceOf[Product], map2(k).asInstanceOf[Product]))) {
-    			removedElements += (k, v)
-    		}
+    		if(!(v == null && map2(k) == null)) {
+	    		if(map2.size <= k || (!(map2(k) equals v) && !f(v.asInstanceOf[Product], map2(k).asInstanceOf[Product]))) {
+	    			removedElements += (k, v)
+	    		}
+	    	}
     	}
     	println("added elements => %s".format(addedElements))
     	println("removed elements => %s".format(removedElements))
