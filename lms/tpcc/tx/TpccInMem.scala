@@ -108,7 +108,7 @@ class TpccInMem() {
   var delivery: IDeliveryInMem = null
   var slev: IStockLevelInMem = null
 
-  var implVersionUnderTest = IN_MEMORY_IMPL_VERSION_UNDER_TEST
+  private var implVersionUnderTest = 0
 
   private var javaDriver: String = _
 
@@ -203,7 +203,7 @@ class TpccInMem() {
     measureTime = Integer.parseInt(properties.getProperty(DURATION))
     javaDriver = properties.getProperty(DRIVER)
     jdbcUrl = properties.getProperty(JDBCURL)
-    implVersionUnderTest = IN_MEMORY_IMPL_VERSION_UNDER_TEST
+    implVersionUnderTest = 0
     val jdbcFetchSize = properties.getProperty("JDBCFETCHSIZE")
     if (jdbcFetchSize != null) {
       fetchSize = Integer.parseInt(jdbcFetchSize)
@@ -232,7 +232,6 @@ class TpccInMem() {
           fetchSize = Integer.parseInt(argv(i + 1))
         } else if (argv(i) == "-i") {
           implVersionUnderTest = Integer.parseInt(argv(i + 1))
-          TpccConstants.IN_MEMORY_IMPL_VERSION_UNDER_TEST = implVersionUnderTest
         } else {
           println("Incorrect Argument: " + argv(i))
           println("The possible arguments are as follows: ")
@@ -371,7 +370,7 @@ class TpccInMem() {
       var SharedDataScala: TpccTable = null
       var SharedDataLMS: EfficientExecutor = null
       if(implVersionUnderTest > 0) {
-        SharedDataScala = new TpccTable
+        SharedDataScala = new TpccTable(TpccTable.tpccTableImplVersion(implVersionUnderTest))
         SharedDataScala.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
         logger.info(SharedDataScala.getAllMapsInfoStr)
         if(implVersionUnderTest == 6) {

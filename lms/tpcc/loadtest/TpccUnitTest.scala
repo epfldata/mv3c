@@ -19,7 +19,6 @@ import DatabaseConnector._
 import TpccConstants._
 import tpcc.lmsgen._
 import tpcc.lms._
-import TpccUnitTest.IMPL_VERSION_UNDER_TEST
 
 object TpccUnitTest {
 
@@ -53,8 +52,6 @@ object TpccUnitTest {
 
   private val TRANSACTION_NAME = Array("NewOrder", "Payment", "Order Stat", "Delivery", "Slev")
 
-  val IMPL_VERSION_UNDER_TEST = IN_MEMORY_IMPL_VERSION_UNDER_TEST
-
   @volatile var counting_on: Boolean = false
 
   @volatile var activate_transaction: Int = 0
@@ -70,35 +67,8 @@ object TpccUnitTest {
     println("maxMemory = " + 
       df.format(Runtime.getRuntime.totalMemory() / (1024.0 * 1024.0)) + 
       " MB")
-    var newOrder: INewOrderInMem = null
-    var payment: IPaymentInMem = null
-    var orderStat: IOrderStatusInMem = null
-    var delivery: IDeliveryInMem = null
-    var slev: IStockLevelInMem = null
 
-    if(IMPL_VERSION_UNDER_TEST == 6) {
-      newOrder = new ddbt.tpcc.tx6.NewOrder
-      payment = new ddbt.tpcc.tx6.Payment
-      orderStat = new ddbt.tpcc.tx6.OrderStatus
-      delivery = new ddbt.tpcc.tx6.Delivery
-      slev = new ddbt.tpcc.tx6.StockLevel
-    } else if(IMPL_VERSION_UNDER_TEST == 5) {
-      newOrder = new ddbt.tpcc.tx5.NewOrder
-      payment = new ddbt.tpcc.tx5.Payment
-      orderStat = new ddbt.tpcc.tx5.OrderStatus
-      delivery = new ddbt.tpcc.tx5.Delivery
-      slev = new ddbt.tpcc.tx5.StockLevel
-    } else if(IMPL_VERSION_UNDER_TEST == -1) {
-      newOrder = new NewOrderLMSImpl
-      payment = new PaymentLMSImpl
-      orderStat = new OrderStatusLMSImpl
-      delivery = new DeliveryLMSImpl
-      slev = new StockLevelLMSImpl
-    } else {
-      throw new RuntimeException("No in-memory implementation selected.")
-    }
-
-    val tpcc = new TpccUnitTest(newOrder,payment,orderStat,delivery,slev)
+    val tpcc = new TpccUnitTest
     var ret = 0
     if (argv.length == 0) {
       println("Using the properties file for configuration.")
@@ -107,6 +77,7 @@ object TpccUnitTest {
     } else {
       if ((argv.length % 2) == 0) {
         println("Using the command line arguments for configuration.")
+        tpcc.init()
         ret = tpcc.runBenchmark(true, argv)
       } else {
         println("Invalid number of arguments.")
@@ -130,11 +101,9 @@ object TpccUnitTest {
   }
 }
 
-class TpccUnitTest(val newOrder: INewOrderInMem, 
-                val payment: IPaymentInMem, 
-                val orderStat: IOrderStatusInMem, 
-                val delivery: IDeliveryInMem, 
-                val slev: IStockLevelInMem) {
+class TpccUnitTest {
+
+  private var implVersionUnderTest = 0
 
   private var javaDriver: String = _
 
@@ -228,6 +197,22 @@ class TpccUnitTest(val newOrder: INewOrderInMem,
       max_rt(i) = 0f
     }
     num_node = 0
+
+    {
+      dbUser = properties.getProperty(USER)
+      dbPassword = properties.getProperty(PASSWORD)
+      numWare = Integer.parseInt(properties.getProperty(WAREHOUSECOUNT))
+      numConn = Integer.parseInt(properties.getProperty(CONNECTIONS))
+      rampupTime = Integer.parseInt(properties.getProperty(RAMPUPTIME))
+      measureTime = Integer.parseInt(properties.getProperty(DURATION))
+      javaDriver = properties.getProperty(DRIVER)
+      jdbcUrl = properties.getProperty(JDBCURL)
+      val jdbcFetchSize = properties.getProperty("JDBCFETCHSIZE")
+      if (jdbcFetchSize != null) {
+        fetchSize = Integer.parseInt(jdbcFetchSize)
+      }
+    }
+
     if (overridePropertiesFile) {
       var i = 0
       while (i < argv.length) {
@@ -249,6 +234,8 @@ class TpccUnitTest(val newOrder: INewOrderInMem,
           jdbcUrl = argv(i + 1)
         } else if (argv(i) == "-f") {
           fetchSize = Integer.parseInt(argv(i + 1))
+        } else if (argv(i) == "-i") {
+          implVersionUnderTest = Integer.parseInt(argv(i + 1))
         } else {
           println("Incorrect Argument: " + argv(i))
           println("The possible arguments are as follows: ")
@@ -263,22 +250,10 @@ class TpccUnitTest(val newOrder: INewOrderInMem,
           println("-j [java driver]")
           println("-l [jdbc url]")
           println("-h [jdbc fetch size]")
+          println("-i [target implementation (-1|1|2|3|4|5|6)]")
           System.exit(-1)
         }
         i = i + 2
-      }
-    } else {
-      dbUser = properties.getProperty(USER)
-      dbPassword = properties.getProperty(PASSWORD)
-      numWare = Integer.parseInt(properties.getProperty(WAREHOUSECOUNT))
-      numConn = Integer.parseInt(properties.getProperty(CONNECTIONS))
-      rampupTime = Integer.parseInt(properties.getProperty(RAMPUPTIME))
-      measureTime = Integer.parseInt(properties.getProperty(DURATION))
-      javaDriver = properties.getProperty(DRIVER)
-      jdbcUrl = properties.getProperty(JDBCURL)
-      val jdbcFetchSize = properties.getProperty("JDBCFETCHSIZE")
-      if (jdbcFetchSize != null) {
-        fetchSize = Integer.parseInt(jdbcFetchSize)
       }
     }
     if (num_node > 0) {
@@ -315,6 +290,62 @@ class TpccUnitTest(val newOrder: INewOrderInMem,
     if (measureTime < 1) {
       throw new RuntimeException("Duration has to be greater than or equal to 1.")
     }
+    if (implVersionUnderTest == 0) {
+      throw new RuntimeException("Target implementation should be selected for testing.")
+    }
+
+    var newOrder: INewOrderInMem = null
+    var payment: IPaymentInMem = null
+    var orderStat: IOrderStatusInMem = null
+    var delivery: IDeliveryInMem = null
+    var slev: IStockLevelInMem = null
+
+    if(implVersionUnderTest == 6) {
+      newOrder = new ddbt.tpcc.tx6.NewOrder
+      payment = new ddbt.tpcc.tx6.Payment
+      orderStat = new ddbt.tpcc.tx6.OrderStatus
+      delivery = new ddbt.tpcc.tx6.Delivery
+      slev = new ddbt.tpcc.tx6.StockLevel
+    } else if(implVersionUnderTest == 5) {
+      newOrder = new ddbt.tpcc.tx5.NewOrder
+      payment = new ddbt.tpcc.tx5.Payment
+      orderStat = new ddbt.tpcc.tx5.OrderStatus
+      delivery = new ddbt.tpcc.tx5.Delivery
+      slev = new ddbt.tpcc.tx5.StockLevel
+    } else if(implVersionUnderTest == 4) {
+      newOrder = new ddbt.tpcc.tx4.NewOrder
+      payment = new ddbt.tpcc.tx4.Payment
+      orderStat = new ddbt.tpcc.tx4.OrderStatus
+      delivery = new ddbt.tpcc.tx4.Delivery
+      slev = new ddbt.tpcc.tx4.StockLevel
+    } else if(implVersionUnderTest == 3) {
+      newOrder = new ddbt.tpcc.tx3.NewOrder
+      payment = new ddbt.tpcc.tx3.Payment
+      orderStat = new ddbt.tpcc.tx3.OrderStatus
+      delivery = new ddbt.tpcc.tx3.Delivery
+      slev = new ddbt.tpcc.tx3.StockLevel
+    } else if(implVersionUnderTest == 2) {
+      newOrder = new ddbt.tpcc.tx2.NewOrder
+      payment = new ddbt.tpcc.tx2.Payment
+      orderStat = new ddbt.tpcc.tx2.OrderStatus
+      delivery = new ddbt.tpcc.tx2.Delivery
+      slev = new ddbt.tpcc.tx2.StockLevel
+    } else if(implVersionUnderTest == 1) {
+      newOrder = new ddbt.tpcc.tx1.NewOrder
+      payment = new ddbt.tpcc.tx1.Payment
+      orderStat = new ddbt.tpcc.tx1.OrderStatus
+      delivery = new ddbt.tpcc.tx1.Delivery
+      slev = new ddbt.tpcc.tx1.StockLevel
+    } else if(implVersionUnderTest == -1) {
+      newOrder = new NewOrderLMSImpl
+      payment = new PaymentLMSImpl
+      orderStat = new OrderStatusLMSImpl
+      delivery = new DeliveryLMSImpl
+      slev = new StockLevelLMSImpl
+    } else {
+      throw new RuntimeException("No in-memory implementation selected.")
+    }
+
     success2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
     late2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
     retry2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
@@ -336,11 +367,11 @@ class TpccUnitTest(val newOrder: INewOrderInMem,
 
     var SharedDataScala: TpccTable = null
     var SharedDataLMS: EfficientExecutor = null
-    if(IMPL_VERSION_UNDER_TEST > 0) {
-      SharedDataScala = new TpccTable
+    if(implVersionUnderTest > 0) {
+      SharedDataScala = new TpccTable(TpccTable.tpccTableImplVersion(implVersionUnderTest))
       SharedDataScala.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
       logger.info(SharedDataScala.getAllMapsInfoStr)
-      if(IMPL_VERSION_UNDER_TEST == 6) {
+      if(implVersionUnderTest == 6) {
         SharedDataScala = SharedDataScala.toITpccTable
       }
       newOrder.setSharedData(SharedDataScala)
@@ -390,10 +421,10 @@ class TpccUnitTest(val newOrder: INewOrderInMem,
     }
 
     {
-      if(!(IMPL_VERSION_UNDER_TEST > 0)) {
-        SharedDataScala = LMSDataLoader.moveDataToTpccTable(SharedDataLMS)
+      if(!(implVersionUnderTest > 0)) {
+        SharedDataScala = LMSDataLoader.moveDataToTpccTable(SharedDataLMS, TpccTable.tpccTableImplVersion(implVersionUnderTest))
       }
-      val newData = if(IMPL_VERSION_UNDER_TEST > 5) new TpccTable(5) else new TpccTable(IMPL_VERSION_UNDER_TEST)
+      val newData = new TpccTable(TpccTable.tpccTableImplVersion(implVersionUnderTest))
       newData.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
 
       if(newData equals SharedDataScala) {

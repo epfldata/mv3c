@@ -24,7 +24,7 @@ object ITpccTable {
  *
  * @author Mohammad Dashti
  */
-class ITpccTable extends TpccTable {
+class ITpccTable extends TpccTable(5) {
 	override def testSpecialDsUsed = ITpccTable.testSpecialDsUsed
 
 	override def onInsert_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int) = {

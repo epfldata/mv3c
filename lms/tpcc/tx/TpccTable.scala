@@ -19,8 +19,9 @@ object TpccTable {
 	var NUM_WAREHOUSES:Int = 1
 	val DISTRICTS_UNDER_A_WAREHOUSE:Int = 10
 
-	def testSpecialDs:Boolean = testSpecialDs(IN_MEMORY_IMPL_VERSION_UNDER_TEST)
-	def testSpecialDs(implVersion:Int):Boolean = implVersion == 5
+	def testSpecialDs(implVersion:Int) = implVersion == 5
+
+	def tpccTableImplVersion(implVersionUnderTest:Int) = if(implVersionUnderTest > 5) 5 else implVersionUnderTest
 }
 
 /**
@@ -29,7 +30,6 @@ object TpccTable {
  * @author Mohammad Dashti
  */
 class TpccTable(implVersion:Int) {
-	def this() = this(IN_MEMORY_IMPL_VERSION_UNDER_TEST)
 	def testSpecialDsUsed = TpccTable.testSpecialDs(implVersion)
 	//NewOrder: W
 	//Delivery: RW

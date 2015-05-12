@@ -234,8 +234,8 @@ object LMSDataLoader {
     .append("stockTbl => ").append(exec.x8.getInfoStr).toString
   }
 
-  def moveDataToTpccTable(exec:EfficientExecutor):TpccTable = {
-    val res = new TpccTable
+  def moveDataToTpccTable(exec:EfficientExecutor, implVersionUnderTest:Int):TpccTable = {
+    val res = new TpccTable(implVersionUnderTest)
     exec.x0.foreach { e=> res.onInsert_NewOrder(e._1,e._2,e._3) }
     exec.x1.foreach { e=> res.onInsert_HistoryTbl(e._1,e._2,e._3,e._4,e._5,e._6,e._7,e._8) }
     exec.x2.foreach { e=> res.onInsert_Warehouse(e._1,e._2,e._3,e._4,e._5,e._6,e._7,e._8,e._9) }
