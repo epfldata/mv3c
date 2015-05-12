@@ -16,7 +16,7 @@ import ddbt.tpcc.loadtest.TpccConstants._
 import TpccTable._
 
 object MVCCTpccTable {
-	def testSpecialDsUsed = true
+	def testSpecialDsUsed = false
 }
 /**
  * Tables for TPC-C Benchmark (with all operations reflected through its API
@@ -24,31 +24,45 @@ object MVCCTpccTable {
  *
  * @author Mohammad Dashti
  */
-class MVCCTpccTable extends TpccTable(5) {
+class MVCCTpccTable extends TpccTable(7) {
 	override def testSpecialDsUsed = MVCCTpccTable.testSpecialDsUsed
 
+	override val newOrderTbl:SHMap[(Int,Int,Int),Boolean] = new SHMap[(Int,Int,Int),Boolean](0.9f, 262144, (k:(Int,Int,Int),v:Boolean) => ((k._2, k._3)) )
+
+	override val historyTbl:SHMap[(Int,Int,Int,Int,Int,Date,Float,String),Boolean] = new SHMap[(Int,Int,Int,Int,Int,Date,Float,String),Boolean]/*(0.9f, 4194304)*/
+
+	override val warehouseTbl = new SHMap[Int,(String,String,String,String,String,String,Float,Double)]
+
+	override val itemPartialTbl = new SHMap[Int,(/*Int,*/String,Float,String)]/*(1f, 262144)*/
+
+	override val orderTbl:SHMap[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)] = new SHMap[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)](/*0.9f, 4194304,*/ (k:(Int,Int,Int), v:(Int,Date,Option[Int],Int,Boolean)) => ((k._2, k._3, v._1)) )
+
+	override val districtTbl = new SHMap[(Int,Int),(String,String,String,String,String,String,Float,Double,Int)]/*(1f, 32)*/
+
+	override val orderLineTbl:SHMap[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)] = new SHMap[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)](/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:(Int,Int,Int,Int), v:(Int,Int,Option[Date],Int,Float,String)) => ((k._1, k._2, k._3)) )
+
+	override val customerTbl:SHMap[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] = new SHMap[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] (/*1f, 65536, List((1f, 16384)),*/ (k:(Int,Int,Int), v:(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)) => ((k._2, k._3, v._3)) )
+
+	override val stockTbl:SHMap[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)] = new SHMap[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)]/*(1f, 262144)*/
+
+	override val customerWarehouseFinancialInfoMap:SHMap[(Int,Int,Int),(Float,String,String,Float)] = new SHMap[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
+
 	override def onInsert_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int) = {
-		if(testSpecialDsUsed) {
-			newOrderSetImpl((no_d_id, no_w_id)).add(no_o_id)
-		} else {
-			newOrderTbl((no_o_id, no_d_id, no_w_id)) = (true)
-		}
+		newOrderTbl((no_o_id, no_d_id, no_w_id)) = (true)
 	}
 
 	override def onDelete_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int) = {
-		if(testSpecialDsUsed) {
-			if(newOrderSetImpl((no_d_id, no_w_id)).remove != no_o_id) {
-				throw new RuntimeException("Some operations executed out of order => newOrderSetImpl((%d,%d)).remove != %d".format(no_d_id, no_w_id, no_o_id))
-			}
-		} else {
-			newOrderTbl -= ((no_o_id, no_d_id, no_w_id))
-		}
+		newOrderTbl -= ((no_o_id, no_d_id, no_w_id))
 	}
 
     /*Func*/ def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int):Option[Int] = {
-      val noSet = newOrderSetImpl(no_d_id_input, no_w_id_input)
-      if(noSet.isEmpty) None
-      else Some(noSet.peek)
+      var first_no_o_id:Option[Int] = None
+      newOrderTbl.slice(0, (no_d_id_input, no_w_id_input)).foreach { case ((no_o_id,_,_),_) =>
+        if(no_o_id <= first_no_o_id.getOrElse(Integer.MAX_VALUE)) {
+          first_no_o_id = Some(no_o_id)
+        }
+      }
+      first_no_o_id
     }
 
 	override def onInsert_HistoryTbl(h_c_id:Int, h_c_d_id:Int, h_c_w_id:Int, h_d_id:Int, h_w_id:Int, h_date:Date, h_amount:Float, h_data:String) = {
@@ -56,27 +70,25 @@ class MVCCTpccTable extends TpccTable(5) {
 	}
 
 	override def onInsert_Item(i_id:Int, i_im_id:Int, i_name:String, i_price:Float, i_data:String) = {
-		if(testSpecialDsUsed) {
-			itemPartialArr(i_id) = ((/*i_im_id,*/i_name,i_price,i_data))
-		} else {
-			itemPartialTbl(i_id) = ((/*i_im_id,*/i_name,i_price,i_data))
-		}
+		itemPartialTbl(i_id) = ((/*i_im_id,*/i_name,i_price,i_data))
 	}
 
 	/*Func*/ def findItem(item_id:Int) = {
-		itemPartialArr(item_id)
+		itemPartialTbl(item_id)
 	}
 
 	override def onInsert_Order(o_id:Int, o_d_id:Int, o_w_id:Int, o_c_id:Int, o_entry_d:Date, o_carrier_id:Option[Int], o_ol_cnt:Int, o_all_local:Boolean) = {
 		orderTbl += ((o_id,o_d_id,o_w_id), (o_c_id,o_entry_d,o_carrier_id,o_ol_cnt,o_all_local))
-		if(testSpecialDsUsed) {
-			//println("orderMaxOrderSetImpl((%s, %s,%s)).add(%s)".format(o_d_id, o_w_id,o_c_id,o_id))
-			orderMaxOrderSetImpl((o_d_id, o_w_id,o_c_id)).add(o_id)
-		}
 	}
 
 	/*Func*/ def findMaxOrder(o_w_id_arg:Int, o_d_id_arg:Int, c_id_arg:Int) = {
-		orderMaxOrderSetImpl(o_d_id_arg,o_w_id_arg, c_id_arg)
+		var max_o_id = -1
+		orderTbl.slice(0,(o_d_id_arg,o_w_id_arg, c_id_arg)).foreach { case ((o_id,_,_), (_,_,_,_,_)) =>
+			if(o_id > max_o_id) {
+				max_o_id = o_id
+			}
+		}
+		max_o_id
 	}
 
 	/*Func*/ def findOrder(max_o_id:Int, o_w_id_arg:Int, o_d_id_arg:Int) = {
@@ -92,11 +104,7 @@ class MVCCTpccTable extends TpccTable(5) {
 	}
 
 	override def onInsert_Warehouse(w_id:Int, w_name:String, w_street_1:String, w_street_2:String, w_city:String, w_state:String, w_zip:String, w_tax:Float, w_ytd:Double) = {
-		if(testSpecialDsUsed) {
-			warehouseArr(w_id) = ((w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd))
-		} else {
-			warehouseTbl(w_id) = ((w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd))
-		}
+		warehouseTbl(w_id) = ((w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd))
 	}
 
 	override def onUpdate_Warehouse(w_id:Int, w_name:String, w_street_1:String, w_street_2:String, w_city:String, w_state:String, w_zip:String, w_tax:Float, w_ytd:Double) = {
@@ -104,19 +112,11 @@ class MVCCTpccTable extends TpccTable(5) {
 	}
 
 	override def onUpdate_Warehouse_byFunc(w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double)) => (String, String, String, String, String, String, Float, Double)) = {
-		if(testSpecialDsUsed) {
-			warehouseArr(w_id) = updateFunc(warehouseArr(w_id))
-		} else {
-			warehouseTbl.update(w_id,updateFunc)
-		}
+		warehouseTbl.update(w_id,updateFunc)
 	}
 
 	override def onInsert_District(d_id:Int, d_w_id:Int, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String, d_tax:Float, d_ytd:Double, d_next_o_id:Int) = {
-		if(testSpecialDsUsed) {
-			districtArr((d_id+(d_w_id * DISTRICTS_UNDER_A_WAREHOUSE))) = ((d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id))
-		} else {
-			districtTbl((d_id,d_w_id)) = ((d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id))
-		}
+		districtTbl((d_id,d_w_id)) = ((d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id))
 	}
 
 	override def onUpdate_District(d_id:Int, d_w_id:Int, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String, d_tax:Float, d_ytd:Double, d_next_o_id:Int) = {
@@ -129,16 +129,11 @@ class MVCCTpccTable extends TpccTable(5) {
 	}
 
 	override def onUpdate_District_byFunc(d_id:Int, d_w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int)) = {
-		if(testSpecialDsUsed) {
-			val index = (d_id+(d_w_id * DISTRICTS_UNDER_A_WAREHOUSE))
-			districtArr(index) = updateFunc(districtArr(index))
-		} else {
-			districtTbl.update((d_id,d_w_id), updateFunc)
-		}
+		districtTbl.update((d_id,d_w_id), updateFunc)
 	}
 
 	/*Func*/ def findDistrict(w_id:Int, d_id:Int) = {
-		districtArr(d_id+(w_id * DISTRICTS_UNDER_A_WAREHOUSE))
+		districtTbl((d_id,w_id))
 	}
 
 	override def onInsertOrderLine(ol_o_id:Int, ol_d_id:Int, ol_w_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_delivery_d:Option[Date], ol_quantity:Int, ol_amount:Float, ol_dist_info:String): Unit = {
@@ -159,20 +154,8 @@ class MVCCTpccTable extends TpccTable(5) {
     override def onInsertCustomer(c_id: Int, c_d_id: Int, c_w_id: Int, c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String) = {
       customerTbl += ((c_id,c_d_id,c_w_id), (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data))
       var w_tax = 0f
-      if(testSpecialDsUsed) {
-      	w_tax = warehouseArr(c_w_id)._7
-      } else {
-      	w_tax = warehouseTbl(c_w_id)._7
-      }
+      w_tax = warehouseTbl(c_w_id)._7
       customerWarehouseFinancialInfoMap += ((c_id,c_d_id,c_w_id), (c_discount, c_last, c_credit, w_tax))
-
-      if(testSpecialDsUsed) {
-      	for(w <- 1 to NUM_WAREHOUSES) {
-	        for(i <- 1 to DISTRICTS_UNDER_A_WAREHOUSE) {
-	          orderMaxOrderSetImpl += ((i,w,c_id), new BinaryHeap[Int](true))
-	        }
-	    }
-      }
     }
 
     /*Func*/ def findCustomerWarehouseFinancialInfo(w_id:Int, d_id:Int, c_id:Int) = {
