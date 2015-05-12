@@ -12,7 +12,7 @@ trait IInMemoryTx { self =>
 	def setSharedData(db:AnyRef): self.type
 }
 
-class InMemoryTxImpl extends IInMemoryTx {
+trait InMemoryTxImpl extends IInMemoryTx {
 	var SharedData:TpccTable = null
 
 	override def setSharedData(db:AnyRef) = {
@@ -21,7 +21,7 @@ class InMemoryTxImpl extends IInMemoryTx {
 	}
 }
 
-class InMemoryTxImplViaITpccTable extends InMemoryTxImpl {
+trait InMemoryTxImplViaITpccTable extends InMemoryTxImpl {
 	var ISharedData:ITpccTable = null
 
 	override def setSharedData(db:AnyRef) = {
@@ -30,7 +30,7 @@ class InMemoryTxImplViaITpccTable extends InMemoryTxImpl {
 	}
 } 
 
-class InMemoryTxImplViaMVCCTpccTable extends InMemoryTxImpl {
+trait InMemoryTxImplViaMVCCTpccTable extends InMemoryTxImpl {
 	var ISharedData:MVCCTpccTable = null
 
 	override def setSharedData(db:AnyRef) = {
