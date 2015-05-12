@@ -856,6 +856,7 @@ class TpccTable(implVersion:Int) {
 
 	def toMVCCTpccTable = {
 		val res = new MVCCTpccTable
+		implicit val xact = res.begin
 		val THE_VALUE_DOES_NOT_EXIST = -1 //TODO: should be FIXED
 		newOrderTbl.foreach { case (k,v) => res.onInsert_NewOrder(k._1,k._2,k._3) }
 		historyTbl.foreach { case (k,v) => res.onInsert_HistoryTbl(k._1,k._2,k._3,k._4,k._5,k._6,k._7,k._8) }
@@ -866,6 +867,7 @@ class TpccTable(implVersion:Int) {
 		districtTbl.foreach { case (k,v) => res.onInsert_District(k._1,k._2,v._1,v._2,v._3,v._4,v._5,v._6,v._7,v._8,v._9) }
 		orderLineTbl.foreach { case (k,v) => res.onInsertOrderLine(k._1,k._2,k._3,k._4,v._1,v._2,v._3,v._4,v._5,v._6) }
 		stockTbl.foreach { case (k,v) => res.onInsertStock(k._1,k._2,v._1,v._2,v._3,v._4,v._5,v._6,v._7,v._8,v._9,v._10,v._11,v._12,v._13,v._14,v._15) }
+		res.commit
 	    res
 	}
 }

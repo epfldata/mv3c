@@ -25,6 +25,12 @@ object MVCCTpccTable {
  * @author Mohammad Dashti
  */
 class MVCCTpccTable extends TpccTable(7) {
+	val tm = new TransactionManager
+
+	def begin = tm.begin
+	def commit(implicit xact:Transaction) = tm.commit
+	def abort(implicit xact:Transaction) = tm.abort
+
 	override def testSpecialDsUsed = MVCCTpccTable.testSpecialDsUsed
 
 	override val newOrderTbl:SHMap[(Int,Int,Int),Boolean] = new SHMap[(Int,Int,Int),Boolean](0.9f, 262144, (k:(Int,Int,Int),v:Boolean) => ((k._2, k._3)) )
@@ -47,15 +53,15 @@ class MVCCTpccTable extends TpccTable(7) {
 
 	override val customerWarehouseFinancialInfoMap:SHMap[(Int,Int,Int),(Float,String,String,Float)] = new SHMap[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
 
-	override def onInsert_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int) = {
+	def onInsert_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int)(implicit xact:Transaction) = {
 		newOrderTbl((no_o_id, no_d_id, no_w_id)) = (true)
 	}
 
-	override def onDelete_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int) = {
+	def onDelete_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int)(implicit xact:Transaction) = {
 		newOrderTbl -= ((no_o_id, no_d_id, no_w_id))
 	}
 
-    /*Func*/ def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int):Option[Int] = {
+    /*Func*/ def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int)(implicit xact:Transaction):Option[Int] = {
       var first_no_o_id:Option[Int] = None
       newOrderTbl.slice(0, (no_d_id_input, no_w_id_input)).foreach { case ((no_o_id,_,_),_) =>
         if(no_o_id <= first_no_o_id.getOrElse(Integer.MAX_VALUE)) {
@@ -65,23 +71,23 @@ class MVCCTpccTable extends TpccTable(7) {
       first_no_o_id
     }
 
-	override def onInsert_HistoryTbl(h_c_id:Int, h_c_d_id:Int, h_c_w_id:Int, h_d_id:Int, h_w_id:Int, h_date:Date, h_amount:Float, h_data:String) = {
+	def onInsert_HistoryTbl(h_c_id:Int, h_c_d_id:Int, h_c_w_id:Int, h_d_id:Int, h_w_id:Int, h_date:Date, h_amount:Float, h_data:String)(implicit xact:Transaction) = {
 		historyTbl += ((h_c_id,h_c_d_id,h_c_w_id,h_d_id,h_w_id,roundDate(h_date),h_amount,h_data), (true))
 	}
 
-	override def onInsert_Item(i_id:Int, i_im_id:Int, i_name:String, i_price:Float, i_data:String) = {
+	def onInsert_Item(i_id:Int, i_im_id:Int, i_name:String, i_price:Float, i_data:String)(implicit xact:Transaction) = {
 		itemPartialTbl(i_id) = ((/*i_im_id,*/i_name,i_price,i_data))
 	}
 
-	/*Func*/ def findItem(item_id:Int) = {
+	/*Func*/ def findItem(item_id:Int)(implicit xact:Transaction) = {
 		itemPartialTbl(item_id)
 	}
 
-	override def onInsert_Order(o_id:Int, o_d_id:Int, o_w_id:Int, o_c_id:Int, o_entry_d:Date, o_carrier_id:Option[Int], o_ol_cnt:Int, o_all_local:Boolean) = {
+	def onInsert_Order(o_id:Int, o_d_id:Int, o_w_id:Int, o_c_id:Int, o_entry_d:Date, o_carrier_id:Option[Int], o_ol_cnt:Int, o_all_local:Boolean)(implicit xact:Transaction) = {
 		orderTbl += ((o_id,o_d_id,o_w_id), (o_c_id,o_entry_d,o_carrier_id,o_ol_cnt,o_all_local))
 	}
 
-	/*Func*/ def findMaxOrder(o_w_id_arg:Int, o_d_id_arg:Int, c_id_arg:Int) = {
+	/*Func*/ def findMaxOrder(o_w_id_arg:Int, o_d_id_arg:Int, c_id_arg:Int)(implicit xact:Transaction) = {
 		var max_o_id = -1
 		orderTbl.slice(0,(o_d_id_arg,o_w_id_arg, c_id_arg)).foreach { case ((o_id,_,_), (_,_,_,_,_)) =>
 			if(o_id > max_o_id) {
@@ -91,98 +97,98 @@ class MVCCTpccTable extends TpccTable(7) {
 		max_o_id
 	}
 
-	/*Func*/ def findOrder(max_o_id:Int, o_w_id_arg:Int, o_d_id_arg:Int) = {
+	/*Func*/ def findOrder(max_o_id:Int, o_w_id_arg:Int, o_d_id_arg:Int)(implicit xact:Transaction) = {
 		orderTbl((max_o_id,o_d_id_arg,o_w_id_arg))
 	}
 
-	override def onUpdate_Order_forDelivery(o_id:Int, o_d_id:Int, o_w_id:Int, o_c_id:Int/*, o_entry_d:Date*/, o_carrier_id:Option[Int]/*, o_ol_cnt:Int, o_all_local:Boolean*/) = {
+	def onUpdate_Order_forDelivery(o_id:Int, o_d_id:Int, o_w_id:Int, o_c_id:Int/*, o_entry_d:Date*/, o_carrier_id:Option[Int]/*, o_ol_cnt:Int, o_all_local:Boolean*/)(implicit xact:Transaction) = {
 		orderTbl.update((o_id,o_d_id,o_w_id),(currentVal/*:(Int, java.util.Date, Option[Int], Int, Boolean))*/ => ((o_c_id,currentVal._2,o_carrier_id,currentVal._4,currentVal._5))))
 	}
 
-	override def onUpdate_Order_byFunc(o_id:Int, o_d_id:Int, o_w_id:Int, updateFunc:((Int, Date, Option[Int], Int, Boolean)) => (Int, Date, Option[Int], Int, Boolean)) = {
+	def onUpdate_Order_byFunc(o_id:Int, o_d_id:Int, o_w_id:Int, updateFunc:((Int, Date, Option[Int], Int, Boolean)) => (Int, Date, Option[Int], Int, Boolean))(implicit xact:Transaction) = {
 		orderTbl.update((o_id,o_d_id,o_w_id),updateFunc)
 	}
 
-	override def onInsert_Warehouse(w_id:Int, w_name:String, w_street_1:String, w_street_2:String, w_city:String, w_state:String, w_zip:String, w_tax:Float, w_ytd:Double) = {
+	def onInsert_Warehouse(w_id:Int, w_name:String, w_street_1:String, w_street_2:String, w_city:String, w_state:String, w_zip:String, w_tax:Float, w_ytd:Double)(implicit xact:Transaction) = {
 		warehouseTbl(w_id) = ((w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd))
 	}
 
-	override def onUpdate_Warehouse(w_id:Int, w_name:String, w_street_1:String, w_street_2:String, w_city:String, w_state:String, w_zip:String, w_tax:Float, w_ytd:Double) = {
+	def onUpdate_Warehouse(w_id:Int, w_name:String, w_street_1:String, w_street_2:String, w_city:String, w_state:String, w_zip:String, w_tax:Float, w_ytd:Double)(implicit xact:Transaction) = {
 		onInsert_Warehouse(w_id,w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd)
 	}
 
-	override def onUpdate_Warehouse_byFunc(w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double)) => (String, String, String, String, String, String, Float, Double)) = {
+	def onUpdate_Warehouse_byFunc(w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double)) => (String, String, String, String, String, String, Float, Double))(implicit xact:Transaction) = {
 		warehouseTbl.update(w_id,updateFunc)
 	}
 
-	override def onInsert_District(d_id:Int, d_w_id:Int, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String, d_tax:Float, d_ytd:Double, d_next_o_id:Int) = {
+	def onInsert_District(d_id:Int, d_w_id:Int, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String, d_tax:Float, d_ytd:Double, d_next_o_id:Int)(implicit xact:Transaction) = {
 		districtTbl((d_id,d_w_id)) = ((d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id))
 	}
 
-	override def onUpdate_District(d_id:Int, d_w_id:Int, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String, d_tax:Float, d_ytd:Double, d_next_o_id:Int) = {
+	def onUpdate_District(d_id:Int, d_w_id:Int, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String, d_tax:Float, d_ytd:Double, d_next_o_id:Int)(implicit xact:Transaction) = {
 		onInsert_District(d_id,d_w_id, d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id)
 	}
 
-	override def onUpdate_District_forNewOrder(d_id:Int, d_w_id:Int/*, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String*/, d_tax:Float/*, d_ytd:Float*/, d_next_o_id:Int) = {
+	def onUpdate_District_forNewOrder(d_id:Int, d_w_id:Int/*, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String*/, d_tax:Float/*, d_ytd:Float*/, d_next_o_id:Int)(implicit xact:Transaction) = {
 		val (d_name,d_street1,d_street2,d_city,d_state,d_zip,_,d_ytd,_) = districtTbl(d_id,d_w_id)
 		onUpdate_District(d_id,d_w_id, d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id)
 	}
 
-	override def onUpdate_District_byFunc(d_id:Int, d_w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int)) = {
+	def onUpdate_District_byFunc(d_id:Int, d_w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int))(implicit xact:Transaction) = {
 		districtTbl.update((d_id,d_w_id), updateFunc)
 	}
 
-	/*Func*/ def findDistrict(w_id:Int, d_id:Int) = {
+	/*Func*/ def findDistrict(w_id:Int, d_id:Int)(implicit xact:Transaction) = {
 		districtTbl((d_id,w_id))
 	}
 
-	override def onInsertOrderLine(ol_o_id:Int, ol_d_id:Int, ol_w_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_delivery_d:Option[Date], ol_quantity:Int, ol_amount:Float, ol_dist_info:String): Unit = {
+	def onInsertOrderLine(ol_o_id:Int, ol_d_id:Int, ol_w_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_delivery_d:Option[Date], ol_quantity:Int, ol_amount:Float, ol_dist_info:String)(implicit xact:Transaction): Unit = {
       orderLineTbl += ((ol_o_id, ol_d_id, ol_w_id, ol_number), (ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity, ol_amount, ol_dist_info))
     }
 
-	override def onUpdateOrderLine(ol_o_id:Int, ol_d_id:Int, ol_w_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_delivery_d:Option[Date], ol_quantity:Int, ol_amount:Float, ol_dist_info:String): Unit = {
+	def onUpdateOrderLine(ol_o_id:Int, ol_d_id:Int, ol_w_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_delivery_d:Option[Date], ol_quantity:Int, ol_amount:Float, ol_dist_info:String)(implicit xact:Transaction): Unit = {
       orderLineTbl.update((ol_o_id, ol_d_id, ol_w_id, ol_number) , (ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity, ol_amount, ol_dist_info))
     }
 
-    /*Func*/ def orderLineTblSlice[P](part:Int, partKey:P, f: (((Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String))) => Unit) = {
+    /*Func*/ def orderLineTblSlice[P](part:Int, partKey:P, f: (((Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String))) => Unit)(implicit xact:Transaction) = {
 		orderLineTbl.slice(0, partKey).foreach(f)
     }
-    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: SEntry[SEntry[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)], Boolean] => Unit) = {
+    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: SEntry[SEntry[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)], Boolean] => Unit)(implicit xact:Transaction) = {
 		orderLineTbl.slice(0, partKey).foreachEntry(f)
     }
 
-    override def onInsertCustomer(c_id: Int, c_d_id: Int, c_w_id: Int, c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String) = {
+    def onInsertCustomer(c_id: Int, c_d_id: Int, c_w_id: Int, c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
       customerTbl += ((c_id,c_d_id,c_w_id), (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data))
       var w_tax = 0f
       w_tax = warehouseTbl(c_w_id)._7
       customerWarehouseFinancialInfoMap += ((c_id,c_d_id,c_w_id), (c_discount, c_last, c_credit, w_tax))
     }
 
-    /*Func*/ def findCustomerWarehouseFinancialInfo(w_id:Int, d_id:Int, c_id:Int) = {
+    /*Func*/ def findCustomerWarehouseFinancialInfo(w_id:Int, d_id:Int, c_id:Int)(implicit xact:Transaction) = {
       customerWarehouseFinancialInfoMap(c_id,d_id,w_id)
     }
 
-    override def onUpdateCustomer(c_id: Int, c_d_id: Int, c_w_id: Int, c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String) = {
+    def onUpdateCustomer(c_id: Int, c_d_id: Int, c_w_id: Int, c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
       customerTbl.update((c_id,c_d_id,c_w_id),(c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data))
     }
 
-    override def onUpdateCustomer_byFunc(c_id: Int, c_d_id: Int, c_w_id: Int, updateFunc:((String, String, String, String, String, String, String, String, String, Date, String, Float, Float, Float, Float, Int, Int, String)) => (String, String, String, String, String, String, String, String, String, Date, String, Float, Float, Float, Float, Int, Int, String)) = {
+    def onUpdateCustomer_byFunc(c_id: Int, c_d_id: Int, c_w_id: Int, updateFunc:((String, String, String, String, String, String, String, String, String, Date, String, Float, Float, Float, Float, Int, Int, String)) => (String, String, String, String, String, String, String, String, String, Date, String, Float, Float, Float, Float, Int, Int, String))(implicit xact:Transaction) = {
       customerTbl.update((c_id,c_d_id,c_w_id),updateFunc)
     }
 
-    override def onInsertStock(s_i_id:Int, s_w_id:Int, s_quantity:Int, s_dist_01:String, s_dist_02:String, s_dist_03:String, s_dist_04:String, s_dist_05:String, s_dist_06:String, s_dist_07:String, s_dist_08:String, s_dist_09:String, s_dist_10:String, s_ytd:Int, s_order_cnt:Int, s_remote_cnt:Int, s_data:String) = {
+    def onInsertStock(s_i_id:Int, s_w_id:Int, s_quantity:Int, s_dist_01:String, s_dist_02:String, s_dist_03:String, s_dist_04:String, s_dist_05:String, s_dist_06:String, s_dist_07:String, s_dist_08:String, s_dist_09:String, s_dist_10:String, s_ytd:Int, s_order_cnt:Int, s_remote_cnt:Int, s_data:String)(implicit xact:Transaction) = {
       stockTbl += ((s_i_id,s_w_id), (s_quantity, s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,s_ytd,s_order_cnt,s_remote_cnt,s_data))
     }
 
-    override def onUpdateStock(s_i_id:Int, s_w_id:Int, s_quantity:Int, s_dist_01:String, s_dist_02:String, s_dist_03:String, s_dist_04:String, s_dist_05:String, s_dist_06:String, s_dist_07:String, s_dist_08:String, s_dist_09:String, s_dist_10:String, s_ytd:Int, s_order_cnt:Int, s_remote_cnt:Int, s_data:String) = {
+    def onUpdateStock(s_i_id:Int, s_w_id:Int, s_quantity:Int, s_dist_01:String, s_dist_02:String, s_dist_03:String, s_dist_04:String, s_dist_05:String, s_dist_06:String, s_dist_07:String, s_dist_08:String, s_dist_09:String, s_dist_10:String, s_ytd:Int, s_order_cnt:Int, s_remote_cnt:Int, s_data:String)(implicit xact:Transaction) = {
       stockTbl.update((s_i_id,s_w_id), (s_quantity, s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,s_ytd,s_order_cnt,s_remote_cnt,s_data))
     }
 
-    override def onUpdateStock_byFunc(s_i_id:Int, s_w_id:Int, updateFunc:((Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String)) => (Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String)) = {
+    def onUpdateStock_byFunc(s_i_id:Int, s_w_id:Int, updateFunc:((Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String)) => (Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String))(implicit xact:Transaction) = {
       stockTbl.update((s_i_id,s_w_id), updateFunc)
     }
 
-	/*Func*/ def findStock(item_id:Int, w_id:Int) = {
+	/*Func*/ def findStock(item_id:Int, w_id:Int)(implicit xact:Transaction) = {
 		stockTbl(item_id,w_id)
 	}
 
@@ -191,7 +197,7 @@ class MVCCTpccTable extends TpccTable(7) {
 		override def toString = "MiniCustomer(%s,%s)".format(cust_id, cust_first)
 	} 
 
-    override def findCustomerEntryByName(input_c_w_id: Int, input_c_d_id: Int, input_c_last: String) = {
+    def findCustomerEntryByName(input_c_w_id: Int, input_c_d_id: Int, input_c_last: String)(implicit xact:Transaction) = {
       var customers = new ArrayBuffer[MiniCustomer]
       //we should slice over input_c_last
       customerTbl.slice(0, (input_c_d_id, input_c_w_id, input_c_last)).foreach { case ((c_id,_,_) , (c_first,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)) =>
@@ -212,11 +218,11 @@ class MVCCTpccTable extends TpccTable(7) {
       val c_id = customers(index).cust_id
       customerTbl.getEntry((c_id,input_c_d_id,input_c_w_id))
     }
-    override def findCustomerEntryById(input_c_w_id: Int, input_c_d_id: Int, c_id: Int) = {
+    def findCustomerEntryById(input_c_w_id: Int, input_c_d_id: Int, c_id: Int)(implicit xact:Transaction) = {
       customerTbl.getEntry((c_id,input_c_d_id,input_c_w_id))
     }
 
-    override def findCustomerByName(input_c_w_id: Int, input_c_d_id: Int, input_c_last: String) = {
+    def findCustomerByName(input_c_w_id: Int, input_c_d_id: Int, input_c_last: String)(implicit xact:Transaction) = {
       var customers = new ArrayBuffer[MiniCustomer]
       //we should slice over input_c_last
       customerTbl.slice(0, (input_c_d_id, input_c_w_id, input_c_last)).foreach { case ((c_id,_,_) , (c_first,_,c_last,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)) =>
@@ -238,8 +244,25 @@ class MVCCTpccTable extends TpccTable(7) {
       val (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data) = customerTbl((c_id,input_c_d_id,input_c_w_id))
       (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data,c_id)
     }
-    override def findCustomerById(input_c_w_id: Int, input_c_d_id: Int, c_id: Int) = {
+    def findCustomerById(input_c_w_id: Int, input_c_d_id: Int, c_id: Int)(implicit xact:Transaction) = {
       val (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data) = customerTbl((c_id,input_c_d_id,input_c_w_id))
       (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data,c_id)
     }
+}
+
+class Transaction( val xactId:Int ) {
+}
+
+class TransactionManager {
+	var maxXact = 0
+	def begin = {
+		maxXact += 1
+		new Transaction(maxXact)
+	}
+	def commit(implicit xact:Transaction) = {
+
+	}
+	def abort(implicit xact:Transaction) = {
+
+	}
 }

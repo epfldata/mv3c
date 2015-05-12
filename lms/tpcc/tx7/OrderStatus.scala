@@ -41,6 +41,7 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTable with IOrderStatusInMem 
    */
   override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String):Int = {
     try {
+      implicit val xact = ISharedData.begin
 
       var c: (String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String,Int) = null
       if (c_by_name > 0) {
@@ -90,6 +91,8 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTable with IOrderStatusInMem 
       }
       output.append("+-----------------------------------------------------------------+\n\n")
       if(SHOW_OUTPUT) logger.info(output.toString)
+
+      ISharedData.commit
       1
     } catch {
       case e: Throwable => {
@@ -101,7 +104,7 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTable with IOrderStatusInMem 
   }
   
   object OrderStatusTxOps {
-    def findNewestOrder(o_w_id_arg:Int, o_d_id_arg:Int, c_id_arg:Int) = {
+    def findNewestOrder(o_w_id_arg:Int, o_d_id_arg:Int, c_id_arg:Int)(implicit xact:Transaction) = {
       val max_o_id = ISharedData.findMaxOrder(o_w_id_arg, o_d_id_arg, c_id_arg)
 
       if(max_o_id == -1) {
@@ -112,7 +115,7 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTable with IOrderStatusInMem 
       }
     }
 
-    def findOrderLines(ol_w_id_arg:Int, ol_d_id_arg:Int, ol_o_id_arg:Int) = {
+    def findOrderLines(ol_w_id_arg:Int, ol_d_id_arg:Int, ol_o_id_arg:Int)(implicit xact:Transaction) = {
       val result = new ArrayBuffer[(Int,Int,Option[Date],Int,Float,String)]
       //slice over first three parts of key
       ISharedData.orderLineTblSlice(0, (ol_o_id_arg, ol_d_id_arg, ol_w_id_arg), { case (_,ol_val) =>

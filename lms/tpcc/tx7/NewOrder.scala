@@ -51,6 +51,8 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTable with INewOrderInMem {
    */
   override def newOrderTx(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stock:Array[Int], bg:Array[Char], amt:Array[Float]): Int = {
     try {
+      implicit val xact = ISharedData.begin
+
       if(SHOW_OUTPUT) logger.info("- Started NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
 
       var ol_number = 0
@@ -138,6 +140,8 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTable with INewOrderInMem {
       }
 
       if(SHOW_OUTPUT) logger.info("- Finished NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
+
+      ISharedData.commit
       1
     } catch {
       case e: Throwable => {
@@ -155,7 +159,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTable with INewOrderInMem {
      * @param c_id is customer id
      * @return (c_discount, c_last, c_credit, w_tax)
      */
-    def findCustomerWarehouseFinancialInfo(w_id:Int, d_id:Int, c_id:Int) = {
+    def findCustomerWarehouseFinancialInfo(w_id:Int, d_id:Int, c_id:Int)(implicit xact:Transaction) = {
       ISharedData.findCustomerWarehouseFinancialInfo(w_id,d_id,c_id)
     }
 
@@ -166,7 +170,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTable with INewOrderInMem {
      * @param new_d_next_o_id is the next order id
      * @param d_tax is the district tax value for this dirstrict
      */
-    def updateDistrictNextOrderId(w_id:Int, d_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int)): Unit = {
+    def updateDistrictNextOrderId(w_id:Int, d_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int))(implicit xact:Transaction): Unit = {
       ISharedData.onUpdate_District_byFunc(d_id, w_id, updateFunc)
     }
 
@@ -174,7 +178,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTable with INewOrderInMem {
      * @param w_id is warehouse id
      * @param d_id is district id
      */
-    def insertOrder(o_id:Int, w_id:Int, d_id:Int, c_id:Int, o_entry_d:Date, o_ol_cnt:Int, o_all_local:Boolean): Unit = {
+    def insertOrder(o_id:Int, w_id:Int, d_id:Int, c_id:Int, o_entry_d:Date, o_ol_cnt:Int, o_all_local:Boolean)(implicit xact:Transaction): Unit = {
       ISharedData.onInsert_Order(o_id,d_id,w_id , c_id, o_entry_d, None, o_ol_cnt, o_all_local)
     }
 
@@ -182,21 +186,21 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTable with INewOrderInMem {
      * @param w_id is warehouse id
      * @param d_id is district id
      */
-    def insertNewOrder(o_id:Int, w_id:Int, d_id:Int): Unit = {
+    def insertNewOrder(o_id:Int, w_id:Int, d_id:Int)(implicit xact:Transaction): Unit = {
       ISharedData.onInsert_NewOrder(o_id,d_id,w_id)
     }
 
     /**
      * @param item_id is the item id
      */
-    def findItem(item_id:Int) = {
+    def findItem(item_id:Int)(implicit xact:Transaction) = {
       ISharedData.findItem(item_id)
     }
 
     /**
      * @param w_id is warehouse id
      */
-    def updateStock(w_id:Int, item_id:Int, updateFunc:((Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String)) => (Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String)) = {
+    def updateStock(w_id:Int, item_id:Int, updateFunc:((Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String)) => (Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String))(implicit xact:Transaction) = {
       ISharedData.onUpdateStock_byFunc(item_id,w_id, updateFunc)
     }
 
@@ -204,7 +208,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTable with INewOrderInMem {
      * @param w_id is warehouse id
      * @param d_id is district id
      */
-    def insertOrderLine(w_id:Int, d_id:Int, o_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_quantity:Int, ol_amount:Float, ol_dist_info:String): Unit = {
+    def insertOrderLine(w_id:Int, d_id:Int, o_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_quantity:Int, ol_amount:Float, ol_dist_info:String)(implicit xact:Transaction): Unit = {
       ISharedData.onInsertOrderLine(o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, None, ol_quantity, ol_amount, ol_dist_info)
     }
   }

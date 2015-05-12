@@ -42,6 +42,8 @@ class StockLevel extends InMemoryTxImplViaMVCCTpccTable with IStockLevelInMem {
    */
   override def stockLevelTx(t_num: Int, w_id: Int, d_id: Int, threshold: Int):Int= {
     try {
+        implicit val xact = ISharedData.begin
+
         val o_id = StockLevelTxOps.findDistrictnextOrderId(w_id,d_id)
         val stock_count = StockLevelTxOps.findOrderLineStockRecentItemsUnderThresholds(w_id, d_id, o_id, threshold)
 
@@ -53,6 +55,8 @@ class StockLevel extends InMemoryTxImplViaMVCCTpccTable with IStockLevelInMem {
         output.append("\n Low Stock Count:       ").append(stock_count)
         output.append("\n+-----------------------------------------------------------------+\n\n")
         if(SHOW_OUTPUT) logger.info(output.toString)
+
+        ISharedData.commit
         1
     } catch {
       case e: Throwable => {
@@ -63,11 +67,11 @@ class StockLevel extends InMemoryTxImplViaMVCCTpccTable with IStockLevelInMem {
   }
 
   object StockLevelTxOps {
-      def findDistrictnextOrderId(w_id:Int, d_id:Int) = {
+      def findDistrictnextOrderId(w_id:Int, d_id:Int)(implicit xact:Transaction) = {
         ISharedData.findDistrict(w_id,d_id)._9
       }
 
-      def findOrderLineStockRecentItemsUnderThresholds(w_id:Int, d_id:Int, o_id:Int, threshold:Int) = {
+      def findOrderLineStockRecentItemsUnderThresholds(w_id:Int, d_id:Int, o_id:Int, threshold:Int)(implicit xact:Transaction) = {
         val unique_ol_i_id = new ddbt.tpcc.lib.SHSet[Int]
         var i = o_id-20
         while(i < o_id) {

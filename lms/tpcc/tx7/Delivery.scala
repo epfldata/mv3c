@@ -45,6 +45,8 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTable with IDeliveryInMem {
    */
   override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int): Int = {
     try {
+      implicit val xact = ISharedData.begin
+
       val DIST_PER_WAREHOUSE = 10
       val orderIDs = new Array[Int](10)
       var d_id = 1
@@ -92,6 +94,8 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTable with IDeliveryInMem {
       output.append("+-----------------------------------------------------------------+\n\n")
       if(SHOW_OUTPUT) logger.info(output.toString)
       // skippedDeliveries
+
+      ISharedData.commit
       1
     } catch {
       case e: Throwable => {
@@ -103,19 +107,19 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTable with IDeliveryInMem {
   }
 
   object DeliveryTxOps {
-    def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int):Option[Int] = {
+    def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int)(implicit xact:Transaction):Option[Int] = {
       ISharedData.findFirstNewOrder(no_w_id_input, no_d_id_input)
     }
 
-    def deleteNewOrder(no_w_id:Int, no_d_id:Int, no_o_id:Int) = {
+    def deleteNewOrder(no_w_id:Int, no_d_id:Int, no_o_id:Int)(implicit xact:Transaction) = {
       ISharedData.onDelete_NewOrder(no_o_id,no_d_id,no_w_id)
     }
 
-    def updateOrderCarrierAndFindCID(o_w_id:Int, o_d_id:Int, o_id:Int, updateFunc:((Int, Date, Option[Int], Int, Boolean)) => (Int, Date, Option[Int], Int, Boolean)) {
+    def updateOrderCarrierAndFindCID(o_w_id:Int, o_d_id:Int, o_id:Int, updateFunc:((Int, Date, Option[Int], Int, Boolean)) => (Int, Date, Option[Int], Int, Boolean))(implicit xact:Transaction) = {
       ISharedData.onUpdate_Order_byFunc(o_id,o_d_id,o_w_id, updateFunc)
     }
 
-    def updateOrderLineDeliveryDateAndFindOrderLineTotalAmount(ol_w_id_input:Int, ol_d_id_input:Int, ol_o_id_input:Int, ol_delivery_d_input:Date):Float = {
+    def updateOrderLineDeliveryDateAndFindOrderLineTotalAmount(ol_w_id_input:Int, ol_d_id_input:Int, ol_o_id_input:Int, ol_delivery_d_input:Date)(implicit xact:Transaction):Float = {
       var ol_total = 0f
       ISharedData.orderLineTblSliceEntry(0, (ol_o_id_input, ol_d_id_input, ol_w_id_input), { cv => 
         val k = cv.key
@@ -125,8 +129,13 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTable with IDeliveryInMem {
       ol_total
     }
 
-    def updateCustomerBalance(c_w_id:Int, c_d_id:Int, c_id:Int, ol_total:Float) = {
-      ISharedData.onUpdateCustomer_byFunc(c_id,c_d_id,c_w_id, { case (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data) => (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance+ol_total,c_ytd_payment,c_payment_cnt,c_delivery_cnt+1,c_data) })
+    def updateCustomerBalance(c_w_id:Int, c_d_id:Int, c_id:Int, ol_total:Float)(implicit xact:Transaction) = {
+      ISharedData.onUpdateCustomer_byFunc(c_id,c_d_id,c_w_id, {
+        c:((String, String, String, String, String, String, String, String, String, Date, String, Float, Float, Float, Float, Int, Int, String)) => c match {
+          case (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data) => 
+            (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance+ol_total,c_ytd_payment,c_payment_cnt,c_delivery_cnt+1,c_data)
+        }
+      })
     }
   }
 }

@@ -44,6 +44,8 @@ class Payment extends InMemoryTxImplViaMVCCTpccTable with IPaymentInMem {
    */
   override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float):Int = {
     try {
+      implicit val xact = ISharedData.begin
+
       PaymentTxOps.updateWarehouse(w_id, { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) => {
         PaymentTxOps.updateDistrict(w_id,d_id, { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) => { 
           var c: ddbt.tpcc.lib.SEntry[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] = null
@@ -124,6 +126,8 @@ class Payment extends InMemoryTxImplViaMVCCTpccTable with IPaymentInMem {
         }})
         (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd+h_amount)
       }})
+
+      ISharedData.commit
       1
     } catch {
       case e: Throwable => {
@@ -133,13 +137,13 @@ class Payment extends InMemoryTxImplViaMVCCTpccTable with IPaymentInMem {
     }
   }
   object PaymentTxOps {
-    def updateWarehouse(w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double)) => (String, String, String, String, String, String, Float, Double)) = {
+    def updateWarehouse(w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double)) => (String, String, String, String, String, String, Float, Double))(implicit xact:Transaction) = {
       ISharedData.onUpdate_Warehouse_byFunc(w_id,updateFunc)
     }
-    def updateDistrict(w_id:Int, d_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int)) = {
+    def updateDistrict(w_id:Int, d_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int))(implicit xact:Transaction) = {
       ISharedData.onUpdate_District_byFunc(d_id,w_id, updateFunc)
     }
-    def insertHistory(h_c_id:Int,h_c_d_id:Int,h_c_w_id:Int,h_d_id:Int,h_w_id:Int,h_date:Date,h_amount:Float,h_data:String) = {
+    def insertHistory(h_c_id:Int,h_c_d_id:Int,h_c_w_id:Int,h_d_id:Int,h_w_id:Int,h_date:Date,h_amount:Float,h_data:String)(implicit xact:Transaction) = {
       ISharedData.onInsert_HistoryTbl(h_c_id,h_c_d_id,h_c_w_id,h_d_id,h_w_id,h_date,h_amount,h_data)
     }
   }
