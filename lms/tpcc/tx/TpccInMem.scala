@@ -288,6 +288,12 @@ class TpccInMem() {
       orderStat = new ddbt.tpcc.tx6.OrderStatus
       delivery = new ddbt.tpcc.tx6.Delivery
       slev = new ddbt.tpcc.tx6.StockLevel
+    } else if(implVersionUnderTest == 7) {
+      newOrder = new ddbt.tpcc.tx7.NewOrder
+      payment = new ddbt.tpcc.tx7.Payment
+      orderStat = new ddbt.tpcc.tx7.OrderStatus
+      delivery = new ddbt.tpcc.tx7.Delivery
+      slev = new ddbt.tpcc.tx7.StockLevel
     } else if(implVersionUnderTest == -1) {
       newOrder = new NewOrderLMSImpl
       payment = new PaymentLMSImpl
@@ -362,6 +368,7 @@ class TpccInMem() {
       System.out.print(" [connection]: %d\n".format(numConn))
       System.out.print("     [rampup]: %d (sec.)\n".format(rampupTime))
       System.out.print("    [measure]: %d (sec.)\n".format(measureTime))
+      System.out.print("       [impl]: tx%d\n".format(implVersionUnderTest))
       Util.seqInit(10, 10, 1, 1, 1)
       if (DEBUG) logger.debug("Creating TpccThread")
 
@@ -375,6 +382,8 @@ class TpccInMem() {
         logger.info(SharedDataScala.getAllMapsInfoStr)
         if(implVersionUnderTest == 6) {
           SharedDataScala = SharedDataScala.toITpccTable
+        } else if(implVersionUnderTest == 7) {
+          SharedDataScala = SharedDataScala.toMVCCTpccTable
         }
         newOrder.setSharedData(SharedDataScala)
         payment.setSharedData(SharedDataScala)
