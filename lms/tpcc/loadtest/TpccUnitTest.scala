@@ -374,7 +374,7 @@ class TpccUnitTest {
     var SharedDataScala: TpccTable = null
     var SharedDataLMS: EfficientExecutor = null
     if(implVersionUnderTest > 0) {
-      SharedDataScala = new TpccTable(TpccTable.tpccTableImplVersion(implVersionUnderTest))
+      SharedDataScala = new TpccTable(implVersionUnderTest)
       SharedDataScala.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
       logger.info(SharedDataScala.getAllMapsInfoStr)
       if(implVersionUnderTest == 6) {
@@ -430,9 +430,9 @@ class TpccUnitTest {
 
     {
       if(!(implVersionUnderTest > 0)) {
-        SharedDataScala = LMSDataLoader.moveDataToTpccTable(SharedDataLMS, TpccTable.tpccTableImplVersion(implVersionUnderTest))
+        SharedDataScala = LMSDataLoader.moveDataToTpccTable(SharedDataLMS, implVersionUnderTest)
       }
-      val newData = new TpccTable(TpccTable.tpccTableImplVersion(implVersionUnderTest))
+      val newData = new TpccTable(if(implVersionUnderTest > 5) 5 else implVersionUnderTest)
       newData.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
 
       if(newData equals SharedDataScala) {

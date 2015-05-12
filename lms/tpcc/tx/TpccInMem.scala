@@ -370,7 +370,7 @@ class TpccInMem() {
       var SharedDataScala: TpccTable = null
       var SharedDataLMS: EfficientExecutor = null
       if(implVersionUnderTest > 0) {
-        SharedDataScala = new TpccTable(TpccTable.tpccTableImplVersion(implVersionUnderTest))
+        SharedDataScala = new TpccTable(implVersionUnderTest)
         SharedDataScala.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
         logger.info(SharedDataScala.getAllMapsInfoStr)
         if(implVersionUnderTest == 6) {

@@ -20,8 +20,6 @@ object TpccTable {
 	val DISTRICTS_UNDER_A_WAREHOUSE:Int = 10
 
 	def testSpecialDs(implVersion:Int) = implVersion == 5
-
-	def tpccTableImplVersion(implVersionUnderTest:Int) = if(implVersionUnderTest > 5) 5 else implVersionUnderTest
 }
 
 /**
