@@ -55,7 +55,8 @@ addCommandAlias("bench2", ";bench -w 1 -i 2 -t 60 ") ++
 addCommandAlias("bench3", ";bench -w 1 -i 3 -t 60 ") ++
 addCommandAlias("bench4", ";bench -w 1 -i 4 -t 60 ") ++
 addCommandAlias("bench5", ";bench -w 1 -i 5 -t 60 ") ++
-addCommandAlias("bench6", ";bench -w 1 -i 6 -t 60 ")
+addCommandAlias("bench6", ";bench -w 1 -i 6 -t 60 ") ++
+addCommandAlias("bench7", ";bench -w 1 -i 7 -t 60 ")
 
 addCommandAlias("unit", ";run-main ddbt.tpcc.loadtest.TpccUnitTest -i ") ++
 addCommandAlias("unit-1", ";unit -1") ++
@@ -64,7 +65,8 @@ addCommandAlias("unit2", ";unit 2") ++
 addCommandAlias("unit3", ";unit 3") ++
 addCommandAlias("unit4", ";unit 4") ++
 addCommandAlias("unit5", ";unit 5") ++
-addCommandAlias("unit6", ";unit 6")
+addCommandAlias("unit6", ";unit 6") ++
+addCommandAlias("unit7", ";unit 7")
 
 // --------- LMS codegen, enabled with ddbt.lms = 1 in conf/config.properties
 {
