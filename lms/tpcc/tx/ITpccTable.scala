@@ -76,7 +76,9 @@ class ITpccTable extends TpccTable(5) {
 	}
 
 	/*Func*/ def findMaxOrder(o_w_id_arg:Int, o_d_id_arg:Int, c_id_arg:Int) = {
-		orderMaxOrderSetImpl(o_d_id_arg,o_w_id_arg, c_id_arg)
+		val oSet = orderMaxOrderSetImpl(o_d_id_arg,o_w_id_arg, c_id_arg)
+		if(oSet.isEmpty) -1
+        else oSet.peek
 	}
 
 	/*Func*/ def findOrder(max_o_id:Int, o_w_id_arg:Int, o_d_id_arg:Int) = {
