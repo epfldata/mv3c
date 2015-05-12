@@ -5,6 +5,7 @@ import java.util.Date
 import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
+import ddbt.tpcc.tx.MVCCTpccTableV0._
 import NewOrder._
 
 object NewOrder {
@@ -23,7 +24,7 @@ object NewOrder {
  *
  * @author Mohammad Dashti
  */
-class NewOrder extends InMemoryTxImplViaMVCCTpccTable with INewOrderInMem {
+class NewOrder extends InMemoryTxImplViaMVCCTpccTableV0 with INewOrderInMem {
 
   /**
    * @param w_id is warehouse id

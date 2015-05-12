@@ -30,11 +30,11 @@ trait InMemoryTxImplViaITpccTable extends InMemoryTxImpl {
 	}
 } 
 
-trait InMemoryTxImplViaMVCCTpccTable extends InMemoryTxImpl {
-	var ISharedData:MVCCTpccTable = null
+trait InMemoryTxImplViaMVCCTpccTableV0 extends InMemoryTxImpl {
+	var ISharedData:MVCCTpccTableV0 = null
 
 	override def setSharedData(db:AnyRef) = {
-		ISharedData = db.asInstanceOf[MVCCTpccTable]
+		ISharedData = db.asInstanceOf[MVCCTpccTableV0]
 		this
 	}
 } 

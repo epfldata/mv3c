@@ -383,7 +383,7 @@ class TpccInMem() {
         if(implVersionUnderTest == 6) {
           SharedDataScala = SharedDataScala.toITpccTable
         } else if(implVersionUnderTest == 7) {
-          SharedDataScala = SharedDataScala.toMVCCTpccTable
+          SharedDataScala = SharedDataScala.toMVCCTpccTableV0
         }
         newOrder.setSharedData(SharedDataScala)
         payment.setSharedData(SharedDataScala)

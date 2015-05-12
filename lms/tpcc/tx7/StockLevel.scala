@@ -7,6 +7,7 @@ import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import StockLevel._
 import ddbt.tpcc.tx.TpccTable._
+import ddbt.tpcc.tx.MVCCTpccTableV0._
 
 object StockLevel {
 
@@ -24,7 +25,7 @@ object StockLevel {
  *
  * @author Mohammad Dashti
  */
-class StockLevel extends InMemoryTxImplViaMVCCTpccTable with IStockLevelInMem {
+class StockLevel extends InMemoryTxImplViaMVCCTpccTableV0 with IStockLevelInMem {
 
   /**
    * @param w_id is warehouse id

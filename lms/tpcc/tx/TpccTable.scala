@@ -854,8 +854,8 @@ class TpccTable(implVersion:Int) {
 	    res
 	}
 
-	def toMVCCTpccTable = {
-		val res = new MVCCTpccTable
+	def toMVCCTpccTableV0 = {
+		val res = new MVCCTpccTableV0
 		implicit val xact = res.begin
 		val THE_VALUE_DOES_NOT_EXIST = -1 //TODO: should be FIXED
 		newOrderTbl.foreach { case (k,v) => res.onInsert_NewOrder(k._1,k._2,k._3) }

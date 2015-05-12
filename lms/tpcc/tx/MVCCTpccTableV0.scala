@@ -14,9 +14,27 @@ import ddbt.tpcc.lib.BinaryHeap
 import ddbt.tpcc.loadtest.TpccConstants._
 
 import TpccTable._
+import MVCCTpccTableV0._
 
-object MVCCTpccTable {
+object MVCCTpccTableV0 {
 	def testSpecialDsUsed = false
+
+	class Transaction( val xactId:Int ) {
+	}
+
+	class TransactionManager {
+		var maxXact = 0
+		def begin = {
+			maxXact += 1
+			new Transaction(maxXact)
+		}
+		def commit(implicit xact:Transaction) = {
+
+		}
+		def abort(implicit xact:Transaction) = {
+
+		}
+	}
 }
 /**
  * Tables for TPC-C Benchmark (with all operations reflected through its API
@@ -24,14 +42,14 @@ object MVCCTpccTable {
  *
  * @author Mohammad Dashti
  */
-class MVCCTpccTable extends TpccTable(7) {
+class MVCCTpccTableV0 extends TpccTable(7) {
 	val tm = new TransactionManager
 
 	def begin = tm.begin
 	def commit(implicit xact:Transaction) = tm.commit
 	def abort(implicit xact:Transaction) = tm.abort
 
-	override def testSpecialDsUsed = MVCCTpccTable.testSpecialDsUsed
+	override def testSpecialDsUsed = MVCCTpccTableV0.testSpecialDsUsed
 
 	override val newOrderTbl:SHMap[(Int,Int,Int),Boolean] = new SHMap[(Int,Int,Int),Boolean](0.9f, 262144, (k:(Int,Int,Int),v:Boolean) => ((k._2, k._3)) )
 
@@ -248,21 +266,4 @@ class MVCCTpccTable extends TpccTable(7) {
       val (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data) = customerTbl((c_id,input_c_d_id,input_c_w_id))
       (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data,c_id)
     }
-}
-
-class Transaction( val xactId:Int ) {
-}
-
-class TransactionManager {
-	var maxXact = 0
-	def begin = {
-		maxXact += 1
-		new Transaction(maxXact)
-	}
-	def commit(implicit xact:Transaction) = {
-
-	}
-	def abort(implicit xact:Transaction) = {
-
-	}
 }

@@ -5,6 +5,7 @@ import java.util.Date
 import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
+import ddbt.tpcc.tx.MVCCTpccTableV0._
 import OrderStatus._
 
 object OrderStatus {
@@ -23,7 +24,7 @@ object OrderStatus {
  *
  * @author Mohammad Dashti
  */
-class OrderStatus extends InMemoryTxImplViaMVCCTpccTable with IOrderStatusInMem {
+class OrderStatus extends InMemoryTxImplViaMVCCTpccTableV0 with IOrderStatusInMem {
 
   /**
    * @param w_id is warehouse id

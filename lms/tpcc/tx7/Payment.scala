@@ -5,6 +5,7 @@ import java.util.Date
 import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
+import ddbt.tpcc.tx.MVCCTpccTableV0._
 import Payment._
 
 object Payment {
@@ -23,7 +24,7 @@ object Payment {
  *
  * @author Mohammad Dashti
  */
-class Payment extends InMemoryTxImplViaMVCCTpccTable with IPaymentInMem {
+class Payment extends InMemoryTxImplViaMVCCTpccTableV0 with IPaymentInMem {
 
   /**
    * @param w_id is warehouse id

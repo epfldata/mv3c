@@ -5,6 +5,7 @@ import java.util.Date
 import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
+import ddbt.tpcc.tx.MVCCTpccTableV0._
 import Delivery._
 
 object Delivery {
@@ -23,7 +24,7 @@ object Delivery {
  *
  * @author Mohammad Dashti
  */
-class Delivery extends InMemoryTxImplViaMVCCTpccTable with IDeliveryInMem {
+class Delivery extends InMemoryTxImplViaMVCCTpccTableV0 with IDeliveryInMem {
 
   /**
    * @param w_id is warehouse id
