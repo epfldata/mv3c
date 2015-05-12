@@ -432,7 +432,7 @@ class TpccUnitTest {
       if(!(implVersionUnderTest > 0)) {
         SharedDataScala = LMSDataLoader.moveDataToTpccTable(SharedDataLMS, implVersionUnderTest)
       }
-      val newData = new TpccTable(if(implVersionUnderTest > 5) 5 else implVersionUnderTest)
+      val newData = new TpccTable(if(implVersionUnderTest == 6) 5 else implVersionUnderTest)
       newData.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
 
       if(newData equals SharedDataScala) {
