@@ -4,4 +4,5 @@ ddbt.tpcc.tx3: removing duplicate accesses to an element in the HashMap (for rea
 ddbt.tpcc.tx4: implementation with indices on the combination of key and value (for more efficient slice operations)
 ddbt.tpcc.tx5: specific data-structures for Min-Max queries (using SortedSet instead of HashSet)
 ddbt.tpcc.tx6: using SharedData only through its interface
-ddbt.tpcc.tx7: again, using generic data structures for implementing MVCC. This version only contains the stubs
+ddbt.tpcc.tx7: again, using generic data structures for implementing MVCC. This version only contains the stubs for implementing MVCC.
+ddbt.tpcc.tx8: tx7 with MVCC implementation 

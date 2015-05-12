@@ -250,7 +250,7 @@ class TpccUnitTest {
           println("-j [java driver]")
           println("-l [jdbc url]")
           println("-h [jdbc fetch size]")
-          println("-i [target implementation (-1|1|2|3|4|5|6|7)]")
+          println("-i [target implementation]")
           System.exit(-1)
         }
         i = i + 2
@@ -300,7 +300,13 @@ class TpccUnitTest {
     var delivery: IDeliveryInMem = null
     var slev: IStockLevelInMem = null
 
-    if(implVersionUnderTest == 7) {
+    if(implVersionUnderTest == 8) {
+      newOrder = new ddbt.tpcc.tx8.NewOrder
+      payment = new ddbt.tpcc.tx8.Payment
+      orderStat = new ddbt.tpcc.tx8.OrderStatus
+      delivery = new ddbt.tpcc.tx8.Delivery
+      slev = new ddbt.tpcc.tx8.StockLevel
+    } else if(implVersionUnderTest == 7) {
       newOrder = new ddbt.tpcc.tx7.NewOrder
       payment = new ddbt.tpcc.tx7.Payment
       orderStat = new ddbt.tpcc.tx7.OrderStatus
@@ -381,6 +387,8 @@ class TpccUnitTest {
         SharedDataScala = SharedDataScala.toITpccTable
       } else if(implVersionUnderTest == 7) {
         SharedDataScala = SharedDataScala.toMVCCTpccTableV0
+      } else if(implVersionUnderTest == 8) {
+        SharedDataScala = SharedDataScala.toMVCCTpccTableV1
       }
       newOrder.setSharedData(SharedDataScala)
       payment.setSharedData(SharedDataScala)

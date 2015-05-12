@@ -294,6 +294,12 @@ class TpccInMem() {
       orderStat = new ddbt.tpcc.tx7.OrderStatus
       delivery = new ddbt.tpcc.tx7.Delivery
       slev = new ddbt.tpcc.tx7.StockLevel
+    } else if(implVersionUnderTest == 8) {
+      newOrder = new ddbt.tpcc.tx8.NewOrder
+      payment = new ddbt.tpcc.tx8.Payment
+      orderStat = new ddbt.tpcc.tx8.OrderStatus
+      delivery = new ddbt.tpcc.tx8.Delivery
+      slev = new ddbt.tpcc.tx8.StockLevel
     } else if(implVersionUnderTest == -1) {
       newOrder = new NewOrderLMSImpl
       payment = new PaymentLMSImpl
@@ -384,6 +390,8 @@ class TpccInMem() {
           SharedDataScala = SharedDataScala.toITpccTable
         } else if(implVersionUnderTest == 7) {
           SharedDataScala = SharedDataScala.toMVCCTpccTableV0
+        } else if(implVersionUnderTest == 8) {
+          SharedDataScala = SharedDataScala.toMVCCTpccTableV1
         }
         newOrder.setSharedData(SharedDataScala)
         payment.setSharedData(SharedDataScala)
