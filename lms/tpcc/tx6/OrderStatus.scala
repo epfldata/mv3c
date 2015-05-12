@@ -102,11 +102,7 @@ class OrderStatus extends InMemoryTxImplViaITpccTable with IOrderStatusInMem {
   
   object OrderStatusTxOps {
     def findNewestOrder(o_w_id_arg:Int, o_d_id_arg:Int, c_id_arg:Int) = {
-      val oSet = ISharedData.findMaxOrder(o_w_id_arg, o_d_id_arg, c_id_arg)
-      val max_o_id = {
-        if(oSet.isEmpty) -1
-        else oSet.peek
-      }
+      val max_o_id = ISharedData.findMaxOrder(o_w_id_arg, o_d_id_arg, c_id_arg)
 
       if(max_o_id == -1) {
         (-1,null,None)
