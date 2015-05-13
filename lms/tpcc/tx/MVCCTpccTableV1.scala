@@ -51,25 +51,25 @@ class MVCCTpccTableV1 extends TpccTable(7) {
 
 	override def testSpecialDsUsed = MVCCTpccTableV1.testSpecialDsUsed
 
-	override val newOrderTbl:SHMap[(Int,Int,Int),Boolean] = new SHMap[(Int,Int,Int),Boolean](0.9f, 262144, (k:(Int,Int,Int),v:Boolean) => ((k._2, k._3)) )
+	override val newOrderTbl = new SHMap[(Int,Int,Int),Boolean](0.9f, 262144, (k:(Int,Int,Int),v:Boolean) => ((k._2, k._3)) )
 
-	override val historyTbl:SHMap[(Int,Int,Int,Int,Int,Date,Float,String),Boolean] = new SHMap[(Int,Int,Int,Int,Int,Date,Float,String),Boolean]/*(0.9f, 4194304)*/
+	override val historyTbl = new SHMap[(Int,Int,Int,Int,Int,Date,Float,String),Boolean]/*(0.9f, 4194304)*/
 
 	override val warehouseTbl = new SHMap[Int,(String,String,String,String,String,String,Float,Double)]
 
 	override val itemPartialTbl = new SHMap[Int,(/*Int,*/String,Float,String)]/*(1f, 262144)*/
 
-	override val orderTbl:SHMap[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)] = new SHMap[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)](/*0.9f, 4194304,*/ (k:(Int,Int,Int), v:(Int,Date,Option[Int],Int,Boolean)) => ((k._2, k._3, v._1)) )
+	override val orderTbl = new SHMap[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)](/*0.9f, 4194304,*/ (k:(Int,Int,Int), v:(Int,Date,Option[Int],Int,Boolean)) => ((k._2, k._3, v._1)) )
 
 	override val districtTbl = new SHMap[(Int,Int),(String,String,String,String,String,String,Float,Double,Int)]/*(1f, 32)*/
 
-	override val orderLineTbl:SHMap[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)] = new SHMap[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)](/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:(Int,Int,Int,Int), v:(Int,Int,Option[Date],Int,Float,String)) => ((k._1, k._2, k._3)) )
+	override val orderLineTbl = new SHMap[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)](/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:(Int,Int,Int,Int), v:(Int,Int,Option[Date],Int,Float,String)) => ((k._1, k._2, k._3)) )
 
-	override val customerTbl:SHMap[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] = new SHMap[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] (/*1f, 65536, List((1f, 16384)),*/ (k:(Int,Int,Int), v:(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)) => ((k._2, k._3, v._3)) )
+	override val customerTbl = new SHMap[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] (/*1f, 65536, List((1f, 16384)),*/ (k:(Int,Int,Int), v:(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)) => ((k._2, k._3, v._3)) )
 
-	override val stockTbl:SHMap[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)] = new SHMap[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)]/*(1f, 262144)*/
+	override val stockTbl = new SHMap[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)]/*(1f, 262144)*/
 
-	override val customerWarehouseFinancialInfoMap:SHMap[(Int,Int,Int),(Float,String,String,Float)] = new SHMap[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
+	override val customerWarehouseFinancialInfoMap = new SHMap[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
 
 	def onInsert_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int)(implicit xact:Transaction) = {
 		newOrderTbl((no_o_id, no_d_id, no_w_id)) = (true)
