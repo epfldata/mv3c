@@ -45,53 +45,53 @@ object SHMap {
    * The load factor used when none specified in constructor.
    */
   final val DEFAULT_LOAD_FACTOR: Float = 0.75f
-}
 
-class SEntry[K,V](var hash: Int, var key: K, var value: V, var next: SEntry[K, V]) { self =>
+  class SEntry[K,V](var hash: Int, var key: K, var value: V, var next: SEntry[K, V]) { self =>
 
-  def this() {
-    this(0,null.asInstanceOf[K],null.asInstanceOf[V],null.asInstanceOf[SEntry[K, V]])
-  }
-
-  def getKey: K = {
-    return key
-  }
-
-  def getValue: V = {
-    return value
-  }
-
-  def setValue(newValue: V): V = {
-    val oldValue: V = value
-    value = newValue
-    return oldValue
-  }
-
-  def setAll(h: Int, k: K, v: V, n: SEntry[K, V]):SEntry[K, V] = {
-    hash = h
-    key = k
-    value = v
-    next = n
-    self
-  }
-
-  override def equals(o: Any): Boolean = {
-    if (!(o.isInstanceOf[SEntry[K, V]])) return false
-    val e: SEntry[K, V] = o.asInstanceOf[SEntry[K, V]]
-    val k1: K = getKey
-    val k2: K = e.getKey
-    if (k1 == k2) {
-      val v1: V = getValue
-      val v2: V = e.getValue
-      if (v1 == v2) return true
+    def this() {
+      this(0,null.asInstanceOf[K],null.asInstanceOf[V],null.asInstanceOf[SEntry[K, V]])
     }
-    return false
-  }
 
-  override def hashCode: Int = getKey.hashCode
+    def getKey: K = {
+      return key
+    }
 
-  override def toString: String = {
-    return "(" + getKey + " -> " + getValue + ")"
+    def getValue: V = {
+      return value
+    }
+
+    def setValue(newValue: V): V = {
+      val oldValue: V = value
+      value = newValue
+      return oldValue
+    }
+
+    def setAll(h: Int, k: K, v: V, n: SEntry[K, V]):SEntry[K, V] = {
+      hash = h
+      key = k
+      value = v
+      next = n
+      self
+    }
+
+    override def equals(o: Any): Boolean = {
+      if (!(o.isInstanceOf[SEntry[K, V]])) return false
+      val e: SEntry[K, V] = o.asInstanceOf[SEntry[K, V]]
+      val k1: K = getKey
+      val k2: K = e.getKey
+      if (k1 == k2) {
+        val v1: V = getValue
+        val v2: V = e.getValue
+        if (v1 == v2) return true
+      }
+      return false
+    }
+
+    override def hashCode: Int = getKey.hashCode
+
+    override def toString: String = {
+      return "(" + getKey + " -> " + getValue + ")"
+    }
   }
 }
 
