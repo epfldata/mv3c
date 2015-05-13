@@ -64,10 +64,10 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV1 with IPaymentInMem {
                 h_amount, datetime.toString, c_data)
             if (c_data.length > 500) c_data = c_data.substring(0, 500)
             //TODO this is the correct version but is not implemented in the correctness test
-            c.value = (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance+h_amount,c_ytd_payment/*+h_amount*/,c_payment_cnt/*+1*/,c_delivery_cnt,c_data)
+            ISharedData.onUpdateCustomer_byEntry(c, c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance+h_amount,c_ytd_payment/*+h_amount*/,c_payment_cnt/*+1*/,c_delivery_cnt,c_data)
           } else {
             //TODO this is the correct version but is not implemented in the correctness test
-            c.value = (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance+h_amount,c_ytd_payment/*+h_amount*/,c_payment_cnt/*+1*/,c_delivery_cnt,found_c_data)
+            ISharedData.onUpdateCustomer_byEntry(c, c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance+h_amount,c_ytd_payment/*+h_amount*/,c_payment_cnt/*+1*/,c_delivery_cnt,found_c_data)
           }
           //TODO this is the correct version but is not implemented in the correctness test
           val h_data: String = {if (w_name.length > 10) w_name.substring(0, 10) else w_name} + "    " + {if (d_name.length > 10) d_name.substring(0, 10) else d_name}

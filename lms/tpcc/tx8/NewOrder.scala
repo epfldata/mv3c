@@ -72,7 +72,10 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV1 with INewOrderInMem {
             failed = true
           }
         }
-        if(failed) return 1
+        if(failed) {
+          ISharedData.rollback
+          return 1
+        }
         ol_number += 1
       }
 
