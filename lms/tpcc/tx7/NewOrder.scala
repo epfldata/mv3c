@@ -77,7 +77,6 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV0 with INewOrderInMem {
           return 1
         }
 
-        return 1
         ol_number += 1
       }
 
