@@ -31,7 +31,7 @@ object MVCCTpccTableV1 {
 		def commit(implicit xact:Transaction) = {
 
 		}
-		def abort(implicit xact:Transaction) = {
+		def rollback(implicit xact:Transaction) = {
 
 		}
 	}
@@ -47,7 +47,7 @@ class MVCCTpccTableV1 extends TpccTable(7) {
 
 	def begin = tm.begin
 	def commit(implicit xact:Transaction) = tm.commit
-	def abort(implicit xact:Transaction) = tm.abort
+	def rollback(implicit xact:Transaction) = tm.rollback
 
 	override def testSpecialDsUsed = MVCCTpccTableV1.testSpecialDsUsed
 
