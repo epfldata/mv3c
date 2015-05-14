@@ -1,4 +1,4 @@
-package ddbt.tpcc.lib
+package ddbt.tpcc.lib.shm
 
 import SHMap._
 import ddbt.Utils.ind

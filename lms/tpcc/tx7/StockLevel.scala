@@ -73,7 +73,7 @@ class StockLevel extends InMemoryTxImplViaMVCCTpccTableV0 with IStockLevelInMem 
       }
 
       def findOrderLineStockRecentItemsUnderThresholds(w_id:Int, d_id:Int, o_id:Int, threshold:Int)(implicit xact:Transaction) = {
-        val unique_ol_i_id = new ddbt.tpcc.lib.SHSet[Int]
+        val unique_ol_i_id = new ddbt.tpcc.lib.shm.SHSet[Int]
         var i = o_id-20
         while(i < o_id) {
           ISharedData.orderLineTblSlice(0, (i, d_id, w_id), { case (_,(ol_i_id,_,_,_,_,_)) =>
