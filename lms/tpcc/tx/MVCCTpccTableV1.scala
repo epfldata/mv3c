@@ -10,7 +10,7 @@ import ddbt.tpcc.loadtest.DatabaseConnector._
 import ddbt.tpcc.lib.shm.SHMap
 import ddbt.tpcc.lib.mvshm.SHMapMVCC
 import ddbt.tpcc.lib.mvshm.SHMapMVCC._
-import ddbt.tpcc.lib.mvshm.SEntry
+import ddbt.tpcc.lib.mvshm.SEntryMVCC
 import ddbt.tpcc.lib.mvshm.DeltaVersion
 import ddbt.tpcc.lib.BinaryHeap
 import ddbt.tpcc.loadtest.TpccConstants._
@@ -208,7 +208,7 @@ class MVCCTpccTableV1 extends TpccTable(7) {
     /*Func*/ def orderLineTblSlice[P](part:Int, partKey:P, f: (((Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String))) => Unit)(implicit xact:Transaction) = {
 		tm.orderLineTbl.slice(0, partKey).foreach(f)
     }
-    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: ddbt.tpcc.lib.shm.SEntry[SEntry[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)], Boolean] => Unit)(implicit xact:Transaction) = {
+    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: ddbt.tpcc.lib.shm.SEntry[SEntryMVCC[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)], Boolean] => Unit)(implicit xact:Transaction) = {
 		tm.orderLineTbl.slice(0, partKey).foreachEntry(f)
     }
 
@@ -231,7 +231,7 @@ class MVCCTpccTableV1 extends TpccTable(7) {
       tm.customerTbl.update((c_id,c_d_id,c_w_id),updateFunc)
     }
 
-    def onUpdateCustomer_byEntry(c: SEntry[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)], c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
+    def onUpdateCustomer_byEntry(c: SEntryMVCC[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)], c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
       c.value = (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment/*+h_amount*/,c_payment_cnt/*+1*/,c_delivery_cnt,c_data)
     }
 

@@ -50,13 +50,13 @@ object SHMapMVCC {
   final val DEFAULT_LOAD_FACTOR: Float = 0.75f
 }
 
-case class DeltaVersion[K,V <: Product](val xact:Transaction, val entry:SEntry[K,V], val beforeImg:SEntry[K,V], val colIds:List[Int]=Nil /*all columns*/, var next: DeltaVersion[K,V]=null, var prev: DeltaVersion[K,V]=null)
+case class DeltaVersion[K,V <: Product](val xact:Transaction, val entry:SEntryMVCC[K,V], val beforeImg:SEntryMVCC[K,V], val colIds:List[Int]=Nil /*all columns*/, var next: DeltaVersion[K,V]=null, var prev: DeltaVersion[K,V]=null)
 
 
-class SEntry[K,V <: Product](var hash: Int, var key: K, var value: V, var next: SEntry[K, V]) { self =>
+class SEntryMVCC[K,V <: Product](var hash: Int, var key: K, var value: V, var next: SEntryMVCC[K, V]) { self =>
 
   def this() {
-    this(0,null.asInstanceOf[K],null.asInstanceOf[V],null.asInstanceOf[SEntry[K, V]])
+    this(0,null.asInstanceOf[K],null.asInstanceOf[V],null.asInstanceOf[SEntryMVCC[K, V]])
   }
 
   def getKey: K = {
@@ -73,7 +73,7 @@ class SEntry[K,V <: Product](var hash: Int, var key: K, var value: V, var next: 
     return oldValue
   }
 
-  def setAll(h: Int, k: K, v: V, n: SEntry[K, V]):SEntry[K, V] = {
+  def setAll(h: Int, k: K, v: V, n: SEntryMVCC[K, V]):SEntryMVCC[K, V] = {
     hash = h
     key = k
     value = v
@@ -82,8 +82,8 @@ class SEntry[K,V <: Product](var hash: Int, var key: K, var value: V, var next: 
   }
 
   override def equals(o: Any): Boolean = {
-    if (!(o.isInstanceOf[SEntry[K, V]])) return false
-    val e: SEntry[K, V] = o.asInstanceOf[SEntry[K, V]]
+    if (!(o.isInstanceOf[SEntryMVCC[K, V]])) return false
+    val e: SEntryMVCC[K, V] = o.asInstanceOf[SEntryMVCC[K, V]]
     val k1: K = getKey
     val k2: K = e.getKey
     if (k1 == k2) {
@@ -123,7 +123,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   //   if (lf <= 0 /*|| Float.isNaN(lf)*/) throw new RuntimeException("Illegal load factor: " + lf)
   //   loadFactor = lf
   //   threshold = (capacity * lf).asInstanceOf[Int]
-  //   table = new Array[SEntry[K, V]](capacity)
+  //   table = new Array[SEntryMVCC[K, V]](capacity)
   // }
 
   /**
@@ -197,7 +197,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   def apply(key: K)(implicit xact:Transaction): V = {
     // if (key == null) return getForNullKey
     val hs: Int = hash(key.hashCode)
-    var e: SEntry[K, V] = table(indexFor(hs, table.length))
+    var e: SEntryMVCC[K, V] = table(indexFor(hs, table.length))
     while (e != null) {
       val k: K = e.key
       if (e.hash == hs && key == k) return e.value
@@ -206,10 +206,10 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
     throw new java.util.NoSuchElementException
   }
   // def get(key: K): V = apply(key)
-  def getEntry(key: K)(implicit xact:Transaction): SEntry[K,V] = {
+  def getEntry(key: K)(implicit xact:Transaction): SEntryMVCC[K,V] = {
     // if (key == null) return getForNullKey
     val hs: Int = hash(key.hashCode)
-    var e: SEntry[K, V] = table(indexFor(hs, table.length))
+    var e: SEntryMVCC[K, V] = table(indexFor(hs, table.length))
     while (e != null) {
       val k: K = e.key
       if (e.hash == hs && key == k) return e
@@ -220,7 +220,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   def getNullOnNotFound(key: K)(implicit xact:Transaction): V = {
     // if (key == null) return getForNullKey
     val hs: Int = hash(key.hashCode)
-    var e: SEntry[K, V] = table(indexFor(hs, table.length))
+    var e: SEntryMVCC[K, V] = table(indexFor(hs, table.length))
     while (e != null) {
       val k: K = e.key
       if (e.hash == hs && key == k) return e.value
@@ -237,7 +237,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
    * others.
    */
   private def getForNullKey(implicit xact:Transaction): V = {
-    var e: SEntry[K, V] = table(0)
+    var e: SEntryMVCC[K, V] = table(0)
     while (e != null) {
       if (e.key == null) return e.value
       e = e.next
@@ -253,22 +253,22 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
    * @return <tt>true</tt> if this map contains a mapping for the specified
    *         key.
    */
-  def contains(key: K)(implicit xact:Transaction): Boolean = (getSEntry(key) != null)
+  def contains(key: K)(implicit xact:Transaction): Boolean = (getSEntryMVCC(key) != null)
 
   /**
    * Returns the entry associated with the specified key in the
    * SHMapMVCC.  Returns null if the SHMapMVCC contains no mapping
    * for the key.
    */
-  def getSEntry(key: K)(implicit xact:Transaction): SEntry[K, V] = {
+  def getSEntryMVCC(key: K)(implicit xact:Transaction): SEntryMVCC[K, V] = {
     val hs: Int = /*if ((key == null)) 0 else*/ hash(key.hashCode)
-    var e: SEntry[K, V] = table(indexFor(hs, table.length))
+    var e: SEntryMVCC[K, V] = table(indexFor(hs, table.length))
     while (e != null) {
       val k: K = e.key
       if (e.hash == hs && key == k) return e
       e = e.next
     }
-    null.asInstanceOf[SEntry[K, V]]
+    null.asInstanceOf[SEntryMVCC[K, V]]
   }
 
   /**
@@ -287,7 +287,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
     // if (key == null) return putForNullKey(value)
     val hs: Int = hash(key.hashCode)
     val i: Int = indexFor(hs, table.length)
-    var e: SEntry[K, V] = table(i)
+    var e: SEntryMVCC[K, V] = table(i)
     while (e != null) {
       val k: K = e.key
       if (e.hash == hs && key == k) {
@@ -306,7 +306,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
       }
       e = e.next
     }
-    e = addSEntry(hs, key, value, i)
+    e = addSEntryMVCC(hs, key, value, i)
     if (idxs!=Nil) idxs.foreach(_.set(e))
     null.asInstanceOf[V]
   }
@@ -323,7 +323,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
     // if (key == null) return putForNullKey(value)
     val hs: Int = hash(key.hashCode)
     val i: Int = indexFor(hs, table.length)
-    var e: SEntry[K, V] = table(i)
+    var e: SEntryMVCC[K, V] = table(i)
     while (e != null) {
       val k: K = e.key
       if (e.hash == hs && key == k) {
@@ -350,7 +350,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
    * Offloaded version of put for null keys
    */
   // private def putForNullKey(value: V): V = {
-  //   var e: SEntry[K, V] = table(0)
+  //   var e: SEntryMVCC[K, V] = table(0)
   //   while (e != null) {
   //     if (e.key == null) {
   //       val oldValue: V = e.value
@@ -359,21 +359,21 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   //     }
   //     e = e.next
   //   }
-  //   addSEntry(0, null, value, 0)
+  //   addSEntryMVCC(0, null, value, 0)
   //   null
   // }
 
   /**
    * This method is used instead of put by constructors and
    * pseudoconstructors (clone, readObject).  It does not resize the table,
-   * check for comodification, etc.  It calls createSEntry rather than
-   * addSEntry.
+   * check for comodification, etc.  It calls createSEntryMVCC rather than
+   * addSEntryMVCC.
    */
   // private def putForCreate(key: K, value: V):Unit {
   //   val hash: Int = if ((key == null)) 0 else hash(key.hashCode)
   //   val i: Int = indexFor(hash, table.length)
   //   {
-  //     var e: SEntry[K, V] = table(i)
+  //     var e: SEntryMVCC[K, V] = table(i)
   //     while (e != null) {
   //       {
   //         var k: K = null
@@ -387,7 +387,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   //       e = e.next
   //     }
   //   }
-  //   createSEntry(hash, key, value, i)
+  //   createSEntryMVCC(hash, key, value, i)
   // }
   //
   // private def putAllForCreate(m: Nothing):Unit {
@@ -410,13 +410,13 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
    *                    is irrelevant).
    */
   def resize(newCapacity: Int)(implicit xact:Transaction):Unit = {
-    val oldTable: Array[SEntry[K, V]] = table
+    val oldTable: Array[SEntryMVCC[K, V]] = table
     val oldCapacity: Int = oldTable.length
     if (oldCapacity == MAXIMUM_CAPACITY) {
       threshold = Integer.MAX_VALUE
       return
     }
-    val newTable: Array[SEntry[K, V]] = new Array[SEntry[K, V]](newCapacity)
+    val newTable: Array[SEntryMVCC[K, V]] = new Array[SEntryMVCC[K, V]](newCapacity)
     transfer(newTable)
     table = newTable
     threshold = (newCapacity * loadFactor).asInstanceOf[Int]
@@ -425,16 +425,16 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   /**
    * Transfers all entries from current table to newTable.
    */
-  def transfer(newTable: Array[SEntry[K, V]])(implicit xact:Transaction) {
-    val src: Array[SEntry[K, V]] = table
+  def transfer(newTable: Array[SEntryMVCC[K, V]])(implicit xact:Transaction) {
+    val src: Array[SEntryMVCC[K, V]] = table
     val newCapacity: Int = newTable.length
     var j: Int = 0
     while (j < src.length) {
-      var e: SEntry[K, V] = src(j)
+      var e: SEntryMVCC[K, V] = src(j)
       if (e != null) {
         src(j) = null
         do {
-          val next: SEntry[K, V] = e.next
+          val next: SEntryMVCC[K, V] = e.next
           val i: Int = indexFor(e.hash, newCapacity)
           e.next = newTable(i)
           newTable(i) = e
@@ -457,7 +457,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   def delete(key: K)(implicit xact:Transaction): V = remove(key)
 
   def remove(key: K)(implicit xact:Transaction): V = {
-    val e: SEntry[K, V] = removeSEntryForKey(key)
+    val e: SEntryMVCC[K, V] = removeSEntryMVCCForKey(key)
     (if (e == null) null.asInstanceOf[V] else e.value)
   }
 
@@ -468,13 +468,13 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
    * in the SHMapMVCC.  Returns null if the SHMapMVCC contains no mapping
    * for this key.
    */
-  def removeSEntryForKey(key: K)(implicit xact:Transaction): SEntry[K, V] = {
+  def removeSEntryMVCCForKey(key: K)(implicit xact:Transaction): SEntryMVCC[K, V] = {
     val hs: Int = /*if ((key == null)) 0 else*/ hash(key.hashCode)
     val i: Int = indexFor(hs, table.length)
-    var prev: SEntry[K, V] = table(i)
-    var e: SEntry[K, V] = prev
+    var prev: SEntryMVCC[K, V] = table(i)
+    var e: SEntryMVCC[K, V] = prev
     while (e != null) {
-      val next: SEntry[K, V] = e.next
+      val next: SEntryMVCC[K, V] = e.next
       var k: K = e.key
       if (e.hash == hs && key == k) {
         if (idxs!=Nil) idxs.foreach(_.del(e))
@@ -490,18 +490,18 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   }
 
   /**
-   * Special version of remove for SEntrySet.
+   * Special version of remove for SEntryMVCCSet.
    */
-  // def removeMapping(entry: SEntry[K, V]): SEntry[K, V] = {
+  // def removeMapping(entry: SEntryMVCC[K, V]): SEntryMVCC[K, V] = {
   //   // if (!(o.isInstanceOf[Any])) return null
-  //   // val entry: SEntry[K, V] = o.asInstanceOf[SEntry[K, V]]
+  //   // val entry: SEntryMVCC[K, V] = o.asInstanceOf[SEntryMVCC[K, V]]
   //   val key: K = entry.getKey
   //   val hs: Int = /*if ((key == null)) 0 else*/ hash(key.hashCode)
   //   val i: Int = indexFor(hs, table.length)
-  //   var prev: SEntry[K, V] = table(i)
-  //   var e: SEntry[K, V] = prev
+  //   var prev: SEntryMVCC[K, V] = table(i)
+  //   var e: SEntryMVCC[K, V] = prev
   //   while (e != null) {
-  //     val next: SEntry[K, V] = e.next
+  //     val next: SEntryMVCC[K, V] = e.next
   //     if (e.hash == hs && e == entry) {
   //       size -= 1
   //       if (prev eq e) table(i) = next
@@ -538,10 +538,10 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
    */
   // def containsValue(value: V): Boolean = {
   //   if (value == null) return containsNullValue
-  //   val tab: Array[SEntry[K, V]] = table
+  //   val tab: Array[SEntryMVCC[K, V]] = table
   //   var i: Int = 0
   //   while (i < tab.length) {
-  //     var e: SEntry[K, V] = tab(i)
+  //     var e: SEntryMVCC[K, V] = tab(i)
   //     while (e != null) {
   //       if (value == e.value) return true
   //       e = e.next
@@ -557,7 +557,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   // private def containsNullValue: Boolean = {
   //   var i: Int = 0
   //   while (i < table.length) {
-  //     var e: SEntry[K, V] = table(i)
+  //     var e: SEntryMVCC[K, V] = table(i)
   //     while (e != null) {
   //       if (e.value == null) return true
   //       e = e.next
@@ -574,10 +574,10 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
    *
    * Subclass overrides this to alter the behavior of put method.
    */
-  def addSEntry(hash: Int, key: K, value: V, bucketIndex: Int)(implicit xact:Transaction):SEntry[K, V] = {
-    val tmp: SEntry[K, V] = table(bucketIndex)
+  def addSEntryMVCC(hash: Int, key: K, value: V, bucketIndex: Int)(implicit xact:Transaction):SEntryMVCC[K, V] = {
+    val tmp: SEntryMVCC[K, V] = table(bucketIndex)
 
-    val e = new SEntry[K, V](hash, key, value, tmp)
+    val e = new SEntryMVCC[K, V](hash, key, value, tmp)
     table(bucketIndex) = e
     if (size >= threshold) resize(2 * table.length)
     size += 1
@@ -585,16 +585,16 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   }
 
   /**
-   * Like addSEntry except that this version is used when creating entries
+   * Like addSEntryMVCC except that this version is used when creating entries
    * as part of Map construction or "pseudo-construction" (cloning,
    * deserialization).  This version needn't worry about resizing the table.
    *
    * Subclass overrides this to alter the behavior of SHMapMVCC(Map),
    * clone, and readObject.
    */
-  // def createSEntry(hash: Int, key: K, value: V, bucketIndex: Int):Unit = {
-  //   val e: SEntry[K, V] = table(bucketIndex)
-  //   table(bucketIndex) = new SEntry[K, V](hash, key, value, e)
+  // def createSEntryMVCC(hash: Int, key: K, value: V, bucketIndex: Int):Unit = {
+  //   val e: SEntryMVCC[K, V] = table(bucketIndex)
+  //   table(bucketIndex) = new SEntryMVCC[K, V](hash, key, value, e)
   //   size += 1
   // }
 
@@ -606,10 +606,10 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
 
   def foreach(f: ((K, V)) => Unit)(implicit xact:Transaction): Unit = foreachEntry(e => f(e.key, e.value))
 
-  def foreachEntry(f: SEntry[K, V] => Unit)(implicit xact:Transaction): Unit = {
+  def foreachEntry(f: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction): Unit = {
     var i: Int = 0
     while (i < table.length) {
-      var e: SEntry[K, V] = table(i)
+      var e: SEntryMVCC[K, V] = table(i)
       while (e != null) {
         f(e)
         e = e.next
@@ -651,7 +651,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   /**
    * The table, resized as necessary. Length MUST Always be a power of two.
    */
-  var table: Array[SEntry[K, V]] = new Array[SEntry[K, V]](initialCapacity)
+  var table: Array[SEntryMVCC[K, V]] = new Array[SEntryMVCC[K, V]](initialCapacity)
   /**
    * The number of key-value mappings contained in this map.
    */
@@ -684,7 +684,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
     val contentSize = new Array[Int](table.length)
     while(i < table.length) {
       var counter = 0
-      var e: SEntry[K, V] = table(i)
+      var e: SEntryMVCC[K, V] = table(i)
       while(e != null) {
         counter += 1
         e = e.next
