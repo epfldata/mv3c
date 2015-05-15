@@ -839,6 +839,8 @@ class TpccTable(implVersion:Int) {
 		.append("stockTbl => ").append(stockTbl.getInfoStr).toString
 	}
 
+	def toTpccTable:TpccTable = this
+
 	def toITpccTable = {
 		val res = new ITpccTable
 		val THE_VALUE_DOES_NOT_EXIST = -1 //TODO: should be FIXED

@@ -72,7 +72,7 @@ class MVCCTpccTableV0 extends TpccTable(7) {
 	override val customerWarehouseFinancialInfoMap = new SHMap[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
 
 	def onInsert_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int)(implicit xact:Transaction) = {
-		newOrderTbl((no_o_id, no_d_id, no_w_id)) = (true)
+		newOrderTbl += ((no_o_id, no_d_id, no_w_id), true)
 	}
 
 	def onDelete_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int)(implicit xact:Transaction) = {
@@ -94,7 +94,7 @@ class MVCCTpccTableV0 extends TpccTable(7) {
 	}
 
 	def onInsert_Item(i_id:Int, i_im_id:Int, i_name:String, i_price:Float, i_data:String)(implicit xact:Transaction) = {
-		itemPartialTbl(i_id) = ((/*i_im_id,*/i_name,i_price,i_data))
+		itemPartialTbl += (i_id, (/*i_im_id,*/i_name,i_price,i_data))
 	}
 
 	/*Func*/ def findItem(item_id:Int)(implicit xact:Transaction) = {
@@ -128,11 +128,11 @@ class MVCCTpccTableV0 extends TpccTable(7) {
 	}
 
 	def onInsert_Warehouse(w_id:Int, w_name:String, w_street_1:String, w_street_2:String, w_city:String, w_state:String, w_zip:String, w_tax:Float, w_ytd:Double)(implicit xact:Transaction) = {
-		warehouseTbl(w_id) = ((w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd))
+		warehouseTbl += (w_id, (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd))
 	}
 
 	def onUpdate_Warehouse(w_id:Int, w_name:String, w_street_1:String, w_street_2:String, w_city:String, w_state:String, w_zip:String, w_tax:Float, w_ytd:Double)(implicit xact:Transaction) = {
-		onInsert_Warehouse(w_id,w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd)
+		warehouseTbl(w_id) = ((w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd))
 	}
 
 	def onUpdate_Warehouse_byFunc(w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double)) => (String, String, String, String, String, String, Float, Double))(implicit xact:Transaction) = {
@@ -140,16 +140,16 @@ class MVCCTpccTableV0 extends TpccTable(7) {
 	}
 
 	def onInsert_District(d_id:Int, d_w_id:Int, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String, d_tax:Float, d_ytd:Double, d_next_o_id:Int)(implicit xact:Transaction) = {
-		districtTbl((d_id,d_w_id)) = ((d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id))
+		districtTbl += ((d_id,d_w_id), (d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id))
 	}
 
 	def onUpdate_District(d_id:Int, d_w_id:Int, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String, d_tax:Float, d_ytd:Double, d_next_o_id:Int)(implicit xact:Transaction) = {
-		onInsert_District(d_id,d_w_id, d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id)
+		districtTbl += ((d_id,d_w_id), (d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id))
 	}
 
 	def onUpdate_District_forNewOrder(d_id:Int, d_w_id:Int/*, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String*/, d_tax:Float/*, d_ytd:Float*/, d_next_o_id:Int)(implicit xact:Transaction) = {
 		val (d_name,d_street1,d_street2,d_city,d_state,d_zip,_,d_ytd,_) = districtTbl(d_id,d_w_id)
-		onUpdate_District(d_id,d_w_id, d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id)
+		districtTbl((d_id,d_w_id)) = ((d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id))
 	}
 
 	def onUpdate_District_byFunc(d_id:Int, d_w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int))(implicit xact:Transaction) = {
@@ -161,11 +161,11 @@ class MVCCTpccTableV0 extends TpccTable(7) {
 	}
 
 	def onInsertOrderLine(ol_o_id:Int, ol_d_id:Int, ol_w_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_delivery_d:Option[Date], ol_quantity:Int, ol_amount:Float, ol_dist_info:String)(implicit xact:Transaction): Unit = {
-      orderLineTbl += ((ol_o_id, ol_d_id, ol_w_id, ol_number), (ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity, ol_amount, ol_dist_info))
+		orderLineTbl += ((ol_o_id, ol_d_id, ol_w_id, ol_number), (ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity, ol_amount, ol_dist_info))
     }
 
 	def onUpdateOrderLine(ol_o_id:Int, ol_d_id:Int, ol_w_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_delivery_d:Option[Date], ol_quantity:Int, ol_amount:Float, ol_dist_info:String)(implicit xact:Transaction): Unit = {
-      orderLineTbl.update((ol_o_id, ol_d_id, ol_w_id, ol_number) , (ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity, ol_amount, ol_dist_info))
+		orderLineTbl.update((ol_o_id, ol_d_id, ol_w_id, ol_number) , (ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity, ol_amount, ol_dist_info))
     }
 
     /*Func*/ def orderLineTblSlice[P](part:Int, partKey:P, f: (((Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String))) => Unit)(implicit xact:Transaction) = {
@@ -220,25 +220,25 @@ class MVCCTpccTableV0 extends TpccTable(7) {
 	} 
 
     def findCustomerEntryByName(input_c_w_id: Int, input_c_d_id: Int, input_c_last: String)(implicit xact:Transaction) = {
-      var customers = new ArrayBuffer[MiniCustomer]
-      //we should slice over input_c_last
-      customerTbl.slice(0, (input_c_d_id, input_c_w_id, input_c_last)).foreach { case ((c_id,_,_) , (c_first,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)) =>
-          customers += new MiniCustomer(c_id,c_first)
-      }
-      if (customers.size == 0) {
-        throw new RuntimeException("The customer C_LAST=" + input_c_last + " C_D_ID=" + input_c_d_id + " C_W_ID=" + input_c_w_id + " not found!")
-      }
-      // println("**********************************")
-      // println("Customers before:",customers)
-      customers = customers.sorted
-      // println("Customers after:",customers)
-      // println("**********************************")
-      var index: Int = customers.size / 2
-      if (customers.size % 2 == 0) {
-        index -= 1
-      }
-      val c_id = customers(index).cust_id
-      customerTbl.getEntry((c_id,input_c_d_id,input_c_w_id))
+		var customers = new ArrayBuffer[MiniCustomer]
+		//we should slice over input_c_last
+		customerTbl.slice(0, (input_c_d_id, input_c_w_id, input_c_last)).foreach { case ((c_id,_,_) , (c_first,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)) =>
+			customers += new MiniCustomer(c_id,c_first)
+		}
+		if (customers.size == 0) {
+		throw new RuntimeException("The customer C_LAST=" + input_c_last + " C_D_ID=" + input_c_d_id + " C_W_ID=" + input_c_w_id + " not found!")
+		}
+		// println("**********************************")
+		// println("Customers before:",customers)
+		customers = customers.sorted
+		// println("Customers after:",customers)
+		// println("**********************************")
+		var index: Int = customers.size / 2
+		if (customers.size % 2 == 0) {
+			index -= 1
+		}
+		val c_id = customers(index).cust_id
+		customerTbl.getEntry((c_id,input_c_d_id,input_c_w_id))
     }
     def findCustomerEntryById(input_c_w_id: Int, input_c_d_id: Int, c_id: Int)(implicit xact:Transaction) = {
       customerTbl.getEntry((c_id,input_c_d_id,input_c_w_id))

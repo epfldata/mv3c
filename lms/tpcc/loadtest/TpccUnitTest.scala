@@ -443,7 +443,7 @@ class TpccUnitTest {
       val newData = new TpccTable(if(implVersionUnderTest == 6) 5 else implVersionUnderTest)
       newData.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
 
-      if(newData equals SharedDataScala) {
+      if(newData equals SharedDataScala.toTpccTable) {
         println("\nAll transactions completed successfully and the result is correct.")
       } else {
         println("\nThere is some error in transactions, as the results does not match.")
