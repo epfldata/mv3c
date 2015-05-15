@@ -48,9 +48,14 @@ object SHMapMVCC {
    * The load factor used when none specified in constructor.
    */
   final val DEFAULT_LOAD_FACTOR: Float = 0.75f
+  
+  type Operation = Int
+  val INSERT_OP:Operation = 1
+  val DELETE_OP:Operation = 2
+  val UPDATE_OP:Operation = 3
 }
 
-final case class DeltaVersion[K,V <: Product](val xact:Transaction, val entry:SEntryMVCC[K,V], val beforeImg:SEntryMVCC[K,V], val colIds:List[Int]=Nil /*all columns*/, var next: DeltaVersion[K,V]=null, var prev: DeltaVersion[K,V]=null)
+final case class DeltaVersion[K,V <: Product](val xact:Transaction, val entry:SEntryMVCC[K,V], val beforeImg:V, val colIds:List[Int]=Nil /*all columns*/, val op: Operation, var next: DeltaVersion[K,V]=null, var prev: DeltaVersion[K,V]=null)
 
 final class SEntryMVCC[K,V <: Product](var hash: Int, var key: K, var value: V, var next: SEntryMVCC[K, V], var delta: DeltaVersion[K,V]) { self =>
 
