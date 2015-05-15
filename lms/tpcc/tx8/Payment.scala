@@ -55,7 +55,7 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV1 with IPaymentInMem {
           } else {
             c = ISharedData.findCustomerEntryById(c_w_id, c_d_id, c_id)
           }
-          val (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,found_c_data) = c.value
+          val (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,found_c_data) = c.getValue
           val found_c_id = c.key._1
           var c_data:String = found_c_data
 

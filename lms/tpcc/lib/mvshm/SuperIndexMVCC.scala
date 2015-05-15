@@ -13,7 +13,7 @@ object SIndexMVCC {
 class SIndexMVCCEntry[K,V <: Product] {
   val s:SHSet[SEntryMVCC[K,V]] = new SHSet[SEntryMVCC[K,V]]
 
-  def foreach(f: ((K, V)) => Unit)(implicit xact:Transaction): Unit = s.foreach(e => f(e.key, e.value))
+  def foreach(f: ((K, V)) => Unit)(implicit xact:Transaction): Unit = s.foreach(e => f(e.key, e.getValue))
 
   def foreachEntry(f: ddbt.tpcc.lib.shm.SEntry[SEntryMVCC[K,V], Boolean] => Unit)(implicit xact:Transaction): Unit = s.foreachEntry(e => f(e))
 }
@@ -23,7 +23,7 @@ class SIndexMVCC[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Float, initial
   val idx = new SHMap[P,SIndexMVCCEntry[K,V]](loadFactor, initialCapacity)
 
   def set(entry: SEntryMVCC[K,V])(implicit xact:Transaction):Unit = {
-    val p:P = proj(entry.key, entry.value)
+    val p:P = proj(entry.key, entry.getValue)
     val s = idx.getNullOnNotFound(p)
     if (s==null) {
       val newIdx = new SIndexMVCCEntry[K,V]
@@ -34,7 +34,7 @@ class SIndexMVCC[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Float, initial
     }
   }
 
-  def del(entry: SEntryMVCC[K,V])(implicit xact:Transaction):Unit = del(entry, entry.value)
+  def del(entry: SEntryMVCC[K,V])(implicit xact:Transaction):Unit = del(entry, entry.getValue)
 
   def del(entry: SEntryMVCC[K,V], v:V)(implicit xact:Transaction):Unit = {
     val p:P = proj(entry.key, v)
