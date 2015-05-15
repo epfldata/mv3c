@@ -53,10 +53,10 @@ object SHMapMVCC {
 case class DeltaVersion[K,V <: Product](val xact:Transaction, val entry:SEntryMVCC[K,V], val beforeImg:SEntryMVCC[K,V], val colIds:List[Int]=Nil /*all columns*/, var next: DeltaVersion[K,V]=null, var prev: DeltaVersion[K,V]=null)
 
 
-class SEntryMVCC[K,V <: Product](var hash: Int, var key: K, var value: V, var next: SEntryMVCC[K, V]) { self =>
+class SEntryMVCC[K,V <: Product](var hash: Int, var key: K, var value: V, var next: SEntryMVCC[K, V], var delta: DeltaVersion[K,V]) { self =>
 
   def this() {
-    this(0,null.asInstanceOf[K],null.asInstanceOf[V],null.asInstanceOf[SEntryMVCC[K, V]])
+    this(0,null.asInstanceOf[K],null.asInstanceOf[V],null.asInstanceOf[SEntryMVCC[K, V]],null.asInstanceOf[DeltaVersion[K,V]])
   }
 
   def getKey: K = {
@@ -577,7 +577,7 @@ class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Float, lfI
   def addSEntryMVCC(hash: Int, key: K, value: V, bucketIndex: Int)(implicit xact:Transaction):SEntryMVCC[K, V] = {
     val tmp: SEntryMVCC[K, V] = table(bucketIndex)
 
-    val e = new SEntryMVCC[K, V](hash, key, value, tmp)
+    val e = new SEntryMVCC[K, V](hash, key, value, tmp, null.asInstanceOf[DeltaVersion[K,V]])
     table(bucketIndex) = e
     if (size >= threshold) resize(2 * table.length)
     size += 1
