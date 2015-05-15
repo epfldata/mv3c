@@ -294,7 +294,7 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
       val k: K = e.key
       if (e.hash == hs && key == k) {
         val oldValue: V = e.value
-        e.value = value
+        e.setValue(value)
         if (idxs != Nil) idxs.foreach{ idx => {
             val pOld = idx.proj(k,oldValue)
             val pNew = idx.proj(k,value)
@@ -335,7 +335,7 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
       if (e.hash == hs && key == k) {
         val oldValue: V = e.value
         val value:V = valueUpdateFunc(oldValue)
-        e.value = value
+        e.setValue(value)
         if (idxs != Nil) idxs.foreach{ idx => {
             val pOld = idx.proj(k,oldValue)
             val pNew = idx.proj(k,value)
@@ -360,7 +360,7 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
   //   while (e != null) {
   //     if (e.key == null) {
   //       val oldValue: V = e.value
-  //       e.value = value
+  //       e.setValue(value)
   //       return oldValue
   //     }
   //     e = e.next
@@ -386,7 +386,7 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
   //         if (e.hash == hash && ((({
   //           k = e.key; k
   //         })) eq key || (key != null && (key == k)))) {
-  //           e.value = value
+  //           e.setValue(value)
   //           return
   //         }
   //       }
