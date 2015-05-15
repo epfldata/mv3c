@@ -322,7 +322,7 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
   final def put(key: K, value: V)(implicit xact:Transaction): V = insert(key, value)
 
   @inline
-  final def update(key: K, value: V)(implicit xact:Transaction): V = insert(key, value)
+  final def update(key: K, value: V)(implicit xact:Transaction): V = update(key, x => value)
 
   @inline
   final def update(key: K, valueUpdateFunc: V=>V)(implicit xact:Transaction): V = {
