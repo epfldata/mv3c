@@ -8,53 +8,73 @@ import java.sql.ResultSet
 import ddbt.tpcc.loadtest.Util._
 import ddbt.tpcc.loadtest.DatabaseConnector._
 import ddbt.tpcc.lib.shm.SHMap
-import ddbt.tpcc.lib.shm.SEntry
-import ddbt.tpcc.lib.shm.SHMapPooled
+import ddbt.tpcc.lib.mvshm.SHMapMVCC
+import ddbt.tpcc.lib.mvshm.SHMapMVCC._
+import ddbt.tpcc.lib.mvshm.SEntry
+import ddbt.tpcc.lib.mvshm.DeltaVersion
 import ddbt.tpcc.lib.BinaryHeap
 import ddbt.tpcc.loadtest.TpccConstants._
 
 import TpccTable._
 import MVCCTpccTableV1._
+import java.util.concurrent.atomic.AtomicLong
 
 object MVCCTpccTableV1 {
 	def testSpecialDsUsed = false
 
-	class Transaction( val xactId:Int ) {
+	class Transaction(val tm: TransactionManager, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
+		def commitTS = xactId
+		var undoBuffer = List[DeltaVersion[_,_]]()
+		def addPredicate(p:String) = {}
 	}
 
 	class TransactionManager {
-		var maxXact = 0
+
+		var transactionIdGen = new AtomicLong(1L << 32)
+		var startAndCommitTimestampGen = new AtomicLong(1L)
+
+		val activeXacts = new SHMap[Long,Transaction]
+		var recentlyCommittedXacts = List[Transaction]()
+
 		def begin = {
-			maxXact += 1
-			new Transaction(maxXact)
+			val xactId = transactionIdGen.getAndIncrement()
+			val startTS = startAndCommitTimestampGen.getAndIncrement()
+			new Transaction(this,startTS, xactId)
 		}
 		def commit(implicit xact:Transaction) = {
-
+			this.synchronized {
+				val xactId = xact.xactId
+				activeXacts -= xactId
+				xact.xactId = startAndCommitTimestampGen.getAndIncrement()
+				recentlyCommittedXacts = xact :: recentlyCommittedXacts
+			}
 		}
 		def rollback(implicit xact:Transaction) = {
-
+			this.synchronized {
+				activeXacts -= xact.xactId
+			}
 		}
 
 		/////// TABLES \\\\\\\
-		val newOrderTbl = new SHMap[(Int,Int,Int),Boolean](0.9f, 262144, (k:(Int,Int,Int),v:Boolean) => ((k._2, k._3)) )
+		val newOrderTbl = new SHMapMVCC[(Int,Int,Int),Tuple1[Boolean]](0.9f, 262144, (k:(Int,Int,Int),v:Tuple1[Boolean]) => ((k._2, k._3)) )
 
-		val historyTbl = new SHMap[(Int,Int,Int,Int,Int,Date,Float,String),Boolean]/*(0.9f, 4194304)*/
+		val historyTbl = new SHMapMVCC[(Int,Int,Int,Int,Int,Date,Float,String),Tuple1[Boolean]]/*(0.9f, 4194304)*/
 
-		val warehouseTbl = new SHMap[Int,(String,String,String,String,String,String,Float,Double)]
+		val warehouseTbl = new SHMapMVCC[Int,(String,String,String,String,String,String,Float,Double)]
 
-		val itemPartialTbl = new SHMap[Int,(/*Int,*/String,Float,String)]/*(1f, 262144)*/
+		val itemPartialTbl = new SHMapMVCC[Int,(/*Int,*/String,Float,String)]/*(1f, 262144)*/
 
-		val orderTbl = new SHMap[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)](/*0.9f, 4194304,*/ (k:(Int,Int,Int), v:(Int,Date,Option[Int],Int,Boolean)) => ((k._2, k._3, v._1)) )
+		val orderTbl = new SHMapMVCC[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)](/*0.9f, 4194304,*/ (k:(Int,Int,Int), v:(Int,Date,Option[Int],Int,Boolean)) => ((k._2, k._3, v._1)) )
 
-		val districtTbl = new SHMap[(Int,Int),(String,String,String,String,String,String,Float,Double,Int)]/*(1f, 32)*/
+		val districtTbl = new SHMapMVCC[(Int,Int),(String,String,String,String,String,String,Float,Double,Int)]/*(1f, 32)*/
 
-		val orderLineTbl = new SHMap[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)](/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:(Int,Int,Int,Int), v:(Int,Int,Option[Date],Int,Float,String)) => ((k._1, k._2, k._3)) )
+		val orderLineTbl = new SHMapMVCC[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)](/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:(Int,Int,Int,Int), v:(Int,Int,Option[Date],Int,Float,String)) => ((k._1, k._2, k._3)) )
 
-		val customerTbl = new SHMap[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] (/*1f, 65536, List((1f, 16384)),*/ (k:(Int,Int,Int), v:(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)) => ((k._2, k._3, v._3)) )
+		val customerTbl = new SHMapMVCC[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] (/*1f, 65536, List((1f, 16384)),*/ (k:(Int,Int,Int), v:(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)) => ((k._2, k._3, v._3)) )
 
-		val stockTbl = new SHMap[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)]/*(1f, 262144)*/
+		val stockTbl = new SHMapMVCC[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)]/*(1f, 262144)*/
 
-		val customerWarehouseFinancialInfoMap = new SHMap[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
+		val customerWarehouseFinancialInfoMap = new SHMapMVCC[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
 	}
 }
 /**
@@ -85,7 +105,7 @@ class MVCCTpccTableV1 extends TpccTable(7) {
 	override def testSpecialDsUsed = MVCCTpccTableV1.testSpecialDsUsed
 
 	def onInsert_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int)(implicit xact:Transaction) = {
-		tm.newOrderTbl += ((no_o_id, no_d_id, no_w_id), true)
+		tm.newOrderTbl += ((no_o_id, no_d_id, no_w_id), Tuple1(true))
 	}
 
 	def onDelete_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int)(implicit xact:Transaction) = {
@@ -104,7 +124,7 @@ class MVCCTpccTableV1 extends TpccTable(7) {
     }
 
 	def onInsert_HistoryTbl(h_c_id:Int, h_c_d_id:Int, h_c_w_id:Int, h_d_id:Int, h_w_id:Int, h_date:Date, h_amount:Float, h_data:String)(implicit xact:Transaction) = {
-		tm.historyTbl += ((h_c_id,h_c_d_id,h_c_w_id,h_d_id,h_w_id,roundDate(h_date),h_amount,h_data), (true))
+		tm.historyTbl += ((h_c_id,h_c_d_id,h_c_w_id,h_d_id,h_w_id,roundDate(h_date),h_amount,h_data), Tuple1(true))
 	}
 
 	def onInsert_Item(i_id:Int, i_im_id:Int, i_name:String, i_price:Float, i_data:String)(implicit xact:Transaction) = {
@@ -188,7 +208,7 @@ class MVCCTpccTableV1 extends TpccTable(7) {
     /*Func*/ def orderLineTblSlice[P](part:Int, partKey:P, f: (((Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String))) => Unit)(implicit xact:Transaction) = {
 		tm.orderLineTbl.slice(0, partKey).foreach(f)
     }
-    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: SEntry[SEntry[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)], Boolean] => Unit)(implicit xact:Transaction) = {
+    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: ddbt.tpcc.lib.shm.SEntry[SEntry[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)], Boolean] => Unit)(implicit xact:Transaction) = {
 		tm.orderLineTbl.slice(0, partKey).foreachEntry(f)
     }
 
@@ -211,7 +231,7 @@ class MVCCTpccTableV1 extends TpccTable(7) {
       tm.customerTbl.update((c_id,c_d_id,c_w_id),updateFunc)
     }
 
-    def onUpdateCustomer_byEntry(c: ddbt.tpcc.lib.shm.SEntry[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)], c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
+    def onUpdateCustomer_byEntry(c: SEntry[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)], c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
       c.value = (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment/*+h_amount*/,c_payment_cnt/*+1*/,c_delivery_cnt,c_data)
     }
 
@@ -290,6 +310,7 @@ class MVCCTpccTableV1 extends TpccTable(7) {
 
     override def toTpccTable = {
     	val res = new TpccTable(7)
+		implicit val xact = this.begin
 		val THE_VALUE_DOES_NOT_EXIST = -1 //TODO: should be FIXED
 		tm.newOrderTbl.foreach { case (k,v) => res.onInsert_NewOrder(k._1,k._2,k._3) }
 		tm.historyTbl.foreach { case (k,v) => res.onInsert_HistoryTbl(k._1,k._2,k._3,k._4,k._5,k._6,k._7,k._8) }
@@ -300,6 +321,7 @@ class MVCCTpccTableV1 extends TpccTable(7) {
 		tm.districtTbl.foreach { case (k,v) => res.onInsert_District(k._1,k._2,v._1,v._2,v._3,v._4,v._5,v._6,v._7,v._8,v._9) }
 		tm.orderLineTbl.foreach { case (k,v) => res.onInsertOrderLine(k._1,k._2,k._3,k._4,v._1,v._2,v._3,v._4,v._5,v._6) }
 		tm.stockTbl.foreach { case (k,v) => res.onInsertStock(k._1,k._2,v._1,v._2,v._3,v._4,v._5,v._6,v._7,v._8,v._9,v._10,v._11,v._12,v._13,v._14,v._15) }
+		this.commit
 	    res
     }
 }
