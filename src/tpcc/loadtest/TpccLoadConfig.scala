@@ -7,7 +7,6 @@ import ddbt.tpcc.loadtest.load.RecordLoader
 import java.io.File
 import java.io.IOException
 import java.sql.Connection
-import scala.reflect.{BeanProperty, BooleanBeanProperty}
 
   object LoadType extends Enumeration {
 
@@ -23,10 +22,8 @@ import scala.reflect.{BeanProperty, BooleanBeanProperty}
  */
 class TpccLoadConfig {
 
-  @BeanProperty
   var loadType: LoadType.LoadType = LoadType.JDBC_PREPARED_STATEMENT
 
-  @BeanProperty
   var conn: Connection = _
 
   private var outputDir: File = _
@@ -41,6 +38,14 @@ class TpccLoadConfig {
       jdbcBatchSize)
     case LoadType.CSV => new FileLoader(new File(outputDir, tableName + ".txt"))
     case _ => throw new IllegalStateException()
+  }
+
+  def setLoadType(loadType: LoadType.LoadType) {
+    this.loadType = loadType
+  }
+
+  def setConn(conn: Connection) {
+    this.conn = conn
   }
 
   def setOutputDir(outputDir: File) {

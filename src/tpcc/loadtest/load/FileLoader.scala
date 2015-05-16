@@ -27,7 +27,7 @@ class FileLoader(file: File) extends RecordLoader {
 
   def load(r: Record) {
     b.setLength(0)
-    val field = r.getField
+    val field = r.getTheField
     for (i <- 0 until field.length) {
       if (i > 0) {
         b.append('\t')

@@ -302,7 +302,8 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
   final def insert(key: K, value: V)(implicit xact:Transaction) = {
     // if (key == null) return putForNullKey(value)
     val hs: Int = hash(key.hashCode)
-    val i: Int = indexFor(hs, table.length)
+    val tblLen = table.length
+    val i: Int = indexFor(hs, tblLen)
     var e: SEntryMVCC[K, V] = table(i)
     while (e != null) {
       val k: K = e.key

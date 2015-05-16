@@ -2,7 +2,6 @@ package ddbt.tpcc.loadtest.load
 
 import java.util.Arrays
 import java.util.Date
-import scala.reflect.{BeanProperty, BooleanBeanProperty}
 
 /**
  * Simple object to represent a single row of data being loaded to the database (or written to a CSV file).
@@ -12,7 +11,6 @@ class Record(columnCount: Int) {
   /**
    * Column values.
    */
-  @BeanProperty
   val field = new Array[Any](columnCount)
 
   /**
@@ -43,6 +41,8 @@ class Record(columnCount: Int) {
   }
 
   def getField(i: Int): Any = field(i)
+
+  def getTheField = field
 
   def getColumnCount(): Int = field.length
 

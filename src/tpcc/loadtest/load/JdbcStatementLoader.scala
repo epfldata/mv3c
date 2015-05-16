@@ -57,7 +57,7 @@ class JdbcStatementLoader(var conn: Connection,
   }
 
   def write(b: StringBuilder, r: Record, delim: String) {
-    val field = r.getField
+    val field = r.getTheField
     for (i <- 0 until field.length) {
       if (i > 0) {
         b.append(delim)
