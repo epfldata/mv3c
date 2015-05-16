@@ -49,14 +49,14 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV1 with IPaymentInMem {
 
       PaymentTxOps.updateWarehouse(w_id, { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) => {
         PaymentTxOps.updateDistrict(w_id,d_id, { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) => { 
-          var c: ddbt.tpcc.lib.mvshm.SEntryMVCC[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] = null
+          var c: ddbt.tpcc.lib.mvshm.DeltaVersion[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] = null
           if (c_by_name > 0) {
             c = ISharedData.findCustomerEntryByName(c_w_id, c_d_id, c_last_input)
           } else {
             c = ISharedData.findCustomerEntryById(c_w_id, c_d_id, c_id)
           }
-          val (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,found_c_data) = c.getValue
-          val found_c_id = c.key._1
+          val (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,found_c_data) = c.getImage
+          val found_c_id = c.entry.key._1
           var c_data:String = found_c_data
 
           if (c_credit.contains("BC")) {
