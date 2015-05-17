@@ -532,7 +532,6 @@ object ConcurrentSHMap {
       {
         var tab: Array[ConcurrentSHMap.Node[K, V]] = nextTable
         while (true) {
-          var continue = false
           var e: ConcurrentSHMap.Node[K, V] = null
           var n: Int = 0
           if (k == null || tab == null || (({
@@ -541,6 +540,7 @@ object ConcurrentSHMap {
             e = tabAt(tab, (n - 1) & h); e
           })) == null) return null
           while (true) {
+            var continue = false
             var eh: Int = 0
             var ek: K = null.asInstanceOf[K]
             if ((({
@@ -1826,9 +1826,9 @@ object ConcurrentSHMap {
       val sb: StringBuilder = new StringBuilder
       sb.append('[')
       val it: Iterator[E] = iterator
-      var break = false
-      if (!break && it.hasNext) {
-        while (true) {
+      if (it.hasNext) {
+        var break = false
+        while (!break) {
           val e = it.next
           sb.append(if (refEquals(e, this)) "(this Collection)" else e)
           if (!it.hasNext) break = true //todo: break is not supported
@@ -2748,7 +2748,7 @@ object ConcurrentSHMap {
               u
             })) != null) {
               if (result.compareAndSet(null.asInstanceOf[U], u)) quietlyCompleteRoot
-              break = true
+              break = true // return
             }
           }
         }
@@ -4381,7 +4381,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           if (binCount != 0) {
             if (binCount >= ConcurrentSHMap.TREEIFY_THRESHOLD) treeifyBin(tab, i)
             if (oldVal != null) return oldVal
-            break //todo: break is not supported
+            break = true //todo: break is not supported
           }
         }
       }
@@ -5727,8 +5727,8 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       while (!break && ((nextTab eq nextTable) && (table eq tab) && (({
         sc = sizeCtl; sc
       })) < 0)) {
-        if ((sc >>> ConcurrentSHMap.RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 || sc == rs + ConcurrentSHMap.MAX_RESIZERS || transferIndex <= 0) break //todo: break is not supported
-        if (ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, sc + 1)) {
+        if ((sc >>> ConcurrentSHMap.RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 || sc == rs + ConcurrentSHMap.MAX_RESIZERS || transferIndex <= 0) break = true //todo: break is not supported
+        if (!break && ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, sc + 1)) {
           transfer(tab, nextTab)
           break = true //todo: break is not supported
         }
