@@ -1796,52 +1796,50 @@ object ConcurrentSHMap {
     def remove(o: Any): Boolean
 
     final override def toArray: Array[AnyRef] = {
-//      val sz: Long = map.mappingCount
-//      if (sz > MAX_ARRAY_SIZE) throw new OutOfMemoryError(CollectionView.oomeMsg)
-//      var n: Int = sz.toInt
-//      var r: Array[Any] = new Array[Any](n)
-//      var i: Int = 0
-//      import scala.collection.JavaConversions._
-//      for (e <- this) {
-//        if (i == n) {
-//          if (n >= MAX_ARRAY_SIZE) throw new OutOfMemoryError(CollectionView.oomeMsg)
-//          if (n >= MAX_ARRAY_SIZE - (MAX_ARRAY_SIZE >>> 1) - 1) n = MAX_ARRAY_SIZE
-//          else n += (n >>> 1) + 1
-//          r = Arrays.copyOf(r, n)
-//        }
-//        r(({
-//          i += 1; i - 1
-//        })) = e
-//      }
-//      return if ((i == n)) r else Arrays.copyOf(r, i)
-      null
+     val sz: Long = map.mappingCount
+     if (sz > MAX_ARRAY_SIZE) throw new OutOfMemoryError(CollectionView.oomeMsg)
+     var n: Int = sz.toInt
+     var r: Array[AnyRef] = new Array[AnyRef](n)
+     var i: Int = 0
+     import scala.collection.JavaConversions._
+     for (e <- this) {
+       if (i == n) {
+         if (n >= MAX_ARRAY_SIZE) throw new OutOfMemoryError(CollectionView.oomeMsg)
+         if (n >= MAX_ARRAY_SIZE - (MAX_ARRAY_SIZE >>> 1) - 1) n = MAX_ARRAY_SIZE
+         else n += (n >>> 1) + 1
+         r = Arrays.copyOf(r, n)
+       }
+       r(({
+         i += 1; i - 1
+       })) = e.asInstanceOf[AnyRef]
+     }
+     return if ((i == n)) r else Arrays.copyOf(r, i)
     }
 
     @SuppressWarnings(Array("unchecked")) final override def toArray[T](a: Array[T with Object]): Array[T with Object] = {
-      //      val sz: Long = map.mappingCount
-      //      if (sz > MAX_ARRAY_SIZE) throw new OutOfMemoryError(CollectionView.oomeMsg)
-      //      val m: Int = sz.toInt
-      //      var r: Array[T] = if ((a.length >= m)) a else java.lang.reflect.Array.newInstance(a.getClass.getComponentType, m).asInstanceOf[Array[T]]
-      //      var n: Int = r.length
-      //      var i: Int = 0
-      //      import scala.collection.JavaConversions._
-      //      for (e <- this) {
-      //        if (i == n) {
-      //          if (n >= MAX_ARRAY_SIZE) throw new OutOfMemoryError(CollectionView.oomeMsg)
-      //          if (n >= MAX_ARRAY_SIZE - (MAX_ARRAY_SIZE >>> 1) - 1) n = MAX_ARRAY_SIZE
-      //          else n += (n >>> 1) + 1
-      //          r = Arrays.copyOf[T](r, n)
-      //        }
-      //        r(({
-      //          i += 1; i - 1
-      //        })) = e.asInstanceOf[T]
-      //      }
-      //      if ((a eq r) && (i < n)) {
-      //        r(i) = null.asInstanceOf[T]
-      //        return r
-      //      }
-      //      return if ((i == n)) r else Arrays.copyOf(r, i)
-      null
+      val sz: Long = map.mappingCount
+      if (sz > MAX_ARRAY_SIZE) throw new OutOfMemoryError(CollectionView.oomeMsg)
+      val m: Int = sz.toInt
+      var r: Array[T with Object] = if ((a.length >= m)) a else java.lang.reflect.Array.newInstance(a.getClass.getComponentType, m).asInstanceOf[Array[T with Object]]
+      var n: Int = r.length
+      var i: Int = 0
+      import scala.collection.JavaConversions._
+      for (e <- this) {
+        if (i == n) {
+          if (n >= MAX_ARRAY_SIZE) throw new OutOfMemoryError(CollectionView.oomeMsg)
+          if (n >= MAX_ARRAY_SIZE - (MAX_ARRAY_SIZE >>> 1) - 1) n = MAX_ARRAY_SIZE
+          else n += (n >>> 1) + 1
+           r = Arrays.copyOf[T with Object](r, n)
+       }
+        r(({
+          i += 1; i - 1
+        })) = e.asInstanceOf[T with Object]
+      }
+      if ((a eq r) && (i < n)) {
+        r(i) = null.asInstanceOf[T with Object]
+        return r
+      }
+      return if ((i == n)) r else Arrays.copyOf[T with Object](r, i)
     }
 
     /**
