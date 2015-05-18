@@ -378,7 +378,7 @@ object ConcurrentSHMap {
           e = e.next; e
         })) != null)
       }
-      return null
+      null
     }
   }
 
@@ -398,9 +398,7 @@ object ConcurrentSHMap {
    * to incorporate impact of the highest bits that would otherwise
    * never be used in index calculations because of table bounds.
    */
-  def spread(h: Int): Int = {
-    return (h ^ (h >>> 16)) & HASH_BITS
-  }
+  def spread(h: Int): Int = (h ^ (h >>> 16)) & HASH_BITS
 
   /**
    * Returns a power of two table size for the given desired capacity.
@@ -413,7 +411,7 @@ object ConcurrentSHMap {
     n |= n >>> 4
     n |= n >>> 8
     n |= n >>> 16
-    return if ((n < 0)) 1 else if ((n >= MAXIMUM_CAPACITY)) MAXIMUM_CAPACITY else n + 1
+    if ((n < 0)) 1 else if ((n >= MAXIMUM_CAPACITY)) MAXIMUM_CAPACITY else n + 1
   }
 
   /**
@@ -452,7 +450,7 @@ object ConcurrentSHMap {
         }
       }
     }
-    return null
+    null
   }
 
   /**
@@ -507,7 +505,7 @@ object ConcurrentSHMap {
    * @since 1.8
    */
   def newKeySet[K](initialCapacity: Int): KeySetView[K, Boolean] = {
-    return new KeySetView[K, Boolean](new ConcurrentSHMap[K, Boolean](initialCapacity), true)
+    new KeySetView[K, Boolean](new ConcurrentSHMap[K, Boolean](initialCapacity), true)
   }
 
   /**
@@ -559,9 +557,7 @@ object ConcurrentSHMap {
    * A place-holder node used in computeIfAbsent and compute
    */
   final class ReservationNode[K, V] extends Node[K, V](RESERVED, null.asInstanceOf[K], null.asInstanceOf[V], null) {
-    override def find(h: Int, k: Any): Node[K, V] = {
-      return null
-    }
+    override def find(h: Int, k: Any): Node[K, V] = null
   }
 
   /**
@@ -569,7 +565,7 @@ object ConcurrentSHMap {
    * Must be negative when shifted left by RESIZE_STAMP_SHIFT.
    */
   def resizeStamp(n: Int): Int = {
-    return Integer.numberOfLeadingZeros(n) | (1 << (RESIZE_STAMP_BITS - 1))
+    Integer.numberOfLeadingZeros(n) | (1 << (RESIZE_STAMP_BITS - 1))
   }
 
   /**
@@ -605,7 +601,7 @@ object ConcurrentSHMap {
         q = q.next
       }
     }
-    return hd
+    hd
   }
 
   /**
@@ -618,7 +614,7 @@ object ConcurrentSHMap {
     var red: Boolean = false
 
     override def find(h: Int, k: Any): Node[K, V] = {
-      return findTreeNode(h, k, null)
+      findTreeNode(h, k, null)
     }
 
     /**
@@ -656,7 +652,7 @@ object ConcurrentSHMap {
           else p = pl
         } while (p != null)
       }
-      return null
+      null
     }
   }
 
@@ -684,7 +680,7 @@ object ConcurrentSHMap {
       if (a == null || b == null || (({
         d = a.getClass.getName.compareTo(b.getClass.getName); d
       })) == 0) d = (if (System.identityHashCode(a) <= System.identityHashCode(b)) -1 else 1)
-      return d
+      d
     }
 
     def rotateLeft[K, V](rootIn: TreeNode[K, V], p: TreeNode[K, V]): TreeNode[K, V] = {
@@ -712,7 +708,7 @@ object ConcurrentSHMap {
         r.left = p
         p.parent = r
       }
-      return root
+      root
     }
 
     def rotateRight[K, V](rootIn: TreeNode[K, V], p: TreeNode[K, V]): TreeNode[K, V] = {
@@ -740,7 +736,7 @@ object ConcurrentSHMap {
         l.right = p
         p.parent = l
       }
-      return root
+      root
     }
 
     def balanceInsertion[K, V](rootIn: TreeNode[K, V], xIn: TreeNode[K, V]): TreeNode[K, V] = {
@@ -940,15 +936,15 @@ object ConcurrentSHMap {
       val tr: TreeNode[K, V] = t.right
       val tb: TreeNode[K, V] = t.prev
       val tn: TreeNode[K, V] = t.next.asInstanceOf[TreeNode[K, V]]
-      if ((tb != null) && (tb.next ne t)) return false
-      if ((tn != null) && (tn.prev ne t)) return false
-      if ((tp != null) && (t ne tp.left) && (t ne tp.right)) return false
-      if ((tl != null) && ((tl.parent ne t) || (tl.hash > t.hash))) return false
-      if ((tr != null) && ((tr.parent ne t) || (tr.hash < t.hash))) return false
-      if (t.red && tl != null && tl.red && tr != null && tr.red) return false
-      if (tl != null && !checkInvariants(tl)) return false
-      if (tr != null && !checkInvariants(tr)) return false
-      return true
+      if ((tb != null) && (tb.next ne t)) false
+      else if ((tn != null) && (tn.prev ne t)) false
+      else if ((tp != null) && (t ne tp.left) && (t ne tp.right)) false
+      else if ((tl != null) && ((tl.parent ne t) || (tl.hash > t.hash))) false
+      else if ((tr != null) && ((tr.parent ne t) || (tr.hash < t.hash))) false
+      else if (t.red && tl != null && tl.red && tr != null && tr.red) false
+      else if (tl != null && !checkInvariants(tl)) false
+      else if (tr != null && !checkInvariants(tr)) false
+      else true
     }
 
     private val U: Unsafe = MyThreadLocalRandom.getUnsafe
@@ -1110,7 +1106,7 @@ object ConcurrentSHMap {
           }
         }
       }
-      return null
+      null
     }
 
     /**
@@ -1192,7 +1188,7 @@ object ConcurrentSHMap {
         }
       }
       assert(TreeBin.checkInvariants(root))
-      return null
+      null
     }
 
     /**
@@ -1298,7 +1294,7 @@ object ConcurrentSHMap {
         unlockRoot
       }
       assert(TreeBin.checkInvariants(root))
-      return false
+      false
     }
   }
 
@@ -1445,11 +1441,11 @@ object ConcurrentSHMap {
     var lastReturned: Node[K, V] = null
 
     final def hasNext: Boolean = {
-      return nextNode != null
+      nextNode != null
     }
 
     final def hasMoreElements: Boolean = {
-      return nextNode != null
+      nextNode != null
     }
 
     // final def remove = {
@@ -1472,11 +1468,11 @@ object ConcurrentSHMap {
       val k: K = p.key
       lastReturned = p
       advance
-      return k
+      k
     }
 
     final def nextElement: K = {
-      return next
+      next
     }
 
     final def remove = {
@@ -1500,11 +1496,11 @@ object ConcurrentSHMap {
       val v: V = p.value
       lastReturned = p
       advance
-      return v
+      v
     }
 
     final def nextElement: V = {
-      return next
+      next
     }
 
     final def remove = {
@@ -1529,7 +1525,7 @@ object ConcurrentSHMap {
       val v: V = p.value
       lastReturned = p
       advance
-      return new MapEntry[K, V](k, v, map)
+      new MapEntry[K, V](k, v, map)
     }
 
     final def remove = {
@@ -1549,26 +1545,26 @@ object ConcurrentSHMap {
   final class MapEntry[K, V](final val key: K, var value: V, final val map: ConcurrentSHMap[K, V]) extends Map.Entry[K, V] {
 
     def getKey: K = {
-      return key
+      key
     }
 
     def getValue: V = {
-      return value
+      value
     }
 
     override def hashCode: Int = {
-      return key.hashCode ^ value.hashCode
+      key.hashCode ^ value.hashCode
     }
 
     override def toString: String = {
-      return key + "=" + value
+      key + "=" + value
     }
 
     override def equals(o: Any): Boolean = {
       var k: K = null.asInstanceOf[K]
       var v: V = null.asInstanceOf[V]
       var e: Map.Entry[K, V] = null
-      return ((o.isInstanceOf[Map.Entry[_, _]]) && (({
+      ((o.isInstanceOf[Map.Entry[_, _]]) && (({
         k = (({
           e = o.asInstanceOf[Map.Entry[K, V]]; e
         })).getKey; k
@@ -1600,7 +1596,7 @@ object ConcurrentSHMap {
       var i: Int = 0
       var f: Int = 0
       var h: Int = 0
-      return if ((({
+      if ((({
         h = ((({
           i = baseIndex; i
         })) + (({
@@ -1627,15 +1623,15 @@ object ConcurrentSHMap {
         p = advance; p
       })) == null) return false
       action.accept(p.key)
-      return true
+      true
     }
 
     def estimateSize: Long = {
-      return est
+      est
     }
 
     def characteristics: Int = {
-      return Spliterator.DISTINCT | Spliterator.CONCURRENT | Spliterator.NONNULL
+      Spliterator.DISTINCT | Spliterator.CONCURRENT | Spliterator.NONNULL
     }
   }
 
@@ -1645,7 +1641,7 @@ object ConcurrentSHMap {
       var i: Int = 0
       var f: Int = 0
       var h: Int = 0
-      return if ((({
+      if ((({
         h = ((({
           i = baseIndex; i
         })) + (({
@@ -1672,15 +1668,15 @@ object ConcurrentSHMap {
         p = advance; p
       })) == null) return false
       action.accept(p.value)
-      return true
+      true
     }
 
     def estimateSize: Long = {
-      return est
+      est
     }
 
     def characteristics: Int = {
-      return Spliterator.CONCURRENT | Spliterator.NONNULL
+      Spliterator.CONCURRENT | Spliterator.NONNULL
     }
   }
 
@@ -1690,7 +1686,7 @@ object ConcurrentSHMap {
       var i: Int = 0
       var f: Int = 0
       var h: Int = 0
-      return if ((({
+      if ((({
         h = ((({
           i = baseIndex; i
         })) + (({
@@ -1717,15 +1713,15 @@ object ConcurrentSHMap {
         p = advance; p
       })) == null) return false
       action.accept(new MapEntry[K, V](p.key, p.value, map))
-      return true
+      true
     }
 
     def estimateSize: Long = {
-      return est
+      est
     }
 
     def characteristics: Int = {
-      return Spliterator.DISTINCT | Spliterator.CONCURRENT | Spliterator.NONNULL
+      Spliterator.DISTINCT | Spliterator.CONCURRENT | Spliterator.NONNULL
     }
   }
 
@@ -1746,7 +1742,7 @@ object ConcurrentSHMap {
      * @return the map backing this view
      */
     def getMap: ConcurrentSHMap[K, V] = {
-      return map
+      map
     }
 
     /**
@@ -1758,11 +1754,11 @@ object ConcurrentSHMap {
     }
 
     final def size: Int = {
-      return map.size
+      map.size
     }
 
     final def isEmpty: Boolean = {
-      return map.isEmpty
+      map.isEmpty
     }
 
     /**
@@ -1797,7 +1793,7 @@ object ConcurrentSHMap {
          i += 1; i - 1
        })) = e.asInstanceOf[AnyRef]
      }
-     return if ((i == n)) r else Arrays.copyOf(r, i)
+     if ((i == n)) r else Arrays.copyOf(r, i)
     }
 
     @SuppressWarnings(Array("unchecked")) final override def toArray[T](a: Array[T with Object]): Array[T with Object] = {
@@ -1821,9 +1817,9 @@ object ConcurrentSHMap {
       }
       if ((a eq r) && (i < n)) {
         r(i) = null.asInstanceOf[T with Object]
-        return r
-      }
-      return if ((i == n)) r else Arrays.copyOf[T with Object](r, i)
+        r
+      } else if ((i == n)) r
+      else Arrays.copyOf[T with Object](r, i)
     }
 
     /**
@@ -1850,7 +1846,7 @@ object ConcurrentSHMap {
           if(!break) sb.append(',').append(' ')
         }
       }
-      return sb.append(']').toString
+      sb.append(']').toString
     }
 
     final override def containsAll(c: Collection[_]): Boolean = {
@@ -1860,7 +1856,7 @@ object ConcurrentSHMap {
           if (e == null || !contains(e)) return false
         }
       }
-      return true
+      true
     }
 
     final def removeAll(c: Collection[_]): Boolean = {
@@ -1876,7 +1872,7 @@ object ConcurrentSHMap {
           }
         }
       }
-      return modified
+      modified
     }
 
     final def retainAll(c: Collection[_]): Boolean = {
@@ -1892,7 +1888,7 @@ object ConcurrentSHMap {
           }
         }
       }
-      return modified
+      modified
     }
   }
 
@@ -1918,7 +1914,7 @@ object ConcurrentSHMap {
      *                                                            if not supported
      */
     def getMappedValue: V = {
-      return value
+      value
     }
 
     /**
@@ -1926,7 +1922,7 @@ object ConcurrentSHMap {
      * @throws NullPointerException if the specified key is null
      */
     def contains(o: Any): Boolean = {
-      return map.containsKey(o)
+      map.containsKey(o)
     }
 
     /**
@@ -1939,7 +1935,7 @@ object ConcurrentSHMap {
      * @throws NullPointerException if the specified key is null
      */
     def remove(o: Any): Boolean = {
-      return map.remove(o) != null
+      map.remove(o) != null
     }
 
     /**
@@ -1952,7 +1948,7 @@ object ConcurrentSHMap {
         t = m.table; t
       })) == null) 0
       else t.length
-      return new KeyIterator[K, V](t, f, 0, f, m)
+      new KeyIterator[K, V](t, f, 0, f, m)
     }
 
     /**
@@ -1970,7 +1966,7 @@ object ConcurrentSHMap {
       if ((({
         v = value; v
       })) == null) throw new UnsupportedOperationException
-      return map.putVal(e, v, true) == null
+      map.putVal(e, v, true) == null
     }
 
     /**
@@ -1994,19 +1990,19 @@ object ConcurrentSHMap {
       for (e <- c) {
         if (map.putVal(e, v, true) == null) added = true
       }
-      return added
+      added
     }
 
     override def hashCode: Int = {
       var h: Int = 0
       import scala.collection.JavaConversions._
       for (e <- this) h += e.hashCode
-      return h
+      h
     }
 
     override def equals(o: Any): Boolean = {
       var c: Set[_] = null
-      return ((o.isInstanceOf[Set[_]]) && (((({
+      ((o.isInstanceOf[Set[_]]) && (((({
         c = o.asInstanceOf[Set[_]]; c
       })) eq this) || (containsAll(c) && c.containsAll(this))))
     }
@@ -2019,7 +2015,7 @@ object ConcurrentSHMap {
         t = m.table; t
       })) == null) 0
       else t.length
-      return new KeySpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n)
+      new KeySpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n)
     }
 
     override def forEach(action: Consumer[_ >: K]) {
@@ -2049,7 +2045,7 @@ object ConcurrentSHMap {
   final class ValuesView[K, V](override val map: ConcurrentSHMap[K, V]) extends CollectionView[K, V, V](map) with Collection[V] with java.io.Serializable {
 
     final def contains(o: Any): Boolean = {
-      return map.containsValue(o)
+      map.containsValue(o)
     }
 
     final def remove(o: Any): Boolean = {
@@ -2064,7 +2060,7 @@ object ConcurrentSHMap {
           }
         }
       }
-      return false
+      false
     }
 
     final def iterator: Iterator[V] = {
@@ -2074,7 +2070,7 @@ object ConcurrentSHMap {
         t = m.table; t
       })) == null) 0
       else t.length
-      return new ValueIterator[K, V](t, f, 0, f, m)
+      new ValueIterator[K, V](t, f, 0, f, m)
     }
 
     final def add(e: V): Boolean = {
@@ -2093,7 +2089,7 @@ object ConcurrentSHMap {
         t = m.table; t
       })) == null) 0
       else t.length
-      return new ValueSpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n)
+      new ValueSpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n)
     }
 
     override def forEach(action: Consumer[_ >: V]) {
@@ -2127,7 +2123,7 @@ object ConcurrentSHMap {
       var v: V = null.asInstanceOf[V]
       var r: V = null.asInstanceOf[V]
       var e: Map.Entry[K, V] = null
-      return ((o.isInstanceOf[Map.Entry[_, _]]) && (({
+      ((o.isInstanceOf[Map.Entry[_, _]]) && (({
         k = (({
           e = o.asInstanceOf[Map.Entry[K, V]]; e
         })).getKey; k
@@ -2142,7 +2138,7 @@ object ConcurrentSHMap {
       var k: K = null.asInstanceOf[K]
       var v: V = null.asInstanceOf[V]
       var e: Map.Entry[K, V] = null
-      return ((o.isInstanceOf[Map.Entry[_, _]]) && (({
+      ((o.isInstanceOf[Map.Entry[_, _]]) && (({
         k = (({
           e = o.asInstanceOf[Map.Entry[K, V]]; e
         })).getKey; k
@@ -2161,11 +2157,11 @@ object ConcurrentSHMap {
         t = m.table; t
       })) == null) 0
       else t.length
-      return new EntryIterator[K, V](t, f, 0, f, m)
+      new EntryIterator[K, V](t, f, 0, f, m)
     }
 
     def add(e: Map.Entry[K, V]): Boolean = {
-      return map.putVal(e.getKey, e.getValue, false) == null
+      map.putVal(e.getKey, e.getValue, false) == null
     }
 
     def addAll(c: Collection[_ <: Map.Entry[K, V]]): Boolean = {
@@ -2174,7 +2170,7 @@ object ConcurrentSHMap {
       for (e <- c) {
         if (add(e)) added = true
       }
-      return added
+      added
     }
 
     final override def hashCode: Int = {
@@ -2194,12 +2190,12 @@ object ConcurrentSHMap {
           }
         }
       }
-      return h
+      h
     }
 
     final override def equals(o: Any): Boolean = {
       var c: Set[_] = null
-      return ((o.isInstanceOf[Set[_]]) && (((({
+      ((o.isInstanceOf[Set[_]]) && (((({
         c = o.asInstanceOf[Set[_]]; c
       })) eq this) || (containsAll(c) && c.containsAll(this))))
     }
@@ -2212,7 +2208,7 @@ object ConcurrentSHMap {
         t = m.table; t
       })) == null) 0
       else t.length
-      return new EntrySpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n, m)
+      new EntrySpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n, m)
     }
 
     override def forEach(action: Consumer[_ >: Map.Entry[K, V]]) {
@@ -2618,7 +2614,7 @@ object ConcurrentSHMap {
   @SuppressWarnings(Array("serial")) final class SearchKeysTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[_ >: K, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
-      return result.get
+      result.get
     }
 
     final def compute {
@@ -2670,7 +2666,7 @@ object ConcurrentSHMap {
   @SuppressWarnings(Array("serial")) final class SearchValuesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[_ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
-      return result.get
+      result.get
     }
 
     final def compute {
@@ -2722,7 +2718,7 @@ object ConcurrentSHMap {
   @SuppressWarnings(Array("serial")) final class SearchEntriesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[Map.Entry[K, V], _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
-      return result.get
+      result.get
     }
 
     final def compute {
@@ -2774,7 +2770,7 @@ object ConcurrentSHMap {
   @SuppressWarnings(Array("serial")) final class SearchMappingsTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: BiFunction[_ >: K, _ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
-      return result.get
+      result.get
     }
 
     final def compute {
@@ -2828,7 +2824,7 @@ object ConcurrentSHMap {
     var rights: ReduceKeysTask[K, V] = null
 
     final override def getRawResult: K = {
-      return result
+      result
     }
 
     final def compute {
@@ -2897,7 +2893,7 @@ object ConcurrentSHMap {
     var rights: ReduceValuesTask[K, V] = null
 
     final override def getRawResult: V = {
-      return result
+      result
     }
 
     final def compute {
@@ -2966,7 +2962,7 @@ object ConcurrentSHMap {
     var rights: ReduceEntriesTask[K, V] = null
 
     final override def getRawResult: Map.Entry[K, V] = {
-      return result
+      result
     }
 
     final def compute {
@@ -3032,7 +3028,7 @@ object ConcurrentSHMap {
     var rights: MapReduceKeysTask[K, V, U] = null
 
     final override def getRawResult: U = {
-      return result
+      result
     }
 
     final def compute {
@@ -3106,7 +3102,7 @@ object ConcurrentSHMap {
     var rights: MapReduceValuesTask[K, V, U] = null
 
     final override def getRawResult: U = {
-      return result
+      result
     }
 
     final def compute {
@@ -3180,7 +3176,7 @@ object ConcurrentSHMap {
     var rights: MapReduceEntriesTask[K, V, U] = null
 
     final override def getRawResult: U = {
-      return result
+      result
     }
 
     final def compute {
@@ -3254,7 +3250,7 @@ object ConcurrentSHMap {
     var rights: MapReduceMappingsTask[K, V, U] = null
 
     final override def getRawResult: U = {
-      return result
+      result
     }
 
     final def compute {
@@ -3328,7 +3324,7 @@ object ConcurrentSHMap {
     var rights: MapReduceKeysToDoubleTask[K, V] = null
 
     final override def getRawResult: Double = {
-      return result
+      result
     }
 
     final def compute {
@@ -3390,7 +3386,7 @@ object ConcurrentSHMap {
     var rights: MapReduceValuesToDoubleTask[K, V] = null
 
     final override def getRawResult: Double = {
-      return result
+      result
     }
 
     final def compute {
@@ -3452,7 +3448,7 @@ object ConcurrentSHMap {
     var rights: MapReduceEntriesToDoubleTask[K, V] = null
 
     final override def getRawResult: Double = {
-      return result
+      result
     }
 
     final def compute {
@@ -3514,7 +3510,7 @@ object ConcurrentSHMap {
     var rights: MapReduceMappingsToDoubleTask[K, V] = null
 
     final override def getRawResult: Double = {
-      return result
+      result
     }
 
     final def compute {
@@ -3576,7 +3572,7 @@ object ConcurrentSHMap {
     var rights: MapReduceKeysToLongTask[K, V] = null
 
     final override def getRawResult: Long = {
-      return result
+      result
     }
 
     final def compute {
@@ -3638,7 +3634,7 @@ object ConcurrentSHMap {
     var rights: MapReduceValuesToLongTask[K, V] = null
 
     final override def getRawResult: Long = {
-      return result
+      result
     }
 
     final def compute {
@@ -3700,7 +3696,7 @@ object ConcurrentSHMap {
     var rights: MapReduceEntriesToLongTask[K, V] = null
 
     final override def getRawResult: Long = {
-      return result
+      result
     }
 
     final def compute {
@@ -3762,7 +3758,7 @@ object ConcurrentSHMap {
     var rights: MapReduceMappingsToLongTask[K, V] = null
 
     final override def getRawResult: Long = {
-      return result
+      result
     }
 
     final def compute {
@@ -3824,7 +3820,7 @@ object ConcurrentSHMap {
     var rights: MapReduceKeysToIntTask[K, V] = null
 
     final override def getRawResult: Integer = {
-      return result
+      result
     }
 
     final def compute {
@@ -3886,7 +3882,7 @@ object ConcurrentSHMap {
     var rights: MapReduceValuesToIntTask[K, V] = null
 
     final override def getRawResult: Integer = {
-      return result
+      result
     }
 
     final def compute {
@@ -3948,7 +3944,7 @@ object ConcurrentSHMap {
     var rights: MapReduceEntriesToIntTask[K, V] = null
 
     final override def getRawResult: Integer = {
-      return result
+      result
     }
 
     final def compute {
@@ -4010,7 +4006,7 @@ object ConcurrentSHMap {
     var rights: MapReduceMappingsToIntTask[K, V] = null
 
     final override def getRawResult: Integer = {
-      return result
+      result
     }
 
     final def compute {
@@ -4205,14 +4201,14 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def size: Int = {
     val n: Long = sumCount
-    return (if ((n < 0L)) 0 else if ((n > Integer.MAX_VALUE.toLong)) Integer.MAX_VALUE else n.toInt)
+    (if ((n < 0L)) 0 else if ((n > Integer.MAX_VALUE.toLong)) Integer.MAX_VALUE else n.toInt)
   }
 
   /**
    * {@inheritDoc}
    */
   override def isEmpty: Boolean = {
-    return sumCount <= 0L
+    sumCount <= 0L
   }
 
   /**
@@ -4273,7 +4269,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @throws NullPointerException if the specified key is null
    */
   override def containsKey(key: Any): Boolean = {
-    return get(key) != null
+    get(key) != null
   }
 
   /**
@@ -4319,7 +4315,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @throws NullPointerException if the specified key or value is null
    */
   override def put(key: K, value: V): V = {
-    return putVal(key, value, false)
+    putVal(key, value, false)
   }
 
   /** Implementation for put and putIfAbsent */
@@ -4396,7 +4392,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     }
     
     addCount(1L, binCount)
-    return null.asInstanceOf[V]
+    null.asInstanceOf[V]
   }
 
   /**
@@ -4422,7 +4418,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @throws NullPointerException if the specified key is null
    */
   override def remove(key: Any): V = {
-    return replaceNode(key, null.asInstanceOf[V], null)
+    replaceNode(key, null.asInstanceOf[V], null)
   }
 
   /**
@@ -4516,7 +4512,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         }
       }
     }
-    return null.asInstanceOf[V]
+    null.asInstanceOf[V]
   }
 
   /**
@@ -4576,7 +4572,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def keySet: KeySetView[K, V] = {
     var ks: KeySetView[K, V] = null
-    return if ((({
+    if ((({
       ks = keySetVar; ks
     })) != null) ks
     else (({
@@ -4604,7 +4600,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def values: Collection[V] = {
     var vs: ValuesView[K, V] = null
-    return if ((({
+    if ((({
       vs = valuesVar; vs
     })) != null) vs
     else (({
@@ -4631,7 +4627,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def entrySet: Set[Map.Entry[K, V]] = {
     var es: EntrySetView[K, V] = null
-    return if ((({
+    if ((({
       es = entrySetVar; es
     })) != null) es
     else (({
@@ -4661,7 +4657,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         })) != null) h += p.key.hashCode ^ p.value.hashCode
       }
     }
-    return h
+    h
   }
 
   /**
@@ -4701,7 +4697,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         if(!break) sb.append(',').append(' ')
       }
     }
-    return sb.append('}').toString
+    sb.append('}').toString
   }
 
   /**
@@ -4929,7 +4925,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @throws NullPointerException if the specified key or value is null
    */
   override def putIfAbsent(key: K, value: V): V = {
-    return putVal(key, value, true)
+    putVal(key, value, true)
   }
 
   /**
@@ -4939,7 +4935,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def remove(key: Any, value: Any): Boolean = {
     if (key == null) throw new NullPointerException
-    return value != null && replaceNode(key, null.asInstanceOf[V], value) != null
+    value != null && replaceNode(key, null.asInstanceOf[V], value) != null
   }
 
   /**
@@ -4949,7 +4945,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def replace(key: K, oldValue: V, newValue: V): Boolean = {
     if (key == null || oldValue == null || newValue == null) throw new NullPointerException
-    return replaceNode(key, newValue, oldValue) != null
+    replaceNode(key, newValue, oldValue) != null
   }
 
   /**
@@ -4961,7 +4957,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def replace(key: K, value: V): V = {
     if (key == null || value == null) throw new NullPointerException
-    return replaceNode(key, value, null)
+    replaceNode(key, value, null)
   }
 
   /**
@@ -4977,7 +4973,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def getOrDefault(key: Any, defaultValue: V): V = {
     var v: V = null.asInstanceOf[V]
-    return if ((({
+    if ((({
       v = get(key); v
     })) == null) defaultValue
     else v
@@ -5164,7 +5160,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       }
     }
     if (value != null) addCount(1L, binCount)
-    return value
+    value
   }
 
   /**
@@ -5275,7 +5271,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       }
     }
     if (delta != 0) addCount(delta.toLong, binCount)
-    return value
+    value
   }
 
   /**
@@ -5420,7 +5416,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       }
     }
     if (delta != 0) addCount(delta.toLong, binCount)
-    return value
+    value
   }
 
   /**
@@ -5984,7 +5980,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         }
       }
     }
-    return sum
+    sum
   }
 
   private final def fullAddCount(x: Long, inWasUncontended: Boolean) {
@@ -6141,7 +6137,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       n = sumCount; n
     })) <= 1L || n < b) return 0
     val sp: Int = ForkJoinPool.getCommonPoolParallelism << 2
-    return if ((b <= 0L || (({
+    if ((b <= 0L || (({
       n /= b; n
     })) >= sp)) sp
     else n.toInt
@@ -6217,7 +6213,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduce[U](parallelismThreshold: Long, transformer: BiFunction[_ >: K, _ >: V, _ <: U], reducer: BiFunction[_ >: U, _ >: U, _ <: U]): U = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceMappingsTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
+    new MapReduceMappingsTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
   }
 
   /**
@@ -6237,7 +6233,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceToDouble(parallelismThreshold: Long, transformer: ToDoubleBiFunction[_ >: K, _ >: V], basis: Double, reducer: DoubleBinaryOperator): Double = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceMappingsToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceMappingsToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6257,7 +6253,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceToLong(parallelismThreshold: Long, transformer: ToLongBiFunction[_ >: K, _ >: V], basis: Long, reducer: LongBinaryOperator): Long = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceMappingsToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceMappingsToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6277,7 +6273,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceToInt(parallelismThreshold: Long, transformer: ToIntBiFunction[_ >: K, _ >: V], basis: Int, reducer: IntBinaryOperator): Int = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceMappingsToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceMappingsToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6329,7 +6325,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def searchKeys[U](parallelismThreshold: Long, searchFunction: Function[_ >: K, _ <: U]): U = {
     if (searchFunction == null) throw new NullPointerException
-    return new SearchKeysTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
+    new SearchKeysTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
   }
 
   /**
@@ -6345,7 +6341,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeys(parallelismThreshold: Long, reducer: BiFunction[_ >: K, _ >: K, _ <: K]): K = {
     if (reducer == null) throw new NullPointerException
-    return new ReduceKeysTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
+    new ReduceKeysTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
   }
 
   /**
@@ -6366,7 +6362,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeys[U](parallelismThreshold: Long, transformer: Function[_ >: K, _ <: U], reducer: BiFunction[_ >: U, _ >: U, _ <: U]): U = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceKeysTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
+    new MapReduceKeysTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
   }
 
   /**
@@ -6386,7 +6382,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeysToDouble(parallelismThreshold: Long, transformer: ToDoubleFunction[_ >: K], basis: Double, reducer: DoubleBinaryOperator): Double = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceKeysToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceKeysToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6406,7 +6402,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeysToLong(parallelismThreshold: Long, transformer: ToLongFunction[_ >: K], basis: Long, reducer: LongBinaryOperator): Long = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceKeysToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceKeysToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6426,7 +6422,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeysToInt(parallelismThreshold: Long, transformer: ToIntFunction[_ >: K], basis: Int, reducer: IntBinaryOperator): Int = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceKeysToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceKeysToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6478,7 +6474,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def searchValues[U](parallelismThreshold: Long, searchFunction: Function[_ >: V, _ <: U]): U = {
     if (searchFunction == null) throw new NullPointerException
-    return new SearchValuesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
+    new SearchValuesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
   }
 
   /**
@@ -6493,7 +6489,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValues(parallelismThreshold: Long, reducer: BiFunction[_ >: V, _ >: V, _ <: V]): V = {
     if (reducer == null) throw new NullPointerException
-    return new ReduceValuesTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
+    new ReduceValuesTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
   }
 
   /**
@@ -6514,7 +6510,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValues[U](parallelismThreshold: Long, transformer: Function[_ >: V, _ <: U], reducer: BiFunction[_ >: U, _ >: U, _ <: U]): U = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceValuesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
+    new MapReduceValuesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
   }
 
   /**
@@ -6534,7 +6530,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValuesToDouble(parallelismThreshold: Long, transformer: ToDoubleFunction[_ >: V], basis: Double, reducer: DoubleBinaryOperator): Double = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceValuesToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceValuesToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6554,7 +6550,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValuesToLong(parallelismThreshold: Long, transformer: ToLongFunction[_ >: V], basis: Long, reducer: LongBinaryOperator): Long = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceValuesToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceValuesToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6574,7 +6570,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValuesToInt(parallelismThreshold: Long, transformer: ToIntFunction[_ >: V], basis: Int, reducer: IntBinaryOperator): Int = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceValuesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceValuesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6626,7 +6622,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def searchEntries[U](parallelismThreshold: Long, searchFunction: Function[Map.Entry[K, V], _ <: U]): U = {
     if (searchFunction == null) throw new NullPointerException
-    return new SearchEntriesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
+    new SearchEntriesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
   }
 
   /**
@@ -6641,7 +6637,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntries(parallelismThreshold: Long, reducer: BiFunction[Map.Entry[K, V], Map.Entry[K, V], _ <: Map.Entry[K, V]]): Map.Entry[K, V] = {
     if (reducer == null) throw new NullPointerException
-    return new ReduceEntriesTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
+    new ReduceEntriesTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
   }
 
   /**
@@ -6662,7 +6658,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntries[U](parallelismThreshold: Long, transformer: Function[Map.Entry[K, V], _ <: U], reducer: BiFunction[_ >: U, _ >: U, _ <: U]): U = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceEntriesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
+    new MapReduceEntriesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
   }
 
   /**
@@ -6682,7 +6678,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntriesToDouble(parallelismThreshold: Long, transformer: ToDoubleFunction[Map.Entry[K, V]], basis: Double, reducer: DoubleBinaryOperator): Double = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceEntriesToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceEntriesToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6702,7 +6698,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntriesToLong(parallelismThreshold: Long, transformer: ToLongFunction[Map.Entry[K, V]], basis: Long, reducer: LongBinaryOperator): Long = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceEntriesToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceEntriesToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6722,6 +6718,6 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntriesToInt(parallelismThreshold: Long, transformer: ToIntFunction[Map.Entry[K, V]], basis: Int, reducer: IntBinaryOperator): Int = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new MapReduceEntriesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    new MapReduceEntriesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 }
