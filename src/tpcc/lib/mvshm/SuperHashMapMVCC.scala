@@ -66,7 +66,7 @@ final case class DeltaVersion[K,V <: Product](val xact:Transaction, val entry:SE
   }
 }
 
-final class SEntryMVCC[K,V <: Product](var hash: Int=0, var key: K=null, var next: SEntryMVCC[K, V]=null, var value: DeltaVersion[K,V]=null) { self =>
+final class SEntryMVCC[K,V <: Product](var hash: Int=0, var key: K=null, var next: SEntryMVCC[K, V]=null, var value: DeltaVersion[K,V]=null) extends java.util.Map.Entry[K,V] { self =>
 
   @inline
   final def getKey: K = key
@@ -74,11 +74,14 @@ final class SEntryMVCC[K,V <: Product](var hash: Int=0, var key: K=null, var nex
   @inline
   final def getValueImage(implicit xact:Transaction) = value.getImage
 
+  final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
+  final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
+
   @inline
   final def getValue(implicit xact:Transaction) = value
 
   @inline
-  final def setValue(newValue: V)(implicit xact:Transaction): V = {
+  final def setTheValue(newValue: V)(implicit xact:Transaction): V = {
     val oldValue: V = if(value == null) null.asInstanceOf[V] else value.img
     value = DeltaVersion(xact,this,newValue)
     oldValue
@@ -343,7 +346,7 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
         //TODO: FIX IT
         val oldValue: V = e.getValueImage
         val value:V = valueUpdateFunc(oldValue)
-        e.setValue(value)
+        e.setTheValue(value)
         if (idxs != Nil) idxs.foreach{ idx => {
             val pOld = idx.proj(k,oldValue)
             val pNew = idx.proj(k,value)
@@ -368,7 +371,7 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
   //   while (e != null) {
   //     if (e.key == null) {
   //       val oldValue: V = e.getValue
-  //       e.setValue(value)
+  //       e.setTheValue(value)
   //       return oldValue
   //     }
   //     e = e.next
@@ -394,7 +397,7 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
   //         if (e.hash == hash && ((({
   //           k = e.key; k
   //         })) eq key || (key != null && (key == k)))) {
-  //           e.setValue(value)
+  //           e.setTheValue(value)
   //           return
   //         }
   //       }
@@ -601,7 +604,7 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
     val tmp: SEntryMVCC[K, V] = table(bucketIndex)
 
     val e = new SEntryMVCC[K, V](hash, key, tmp)
-    e.setValue(value)
+    e.setTheValue(value)
     table(bucketIndex) = e
     if (size >= threshold) resize(2 * table.length)
     size += 1
@@ -630,10 +633,10 @@ final class SHMapMVCC[K,V <: Product](initialCapacity: Int, val loadFactor: Floa
   // }
 
   @inline
-  final def foreach(f: ((K, V)) => Unit)(implicit xact:Transaction): Unit = foreachEntry(e => f(e.key, e.getValueImage))
+  final def foreach(f: ((K, V)) => Unit)(implicit xact:Transaction): Unit = foreachEntry(e => f(e.getKey, e.asInstanceOf[SEntryMVCC[K,V]].getValueImage))
 
   @inline
-  final def foreachEntry(f: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction): Unit = {
+  final def foreachEntry(f: java.util.Map.Entry[K, V] => Unit)(implicit xact:Transaction): Unit = {
     var i: Int = 0
     while (i < table.length) {
       var e: SEntryMVCC[K, V] = table(i)

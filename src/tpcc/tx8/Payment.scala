@@ -133,6 +133,7 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV1 with IPaymentInMem {
     } catch {
       case e: Throwable => {
         logger.error("An error occurred in handling Payment transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
+        e.printStackTrace
         0
       }
     }
