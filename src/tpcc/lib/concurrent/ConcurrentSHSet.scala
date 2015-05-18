@@ -9,7 +9,7 @@ object SHSet {
    */
   val DEFAULT_PRESENT_VALUE: Boolean = true
 
-  val PARALLELISM_THRESHOLD = 128
+  val PARALLELISM_THRESHOLD = Long.MaxValue
 }
 
 class SHSet[K] {
@@ -124,7 +124,7 @@ class SHSet[K] {
   override def toString: String = {
     var res = new StringBuilder("[")
     var first = true
-    map.forEachEntry(Long.MaxValue,{ e =>
+    map.forEachEntry(PARALLELISM_THRESHOLD,{ e =>
       if(first) first = false
       else res.append(", ")
       res.append(e.getKey.toString)
