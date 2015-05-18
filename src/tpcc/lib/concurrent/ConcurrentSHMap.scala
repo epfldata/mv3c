@@ -1468,15 +1468,15 @@ object ConcurrentSHMap {
       return nextNode != null
     }
 
-//    final def remove = {
-//      var p: ConcurrentSHMap.Node[K, V] = null
-//      if ((({
-//        p = lastReturned; p
-//      })) == null) throw new IllegalStateException
-//      lastReturned = null
-//      map.replaceNode(p.key, null.asInstanceOf[V], null)
-//      ()
-//    }
+    // final def remove = {
+    //   var p: ConcurrentSHMap.Node[K, V] = null
+    //   if ((({
+    //     p = lastReturned; p
+    //   })) == null) throw new IllegalStateException
+    //   lastReturned = null
+    //   map.replaceNode(p.key, null.asInstanceOf[V], null)
+    //   ()
+    // }
   }
 
   private[concurrent] final class KeyIterator[K, V](t: Array[ConcurrentSHMap.Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[K] with Enumeration[K] {
@@ -1493,6 +1493,16 @@ object ConcurrentSHMap {
 
     final def nextElement: K = {
       return next
+    }
+
+    final def remove = {
+      var p: ConcurrentSHMap.Node[K, V] = null
+      if ((({
+        p = lastReturned; p
+      })) == null) throw new IllegalStateException
+      lastReturned = null
+      map.replaceNode(p.key, null.asInstanceOf[V], null)
+      ()
     }
   }
 
@@ -1512,6 +1522,16 @@ object ConcurrentSHMap {
     final def nextElement: V = {
       return next
     }
+
+    final def remove = {
+      var p: ConcurrentSHMap.Node[K, V] = null
+      if ((({
+        p = lastReturned; p
+      })) == null) throw new IllegalStateException
+      lastReturned = null
+      map.replaceNode(p.key, null.asInstanceOf[V], null)
+      ()
+    }
   }
 
   private[concurrent] final class EntryIterator[K, V](t: Array[ConcurrentSHMap.Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[Map.Entry[K, V]] {
@@ -1526,6 +1546,16 @@ object ConcurrentSHMap {
       lastReturned = p
       advance
       return new ConcurrentSHMap.MapEntry[K, V](k, v, map)
+    }
+
+    final def remove = {
+      var p: ConcurrentSHMap.Node[K, V] = null
+      if ((({
+        p = lastReturned; p
+      })) == null) throw new IllegalStateException
+      lastReturned = null
+      map.replaceNode(p.key, null.asInstanceOf[V], null)
+      ()
     }
   }
 
