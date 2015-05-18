@@ -4733,7 +4733,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @return { @code true} if the specified object is equal to this map
    */
   override def equals(o: Any): Boolean = {
-    if (!refEquals(o, this)) {
+    if (!refEquals(o.asInstanceOf[AnyRef], this)) {
       if (!(o.isInstanceOf[Map[_, _]])) return false
       val m = o.asInstanceOf[Map[K,V]]
       var t: Array[ConcurrentSHMap.Node[K, V]] = null
