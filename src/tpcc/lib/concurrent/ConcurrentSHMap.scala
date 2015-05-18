@@ -4073,7 +4073,8 @@ object ConcurrentSHMap {
 /**
  * Creates a new, empty map with the default initial table size (16).
  */
-class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable {
+//TODO: FIXT IT by adding projs
+class ConcurrentSHMap[K, V](projs:Seq[(K,V)=>_]) extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable {
   /**
    * The array of bins. Lazily initialized upon first insertion.
    * Size is always a power of two. Accessed directly by iterators.
@@ -4131,6 +4132,10 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   @transient
   private var entrySetVar: EntrySetView[K, V] = null
 
+  def this() {
+    this(List())
+    this.sizeCtl = DEFAULT_CAPACITY
+  }
   /**
    * Creates a new, empty map with an initial table size
    * accommodating the specified number of elements without the need
@@ -4189,7 +4194,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
 
   //TODO: FIXT IT by adding projs
   def this(loadFactor: Float, inInitialCapacity: Int, projs:(K,V)=>_ *) {
-    this()
+    this(projs)
     val concurrencyLevel = 1
     var initialCapacity: Int = inInitialCapacity
     if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
@@ -4197,12 +4202,6 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     val size: Long = (1.0 + initialCapacity.toLong / loadFactor).toLong
     val cap: Int = if ((size >= MAXIMUM_CAPACITY.toLong)) MAXIMUM_CAPACITY else tableSizeFor(size.toInt)
     this.sizeCtl = cap
-  }
-
-  //TODO: FIXT IT by adding projs
-  def this(projs:(K,V)=>_ *) {
-    this()
-    this.sizeCtl = DEFAULT_CAPACITY
   }
 
   /**
