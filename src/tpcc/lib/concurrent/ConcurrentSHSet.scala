@@ -1,16 +1,16 @@
 package ddbt.tpcc.lib.concurrent
 
-import SHSet._
+import ConcurrentSHSet._
 import java.util.Map
 
-object SHSet {
+object ConcurrentSHSet {
   /**
-   * Default value for inner ConcurrentSHMap in SHSet
+   * Default value for inner ConcurrentSHMap in ConcurrentSHSet
    */
   val DEFAULT_PRESENT_VALUE: Boolean = true
 }
 
-class SHSet[K] {
+class ConcurrentSHSet[K] {
   var map: ConcurrentSHMap[K,Boolean] = new ConcurrentSHMap[K,Boolean]
 
   // def this(initialCapacity: Int, lf: Float) {

@@ -231,6 +231,8 @@ import ConcurrentSHMap._
  * @param <V> the type of mapped values
  */
 object ConcurrentSHMap {
+  type SEntry[K,V] = Node[K,V]
+
   val ONE_THREAD_NO_PARALLELISM = Long.MaxValue
   /**
    * The largest possible table capacity.  This value must be
@@ -4175,7 +4177,17 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    *                                  negative or the load factor or concurrencyLevel are
    *                                  nonpositive
    */
-  def this(inInitialCapacity: Int, loadFactor: Float, concurrencyLevel: Int = 1) {
+  def this(inInitialCapacity: Int, loadFactor: Float, concurrencyLevel: Int) {
+    this()
+    var initialCapacity: Int = inInitialCapacity
+    if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
+    if (initialCapacity < concurrencyLevel) initialCapacity = concurrencyLevel
+    val size: Long = (1.0 + initialCapacity.toLong / loadFactor).toLong
+    val cap: Int = if ((size >= MAXIMUM_CAPACITY.toLong)) MAXIMUM_CAPACITY else tableSizeFor(size.toInt)
+    this.sizeCtl = cap
+  }
+
+  def this(loadFactor: Float, inInitialCapacity: Int, concurrencyLevel: Int = 1) {
     this()
     var initialCapacity: Int = inInitialCapacity
     if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
