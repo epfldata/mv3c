@@ -1,4 +1,4 @@
-package java.util.concurrent
+package ddbt.tpcc.lib.concurrent
 
 import java.io.{ObjectInputStream, ObjectOutputStream, ObjectStreamField, Serializable}
 import java.lang.reflect.ParameterizedType
