@@ -36,6 +36,7 @@ import java.util.concurrent.CountedCompleter;
 import java.util.concurrent.ForkJoinPool;
 import ddbt.tpcc.lib.util.Comp._
 import sun.misc.Unsafe
+import ConcurrentSHMap._
 
 /**
  * A hash table supporting full concurrency of retrievals and
@@ -314,7 +315,7 @@ object ConcurrentSHMap {
   /** Number of CPUS, to place bounds on some sizings */
   private val NCPU: Int = Runtime.getRuntime.availableProcessors
   /** For serialization compatibility. */
-  private val serialPersistentFields: Array[ObjectStreamField] = Array(new ObjectStreamField("segments", classOf[Array[ConcurrentSHMap.Segment[_, _]]]), new ObjectStreamField("segmentMask", Integer.TYPE), new ObjectStreamField("segmentShift", Integer.TYPE))
+  private val serialPersistentFields: Array[ObjectStreamField] = Array(new ObjectStreamField("segments", classOf[Array[Segment[_, _]]]), new ObjectStreamField("segmentMask", Integer.TYPE), new ObjectStreamField("segmentShift", Integer.TYPE))
 
   /**
    * Key-value entry.  This class is never exported out as a
@@ -324,7 +325,7 @@ object ConcurrentSHMap {
    * are special, and contain null keys and values (but are never
    * exported).  Otherwise, keys and vals are never null.
    */
-  class Node[K, V](val hash: Int, val key: K, @volatile var value: V, @volatile var next: ConcurrentSHMap.Node[K, V]) extends Map.Entry[K, V] {
+  class Node[K, V](val hash: Int, val key: K, @volatile var value: V, @volatile var next: Node[K, V]) extends Map.Entry[K, V] {
 
     final def getKey: K = {
       key
@@ -365,8 +366,8 @@ object ConcurrentSHMap {
     /**
      * Virtualized support for map.get(); overridden in subclasses.
      */
-    def find(h: Int, k: Any): ConcurrentSHMap.Node[K, V] = {
-      var e: ConcurrentSHMap.Node[K, V] = this
+    def find(h: Int, k: Any): Node[K, V] = {
+      var e: Node[K, V] = this
       if (k != null) {
         do {
           var ek: K = null.asInstanceOf[K]
@@ -462,15 +463,15 @@ object ConcurrentSHMap {
     (if ((x == null) || (x.getClass ne kc)) 0 else (k.asInstanceOf[Comparable[Any]]).compareTo(x))
   }
 
-  @SuppressWarnings(Array("unchecked")) def tabAt[K, V](tab: Array[ConcurrentSHMap.Node[K, V]], i: Int): ConcurrentSHMap.Node[K, V] = {
-    U.getObjectVolatile(tab, (i.toLong << ASHIFT) + ABASE).asInstanceOf[ConcurrentSHMap.Node[K, V]]
+  @SuppressWarnings(Array("unchecked")) def tabAt[K, V](tab: Array[Node[K, V]], i: Int): Node[K, V] = {
+    U.getObjectVolatile(tab, (i.toLong << ASHIFT) + ABASE).asInstanceOf[Node[K, V]]
   }
 
-  def casTabAt[K, V](tab: Array[ConcurrentSHMap.Node[K, V]], i: Int, c: ConcurrentSHMap.Node[K, V], v: ConcurrentSHMap.Node[K, V]): Boolean = {
+  def casTabAt[K, V](tab: Array[Node[K, V]], i: Int, c: Node[K, V], v: Node[K, V]): Boolean = {
     U.compareAndSwapObject(tab, (i.toLong << ASHIFT) + ABASE, c, v)
   }
 
-  def setTabAt[K, V](tab: Array[ConcurrentSHMap.Node[K, V]], i: Int, v: ConcurrentSHMap.Node[K, V]) {
+  def setTabAt[K, V](tab: Array[Node[K, V]], i: Int, v: Node[K, V]) {
     U.putObjectVolatile(tab, (i.toLong << ASHIFT) + ABASE, v)
   }
 
@@ -489,8 +490,8 @@ object ConcurrentSHMap {
    * @return the new set
    * @since 1.8
    */
-  def newKeySet[K]: ConcurrentSHMap.KeySetView[K, Boolean] = {
-    new ConcurrentSHMap.KeySetView[K, Boolean](new ConcurrentSHMap[K, Boolean], true)
+  def newKeySet[K]: KeySetView[K, Boolean] = {
+    new KeySetView[K, Boolean](new ConcurrentSHMap[K, Boolean], true)
   }
 
   /**
@@ -505,21 +506,21 @@ object ConcurrentSHMap {
    *                                  elements is negative
    * @since 1.8
    */
-  def newKeySet[K](initialCapacity: Int): ConcurrentSHMap.KeySetView[K, Boolean] = {
-    return new ConcurrentSHMap.KeySetView[K, Boolean](new ConcurrentSHMap[K, Boolean](initialCapacity), true)
+  def newKeySet[K](initialCapacity: Int): KeySetView[K, Boolean] = {
+    return new KeySetView[K, Boolean](new ConcurrentSHMap[K, Boolean](initialCapacity), true)
   }
 
   /**
    * A node inserted at head of bins during transfer operations.
    */
-  final class ForwardingNode[K, V](val nextTable: Array[ConcurrentSHMap.Node[K, V]]) extends Node[K, V](MOVED, null.asInstanceOf[K], null.asInstanceOf[V], null) {
+  final class ForwardingNode[K, V](val nextTable: Array[Node[K, V]]) extends Node[K, V](MOVED, null.asInstanceOf[K], null.asInstanceOf[V], null) {
 
-    override def find(h: Int, k: Any): ConcurrentSHMap.Node[K, V] = {
+    override def find(h: Int, k: Any): Node[K, V] = {
       {
-        var tab: Array[ConcurrentSHMap.Node[K, V]] = nextTable
+        var tab: Array[Node[K, V]] = nextTable
         while (true) {
           var continue = false
-          var e: ConcurrentSHMap.Node[K, V] = null
+          var e: Node[K, V] = null
           var n: Int = 0
           if (k == null || tab == null || (({
             n = tab.length; n
@@ -535,8 +536,8 @@ object ConcurrentSHMap {
               ek = e.key; ek
             })), k) || (ek != null && (k == ek)))) return e
             if (eh < 0) {
-              if (e.isInstanceOf[ConcurrentSHMap.ForwardingNode[_, _]]) {
-                tab = (e.asInstanceOf[ConcurrentSHMap.ForwardingNode[K, V]]).nextTable
+              if (e.isInstanceOf[ForwardingNode[_, _]]) {
+                tab = (e.asInstanceOf[ForwardingNode[K, V]]).nextTable
                 continue = true //todo: continue is not supported
               }
               else return e.find(h, k)
@@ -558,7 +559,7 @@ object ConcurrentSHMap {
    * A place-holder node used in computeIfAbsent and compute
    */
   final class ReservationNode[K, V] extends Node[K, V](RESERVED, null.asInstanceOf[K], null.asInstanceOf[V], null) {
-    override def find(h: Int, k: Any): ConcurrentSHMap.Node[K, V] = {
+    override def find(h: Int, k: Any): Node[K, V] = {
       return null
     }
   }
@@ -588,15 +589,15 @@ object ConcurrentSHMap {
   /**
    * Returns a list on non-TreeNodes replacing those in given list.
    */
-  def untreeify[K, V](b: ConcurrentSHMap.Node[K, V]): ConcurrentSHMap.Node[K, V] = {
-    var hd: ConcurrentSHMap.Node[K, V] = null
-    var tl: ConcurrentSHMap.Node[K, V] = null
+  def untreeify[K, V](b: Node[K, V]): Node[K, V] = {
+    var hd: Node[K, V] = null
+    var tl: Node[K, V] = null
 
     {
-      var q: ConcurrentSHMap.Node[K, V] = b
+      var q: Node[K, V] = b
       while (q != null) {
         {
-          val p: ConcurrentSHMap.Node[K, V] = new ConcurrentSHMap.Node[K, V](q.hash, q.key, q.value, null)
+          val p: Node[K, V] = new Node[K, V](q.hash, q.key, q.value, null)
           if (tl == null) hd = p
           else tl.next = p
           tl = p
@@ -610,13 +611,13 @@ object ConcurrentSHMap {
   /**
    * Nodes for use in TreeBins
    */
-  final class TreeNode[K, V](hash: Int, key: K, value: V, next: ConcurrentSHMap.Node[K, V], var parent: ConcurrentSHMap.TreeNode[K, V]) extends Node[K, V](hash, key, value, next) {
-    var left: ConcurrentSHMap.TreeNode[K, V] = null
-    var right: ConcurrentSHMap.TreeNode[K, V] = null
-    var prev: ConcurrentSHMap.TreeNode[K, V] = null
+  final class TreeNode[K, V](hash: Int, key: K, value: V, next: Node[K, V], var parent: TreeNode[K, V]) extends Node[K, V](hash, key, value, next) {
+    var left: TreeNode[K, V] = null
+    var right: TreeNode[K, V] = null
+    var prev: TreeNode[K, V] = null
     var red: Boolean = false
 
-    override def find(h: Int, k: Any): ConcurrentSHMap.Node[K, V] = {
+    override def find(h: Int, k: Any): Node[K, V] = {
       return findTreeNode(h, k, null)
     }
 
@@ -624,17 +625,17 @@ object ConcurrentSHMap {
      * Returns the TreeNode (or null if not found) for the given key
      * starting at given root.
      */
-    final def findTreeNode(h: Int, k: Any, kcIn: Class[_]): ConcurrentSHMap.TreeNode[K, V] = {
+    final def findTreeNode(h: Int, k: Any, kcIn: Class[_]): TreeNode[K, V] = {
       var kc: Class[_] = kcIn
       if (k != null) {
-        var p: ConcurrentSHMap.TreeNode[K, V] = this
+        var p: TreeNode[K, V] = this
         do {
           var ph: Int = 0
           var dir: Int = 0
           var pk: K = null.asInstanceOf[K]
-          var q: ConcurrentSHMap.TreeNode[K, V] = null
-          val pl: ConcurrentSHMap.TreeNode[K, V] = p.left
-          val pr: ConcurrentSHMap.TreeNode[K, V] = p.right
+          var q: TreeNode[K, V] = null
+          val pl: TreeNode[K, V] = p.left
+          val pr: TreeNode[K, V] = p.right
           if ((({
             ph = p.hash; ph
           })) > h) p = pl
@@ -686,11 +687,11 @@ object ConcurrentSHMap {
       return d
     }
 
-    def rotateLeft[K, V](rootIn: ConcurrentSHMap.TreeNode[K, V], p: ConcurrentSHMap.TreeNode[K, V]): ConcurrentSHMap.TreeNode[K, V] = {
-      var root: ConcurrentSHMap.TreeNode[K, V] = rootIn
-      var r: ConcurrentSHMap.TreeNode[K, V] = null
-      var pp: ConcurrentSHMap.TreeNode[K, V] = null
-      var rl: ConcurrentSHMap.TreeNode[K, V] = null
+    def rotateLeft[K, V](rootIn: TreeNode[K, V], p: TreeNode[K, V]): TreeNode[K, V] = {
+      var root: TreeNode[K, V] = rootIn
+      var r: TreeNode[K, V] = null
+      var pp: TreeNode[K, V] = null
+      var rl: TreeNode[K, V] = null
       if (p != null && (({
         r = p.right; r
       })) != null) {
@@ -714,11 +715,11 @@ object ConcurrentSHMap {
       return root
     }
 
-    def rotateRight[K, V](rootIn: ConcurrentSHMap.TreeNode[K, V], p: ConcurrentSHMap.TreeNode[K, V]): ConcurrentSHMap.TreeNode[K, V] = {
-      var root: ConcurrentSHMap.TreeNode[K, V] = rootIn
-      var l: ConcurrentSHMap.TreeNode[K, V] = null
-      var pp: ConcurrentSHMap.TreeNode[K, V] = null
-      var lr: ConcurrentSHMap.TreeNode[K, V] = null
+    def rotateRight[K, V](rootIn: TreeNode[K, V], p: TreeNode[K, V]): TreeNode[K, V] = {
+      var root: TreeNode[K, V] = rootIn
+      var l: TreeNode[K, V] = null
+      var pp: TreeNode[K, V] = null
+      var lr: TreeNode[K, V] = null
       if (p != null && (({
         l = p.left; l
       })) != null) {
@@ -742,15 +743,15 @@ object ConcurrentSHMap {
       return root
     }
 
-    def balanceInsertion[K, V](rootIn: ConcurrentSHMap.TreeNode[K, V], xIn: ConcurrentSHMap.TreeNode[K, V]): ConcurrentSHMap.TreeNode[K, V] = {
-      var root: ConcurrentSHMap.TreeNode[K, V] = rootIn
-      var x: ConcurrentSHMap.TreeNode[K, V] = xIn
+    def balanceInsertion[K, V](rootIn: TreeNode[K, V], xIn: TreeNode[K, V]): TreeNode[K, V] = {
+      var root: TreeNode[K, V] = rootIn
+      var x: TreeNode[K, V] = xIn
       x.red = true
 
-      var xp: ConcurrentSHMap.TreeNode[K, V] = null
-      var xpp: ConcurrentSHMap.TreeNode[K, V] = null
-      var xppl: ConcurrentSHMap.TreeNode[K, V] = null
-      var xppr: ConcurrentSHMap.TreeNode[K, V] = null
+      var xp: TreeNode[K, V] = null
+      var xpp: TreeNode[K, V] = null
+      var xppl: TreeNode[K, V] = null
+      var xppr: TreeNode[K, V] = null
       while (true) {
         if ((({
           xp = x.parent; xp
@@ -817,14 +818,14 @@ object ConcurrentSHMap {
       null
     }
 
-    def balanceDeletion[K, V](rootIn: ConcurrentSHMap.TreeNode[K, V], xIn: ConcurrentSHMap.TreeNode[K, V]): ConcurrentSHMap.TreeNode[K, V] = {
-      var root: ConcurrentSHMap.TreeNode[K, V] = rootIn
-      var x: ConcurrentSHMap.TreeNode[K, V] = xIn
+    def balanceDeletion[K, V](rootIn: TreeNode[K, V], xIn: TreeNode[K, V]): TreeNode[K, V] = {
+      var root: TreeNode[K, V] = rootIn
+      var x: TreeNode[K, V] = xIn
 
       {
-        var xp: ConcurrentSHMap.TreeNode[K, V] = null
-        var xpl: ConcurrentSHMap.TreeNode[K, V] = null
-        var xpr: ConcurrentSHMap.TreeNode[K, V] = null
+        var xp: TreeNode[K, V] = null
+        var xpl: TreeNode[K, V] = null
+        var xpr: TreeNode[K, V] = null
         while (true) {
           if ((x == null) || (x eq root)) return root
           else if ((({
@@ -853,8 +854,8 @@ object ConcurrentSHMap {
             }
             if (xpr == null) x = xp
             else {
-              val sl: ConcurrentSHMap.TreeNode[K, V] = xpr.left
-              var sr: ConcurrentSHMap.TreeNode[K, V] = xpr.right
+              val sl: TreeNode[K, V] = xpr.left
+              var sr: TreeNode[K, V] = xpr.right
               if ((sr == null || !sr.red) && (sl == null || !sl.red)) {
                 xpr.red = true
                 x = xp
@@ -895,8 +896,8 @@ object ConcurrentSHMap {
             }
             if (xpl == null) x = xp
             else {
-              var sl: ConcurrentSHMap.TreeNode[K, V] = xpl.left
-              val sr: ConcurrentSHMap.TreeNode[K, V] = xpl.right
+              var sl: TreeNode[K, V] = xpl.left
+              val sr: TreeNode[K, V] = xpl.right
               if ((sl == null || !sl.red) && (sr == null || !sr.red)) {
                 xpl.red = true
                 x = xp
@@ -933,12 +934,12 @@ object ConcurrentSHMap {
     /**
      * Recursive invariant check
      */
-    def checkInvariants[K, V](t: ConcurrentSHMap.TreeNode[K, V]): Boolean = {
-      val tp: ConcurrentSHMap.TreeNode[K, V] = t.parent
-      val tl: ConcurrentSHMap.TreeNode[K, V] = t.left
-      val tr: ConcurrentSHMap.TreeNode[K, V] = t.right
-      val tb: ConcurrentSHMap.TreeNode[K, V] = t.prev
-      val tn: ConcurrentSHMap.TreeNode[K, V] = t.next.asInstanceOf[ConcurrentSHMap.TreeNode[K, V]]
+    def checkInvariants[K, V](t: TreeNode[K, V]): Boolean = {
+      val tp: TreeNode[K, V] = t.parent
+      val tl: TreeNode[K, V] = t.left
+      val tr: TreeNode[K, V] = t.right
+      val tb: TreeNode[K, V] = t.prev
+      val tn: TreeNode[K, V] = t.next.asInstanceOf[TreeNode[K, V]]
       if ((tb != null) && (tb.next ne t)) return false
       if ((tn != null) && (tn.prev ne t)) return false
       if ((tp != null) && (t ne tp.left) && (t ne tp.right)) return false
@@ -951,14 +952,14 @@ object ConcurrentSHMap {
     }
 
     private val U: Unsafe = MyThreadLocalRandom.getUnsafe
-    val k: Class[_] = classOf[ConcurrentSHMap.TreeBin[_, _]]
+    val k: Class[_] = classOf[TreeBin[_, _]]
     private val LOCKSTATE: Long = U.objectFieldOffset(k.getDeclaredField("lockState"))
   }
 
   final class TreeBin[K, V] extends Node[K, V](TREEBIN, null.asInstanceOf[K], null.asInstanceOf[V], null) {
-    var root: ConcurrentSHMap.TreeNode[K, V] = null
+    var root: TreeNode[K, V] = null
     @volatile
-    var first: ConcurrentSHMap.TreeNode[K, V] = null
+    var first: TreeNode[K, V] = null
     @volatile
     var waiter: Thread = null
     @volatile
@@ -967,17 +968,17 @@ object ConcurrentSHMap {
     /**
      * Creates bin with initial set of nodes headed by b.
      */
-    def this(b: ConcurrentSHMap.TreeNode[K, V]) {
+    def this(b: TreeNode[K, V]) {
       this()
       this.first = b
-      var r: ConcurrentSHMap.TreeNode[K, V] = null
+      var r: TreeNode[K, V] = null
 
       {
-        var x: ConcurrentSHMap.TreeNode[K, V] = b
-        var next: ConcurrentSHMap.TreeNode[K, V] = null
+        var x: TreeNode[K, V] = b
+        var next: TreeNode[K, V] = null
         while (x != null) {
           {
-            next = x.next.asInstanceOf[ConcurrentSHMap.TreeNode[K, V]]
+            next = x.next.asInstanceOf[TreeNode[K, V]]
             x.left = ({
               x.right = null; x.right
             })
@@ -992,7 +993,7 @@ object ConcurrentSHMap {
               var kc: Class[_] = null
 
               {
-                var p: ConcurrentSHMap.TreeNode[K, V] = r
+                var p: TreeNode[K, V] = r
                 var break = false
                 while (!break) {
                   var dir: Int = 0
@@ -1007,7 +1008,7 @@ object ConcurrentSHMap {
                   })) == null) || (({
                     dir = compareComparables(kc, k, pk); dir
                   })) == 0) dir = TreeBin.tieBreakOrder(k, pk)
-                  val xp: ConcurrentSHMap.TreeNode[K, V] = p
+                  val xp: TreeNode[K, V] = p
                   if ((({
                     p = if ((dir <= 0)) p.left else p.right; p
                   })) == null) {
@@ -1075,10 +1076,10 @@ object ConcurrentSHMap {
      * using tree comparisons from root, but continues linear
      * search when lock not available.
      */
-    final override def find(h: Int, k: Any): ConcurrentSHMap.Node[K, V] = {
+    final override def find(h: Int, k: Any): Node[K, V] = {
       if (k != null) {
         {
-          var e: ConcurrentSHMap.Node[K, V] = first
+          var e: Node[K, V] = first
           while (e != null) {
             var s: Int = 0
             var ek: K = null.asInstanceOf[K]
@@ -1091,8 +1092,8 @@ object ConcurrentSHMap {
               e = e.next
             }
             else if (TreeBin.U.compareAndSwapInt(this, TreeBin.LOCKSTATE, s, s + TreeBin.READER)) {
-              var r: ConcurrentSHMap.TreeNode[K, V] = null
-              var p: ConcurrentSHMap.TreeNode[K, V] = null
+              var r: TreeNode[K, V] = null
+              var p: TreeNode[K, V] = null
               try {
                 p = (if ((({
                   r = root; r
@@ -1116,12 +1117,12 @@ object ConcurrentSHMap {
      * Finds or adds a node.
      * @return null if added
      */
-    final def putTreeVal(h: Int, k: K, v: V): ConcurrentSHMap.TreeNode[K, V] = {
+    final def putTreeVal(h: Int, k: K, v: V): TreeNode[K, V] = {
       var kc: Class[_] = null
       var searched: Boolean = false
 
       {
-        var p: ConcurrentSHMap.TreeNode[K, V] = root
+        var p: TreeNode[K, V] = root
         var break = false
         while (!break) {
           var dir: Int = 0
@@ -1129,7 +1130,7 @@ object ConcurrentSHMap {
           var pk: K = null.asInstanceOf[K]
           if (p == null) {
             first = ({
-              root = new ConcurrentSHMap.TreeNode[K, V](h, k, v, null, null); root
+              root = new TreeNode[K, V](h, k, v, null, null); root
             })
             break = true //todo: break is not supported
           }
@@ -1146,8 +1147,8 @@ object ConcurrentSHMap {
             dir = compareComparables(kc, k, pk); dir
           })) == 0) {
             if (!searched) {
-              var q: ConcurrentSHMap.TreeNode[K, V] = null
-              var ch: ConcurrentSHMap.TreeNode[K, V] = null
+              var q: TreeNode[K, V] = null
+              var ch: TreeNode[K, V] = null
               searched = true
               if (((({
                 ch = p.left; ch
@@ -1162,15 +1163,15 @@ object ConcurrentSHMap {
             dir = TreeBin.tieBreakOrder(k, pk)
           }
           if(!break) {
-            val xp: ConcurrentSHMap.TreeNode[K, V] = p
+            val xp: TreeNode[K, V] = p
             if ((({
               p = if ((dir <= 0)) p.left else p.right;
               p
             })) == null) {
-              var x: ConcurrentSHMap.TreeNode[K, V] = null
-              val f: ConcurrentSHMap.TreeNode[K, V] = first
+              var x: TreeNode[K, V] = null
+              val f: TreeNode[K, V] = first
               first = ({
-                x = new ConcurrentSHMap.TreeNode[K, V](h, k, v, f, xp);
+                x = new TreeNode[K, V](h, k, v, f, xp);
                 x
               })
               if (f != null) f.prev = x
@@ -1204,11 +1205,11 @@ object ConcurrentSHMap {
      *
      * @return true if now too small, so should be untreeified
      */
-    final def removeTreeNode(p: ConcurrentSHMap.TreeNode[K, V]): Boolean = {
-      val next: ConcurrentSHMap.TreeNode[K, V] = p.next.asInstanceOf[ConcurrentSHMap.TreeNode[K, V]]
-      val pred: ConcurrentSHMap.TreeNode[K, V] = p.prev
-      var r: ConcurrentSHMap.TreeNode[K, V] = null
-      var rl: ConcurrentSHMap.TreeNode[K, V] = null
+    final def removeTreeNode(p: TreeNode[K, V]): Boolean = {
+      val next: TreeNode[K, V] = p.next.asInstanceOf[TreeNode[K, V]]
+      val pred: TreeNode[K, V] = p.prev
+      var r: TreeNode[K, V] = null
+      var rl: TreeNode[K, V] = null
       if (pred == null) first = next
       else pred.next = next
       if (next != null) next.prev = pred
@@ -1223,26 +1224,26 @@ object ConcurrentSHMap {
       })) == null || rl.left == null) return true
       lockRoot
       try {
-        var replacement: ConcurrentSHMap.TreeNode[K, V] = null
-        val pl: ConcurrentSHMap.TreeNode[K, V] = p.left
-        val pr: ConcurrentSHMap.TreeNode[K, V] = p.right
+        var replacement: TreeNode[K, V] = null
+        val pl: TreeNode[K, V] = p.left
+        val pr: TreeNode[K, V] = p.right
         if (pl != null && pr != null) {
-          var s: ConcurrentSHMap.TreeNode[K, V] = pr
-          var sl: ConcurrentSHMap.TreeNode[K, V] = null
+          var s: TreeNode[K, V] = pr
+          var sl: TreeNode[K, V] = null
           while ((({
             sl = s.left; sl
           })) != null) s = sl
           val c: Boolean = s.red
           s.red = p.red
           p.red = c
-          val sr: ConcurrentSHMap.TreeNode[K, V] = s.right
-          val pp: ConcurrentSHMap.TreeNode[K, V] = p.parent
+          val sr: TreeNode[K, V] = s.right
+          val pp: TreeNode[K, V] = p.parent
           if (s eq pr) {
             p.parent = s
             s.right = p
           }
           else {
-            val sp: ConcurrentSHMap.TreeNode[K, V] = s.parent
+            val sp: TreeNode[K, V] = s.parent
             if ((({
               p.parent = sp; p.parent
             })) != null) {
@@ -1272,7 +1273,7 @@ object ConcurrentSHMap {
         else if (pr != null) replacement = pr
         else replacement = p
         if (replacement ne p) {
-          val pp: ConcurrentSHMap.TreeNode[K, V] = {replacement.parent = p.parent; replacement.parent}
+          val pp: TreeNode[K, V] = {replacement.parent = p.parent; replacement.parent}
           if (pp == null) r = replacement
           else if (p eq pp.left) pp.left = replacement
           else pp.right = replacement
@@ -1284,7 +1285,7 @@ object ConcurrentSHMap {
         }
         root = if ((p.red)) r else TreeBin.balanceDeletion(r, replacement)
         if (p eq replacement) {
-          var pp: ConcurrentSHMap.TreeNode[K, V] = null
+          var pp: TreeNode[K, V] = null
           if ((({
             pp = p.parent; pp
           })) != null) {
@@ -1309,8 +1310,8 @@ object ConcurrentSHMap {
   final class TableStack[K, V] {
     var length: Int = 0
     var index: Int = 0
-    var tab: Array[ConcurrentSHMap.Node[K, V]] = null
-    var next: ConcurrentSHMap.TableStack[K, V] = null
+    var tab: Array[Node[K, V]] = null
+    var next: TableStack[K, V] = null
   }
 
   /**
@@ -1334,23 +1335,23 @@ object ConcurrentSHMap {
    * across threads, iteration terminates if a bounds checks fails
    * for a table read.
    */
-  class Traverser[K, V](var tab: Array[ConcurrentSHMap.Node[K, V]], val baseSize: Int, var baseIndex: Int, var baseLimit: Int) {
-    var nextNode: ConcurrentSHMap.Node[K, V] = null
-    var stack: ConcurrentSHMap.TableStack[K, V] = null
-    var spare: ConcurrentSHMap.TableStack[K, V] = null
+  class Traverser[K, V](var tab: Array[Node[K, V]], val baseSize: Int, var baseIndex: Int, var baseLimit: Int) {
+    var nextNode: Node[K, V] = null
+    var stack: TableStack[K, V] = null
+    var spare: TableStack[K, V] = null
     var index: Int = 0
 
     /**
      * Advances if possible, returning next valid node, or null if none.
      */
-    final def advance: ConcurrentSHMap.Node[K, V] = {
-      var e: ConcurrentSHMap.Node[K, V] = null
+    final def advance: Node[K, V] = {
+      var e: Node[K, V] = null
       if ((({
         e = nextNode; e
       })) != null) e = e.next
       while (true) {
         var continue = false
-        var t: Array[ConcurrentSHMap.Node[K, V]] = null
+        var t: Array[Node[K, V]] = null
         var i: Int = 0
         var n: Int = 0
         if (e != null) return {nextNode = e; nextNode}
@@ -1364,13 +1365,13 @@ object ConcurrentSHMap {
         if ((({
           e = tabAt(t, i); e
         })) != null && e.hash < 0) {
-          if (e.isInstanceOf[ConcurrentSHMap.ForwardingNode[_, _]]) {
-            tab = (e.asInstanceOf[ConcurrentSHMap.ForwardingNode[K, V]]).nextTable
+          if (e.isInstanceOf[ForwardingNode[_, _]]) {
+            tab = (e.asInstanceOf[ForwardingNode[K, V]]).nextTable
             e = null
             pushState(t, i, n)
             continue = true //todo: continue is not supported
           }
-          else if (e.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) e = (e.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]).first
+          else if (e.isInstanceOf[TreeBin[_, _]]) e = (e.asInstanceOf[TreeBin[K, V]]).first
           else e = null
         }
         if(!continue) {
@@ -1384,16 +1385,16 @@ object ConcurrentSHMap {
           })
         }
       }
-      null.asInstanceOf[ConcurrentSHMap.Node[K, V]]
+      null.asInstanceOf[Node[K, V]]
     }
 
     /**
      * Saves traversal state upon encountering a forwarding node.
      */
-    private def pushState(t: Array[ConcurrentSHMap.Node[K, V]], i: Int, n: Int) {
-      var s: ConcurrentSHMap.TableStack[K, V] = spare
+    private def pushState(t: Array[Node[K, V]], i: Int, n: Int) {
+      var s: TableStack[K, V] = spare
       if (s != null) spare = s.next
-      else s = new ConcurrentSHMap.TableStack[K, V]
+      else s = new TableStack[K, V]
       s.tab = t
       s.length = n
       s.index = i
@@ -1408,7 +1409,7 @@ object ConcurrentSHMap {
      */
     private def recoverState(nIn: Int) {
       var n: Int = nIn
-      var s: ConcurrentSHMap.TableStack[K, V] = null
+      var s: TableStack[K, V] = null
       var len: Int = 0
       while ((({
         s = stack; s
@@ -1421,7 +1422,7 @@ object ConcurrentSHMap {
         index = s.index
         tab = s.tab
         s.tab = null
-        val next: ConcurrentSHMap.TableStack[K, V] = s.next
+        val next: TableStack[K, V] = s.next
         s.next = spare
         stack = next
         spare = s
@@ -1438,10 +1439,10 @@ object ConcurrentSHMap {
    * Base of key, value, and entry Iterators. Adds fields to
    * Traverser to support iterator.remove.
    */
-  class BaseIterator[K, V](t: Array[ConcurrentSHMap.Node[K, V]], s: Int, i: Int, l: Int, val map: ConcurrentSHMap[K, V]) extends Traverser[K, V](t, s, i, l) {
+  class BaseIterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, val map: ConcurrentSHMap[K, V]) extends Traverser[K, V](t, s, i, l) {
     advance
 
-    var lastReturned: ConcurrentSHMap.Node[K, V] = null
+    var lastReturned: Node[K, V] = null
 
     final def hasNext: Boolean = {
       return nextNode != null
@@ -1452,7 +1453,7 @@ object ConcurrentSHMap {
     }
 
     // final def remove = {
-    //   var p: ConcurrentSHMap.Node[K, V] = null
+    //   var p: Node[K, V] = null
     //   if ((({
     //     p = lastReturned; p
     //   })) == null) throw new IllegalStateException
@@ -1462,9 +1463,9 @@ object ConcurrentSHMap {
     // }
   }
 
-  final class KeyIterator[K, V](t: Array[ConcurrentSHMap.Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[K] with Enumeration[K] {
+  final class KeyIterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[K] with Enumeration[K] {
     final def next: K = {
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       if ((({
         p = nextNode; p
       })) == null) throw new NoSuchElementException
@@ -1479,7 +1480,7 @@ object ConcurrentSHMap {
     }
 
     final def remove = {
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       if ((({
         p = lastReturned; p
       })) == null) throw new IllegalStateException
@@ -1489,10 +1490,10 @@ object ConcurrentSHMap {
     }
   }
 
-  final class ValueIterator[K, V](t: Array[ConcurrentSHMap.Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[V] with Enumeration[V] {
+  final class ValueIterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[V] with Enumeration[V] {
 
     final def next: V = {
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       if ((({
         p = nextNode; p
       })) == null) throw new NoSuchElementException
@@ -1507,7 +1508,7 @@ object ConcurrentSHMap {
     }
 
     final def remove = {
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       if ((({
         p = lastReturned; p
       })) == null) throw new IllegalStateException
@@ -1517,10 +1518,10 @@ object ConcurrentSHMap {
     }
   }
 
-  final class EntryIterator[K, V](t: Array[ConcurrentSHMap.Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[Map.Entry[K, V]] {
+  final class EntryIterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[Map.Entry[K, V]] {
 
     final def next: Map.Entry[K, V] = {
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       if ((({
         p = nextNode; p
       })) == null) throw new NoSuchElementException
@@ -1528,11 +1529,11 @@ object ConcurrentSHMap {
       val v: V = p.value
       lastReturned = p
       advance
-      return new ConcurrentSHMap.MapEntry[K, V](k, v, map)
+      return new MapEntry[K, V](k, v, map)
     }
 
     final def remove = {
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       if ((({
         p = lastReturned; p
       })) == null) throw new IllegalStateException
@@ -1593,7 +1594,7 @@ object ConcurrentSHMap {
     }
   }
 
-  final class KeySpliterator[K, V](t: Array[ConcurrentSHMap.Node[K, V]], s: Int, i: Int, l: Int, var est: Long) extends Traverser[K, V](t, s, i, l) with Spliterator[K] {
+  final class KeySpliterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, var est: Long) extends Traverser[K, V](t, s, i, l) with Spliterator[K] {
 
     def trySplit: Spliterator[K] = {
       var i: Int = 0
@@ -1606,13 +1607,13 @@ object ConcurrentSHMap {
           f = baseLimit; f
         }))) >>> 1; h
       })) <= i) null
-      else new ConcurrentSHMap.KeySpliterator[K, V](tab, baseSize, {baseLimit = h; baseLimit}, f, {est >>>= 1; est})
+      else new KeySpliterator[K, V](tab, baseSize, {baseLimit = h; baseLimit}, f, {est >>>= 1; est})
     }
 
     override def forEachRemaining(action: Consumer[_ >: K]) {
       if (action == null) throw new NullPointerException
       {
-        var p: ConcurrentSHMap.Node[K, V] = null
+        var p: Node[K, V] = null
         while ((({
           p = advance; p
         })) != null) action.accept(p.key)
@@ -1621,7 +1622,7 @@ object ConcurrentSHMap {
 
     def tryAdvance(action: Consumer[_ >: K]): Boolean = {
       if (action == null) throw new NullPointerException
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       if ((({
         p = advance; p
       })) == null) return false
@@ -1638,7 +1639,7 @@ object ConcurrentSHMap {
     }
   }
 
-  final class ValueSpliterator[K, V](t: Array[ConcurrentSHMap.Node[K, V]], s: Int, i: Int, l: Int, var est: Long) extends Traverser[K, V](t, s, i, l) with Spliterator[V] {
+  final class ValueSpliterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, var est: Long) extends Traverser[K, V](t, s, i, l) with Spliterator[V] {
 
     def trySplit: Spliterator[V] = {
       var i: Int = 0
@@ -1651,13 +1652,13 @@ object ConcurrentSHMap {
           f = baseLimit; f
         }))) >>> 1; h
       })) <= i) null
-      else new ConcurrentSHMap.ValueSpliterator[K, V](tab, baseSize, {baseLimit = h; baseLimit}, f, {est >>>= 1; est})
+      else new ValueSpliterator[K, V](tab, baseSize, {baseLimit = h; baseLimit}, f, {est >>>= 1; est})
     }
 
     override def forEachRemaining(action: Consumer[_ >: V]) {
       if (action == null) throw new NullPointerException
       {
-        var p: ConcurrentSHMap.Node[K, V] = null
+        var p: Node[K, V] = null
         while ((({
           p = advance; p
         })) != null) action.accept(p.value)
@@ -1666,7 +1667,7 @@ object ConcurrentSHMap {
 
     def tryAdvance(action: Consumer[_ >: V]): Boolean = {
       if (action == null) throw new NullPointerException
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       if ((({
         p = advance; p
       })) == null) return false
@@ -1683,7 +1684,7 @@ object ConcurrentSHMap {
     }
   }
 
-  final class EntrySpliterator[K, V](t: Array[ConcurrentSHMap.Node[K, V]], s: Int, i: Int, l: Int, var est: Long, val map: ConcurrentSHMap[K, V]) extends Traverser[K, V](t, s, i, l) with Spliterator[Map.Entry[K, V]] {
+  final class EntrySpliterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, var est: Long, val map: ConcurrentSHMap[K, V]) extends Traverser[K, V](t, s, i, l) with Spliterator[Map.Entry[K, V]] {
 
     def trySplit: Spliterator[Map.Entry[K, V]] = {
       var i: Int = 0
@@ -1696,26 +1697,26 @@ object ConcurrentSHMap {
           f = baseLimit; f
         }))) >>> 1; h
       })) <= i) null
-      else new ConcurrentSHMap.EntrySpliterator[K, V](tab, baseSize, {baseLimit = h; baseLimit}, f, {est >>>= 1; est}, map)
+      else new EntrySpliterator[K, V](tab, baseSize, {baseLimit = h; baseLimit}, f, {est >>>= 1; est}, map)
     }
 
     override def forEachRemaining(action: Consumer[_ >: Map.Entry[K, V]]) {
       if (action == null) throw new NullPointerException
       {
-        var p: ConcurrentSHMap.Node[K, V] = null
+        var p: Node[K, V] = null
         while ((({
           p = advance; p
-        })) != null) action.accept(new ConcurrentSHMap.MapEntry[K, V](p.key, p.value, map))
+        })) != null) action.accept(new MapEntry[K, V](p.key, p.value, map))
       }
     }
 
     def tryAdvance(action: Consumer[_ >: Map.Entry[K, V]]): Boolean = {
       if (action == null) throw new NullPointerException
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       if ((({
         p = advance; p
       })) == null) return false
-      action.accept(new ConcurrentSHMap.MapEntry[K, V](p.key, p.value, map))
+      action.accept(new MapEntry[K, V](p.key, p.value, map))
       return true
     }
 
@@ -1945,13 +1946,13 @@ object ConcurrentSHMap {
      * @return an iterator over the keys of the backing map
      */
     def iterator: Iterator[K] = {
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       val m: ConcurrentSHMap[K, V] = map
       val f: Int = if ((({
         t = m.table; t
       })) == null) 0
       else t.length
-      return new ConcurrentSHMap.KeyIterator[K, V](t, f, 0, f, m)
+      return new KeyIterator[K, V](t, f, 0, f, m)
     }
 
     /**
@@ -2011,26 +2012,26 @@ object ConcurrentSHMap {
     }
 
     override def spliterator: Spliterator[K] = {
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       val m: ConcurrentSHMap[K, V] = map
       val n: Long = m.sumCount
       val f: Int = if ((({
         t = m.table; t
       })) == null) 0
       else t.length
-      return new ConcurrentSHMap.KeySpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n)
+      return new KeySpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n)
     }
 
     override def forEach(action: Consumer[_ >: K]) {
       if (action == null) throw new NullPointerException
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       if ((({
         t = map.table; t
       })) != null) {
-        val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
+        val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = it.advance; p
           })) != null) action.accept(p.key)
@@ -2068,12 +2069,12 @@ object ConcurrentSHMap {
 
     final def iterator: Iterator[V] = {
       val m: ConcurrentSHMap[K, V] = map
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       val f: Int = if ((({
         t = m.table; t
       })) == null) 0
       else t.length
-      return new ConcurrentSHMap.ValueIterator[K, V](t, f, 0, f, m)
+      return new ValueIterator[K, V](t, f, 0, f, m)
     }
 
     final def add(e: V): Boolean = {
@@ -2085,26 +2086,26 @@ object ConcurrentSHMap {
     }
 
     override def spliterator: Spliterator[V] = {
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       val m: ConcurrentSHMap[K, V] = map
       val n: Long = m.sumCount
       val f: Int = if ((({
         t = m.table; t
       })) == null) 0
       else t.length
-      return new ConcurrentSHMap.ValueSpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n)
+      return new ValueSpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n)
     }
 
     override def forEach(action: Consumer[_ >: V]) {
       if (action == null) throw new NullPointerException
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       if ((({
         t = map.table; t
       })) != null) {
-        val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
+        val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = it.advance; p
           })) != null) action.accept(p.value)
@@ -2155,12 +2156,12 @@ object ConcurrentSHMap {
      */
     def iterator: Iterator[Map.Entry[K, V]] = {
       val m: ConcurrentSHMap[K, V] = map
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       val f: Int = if ((({
         t = m.table; t
       })) == null) 0
       else t.length
-      return new ConcurrentSHMap.EntryIterator[K, V](t, f, 0, f, m)
+      return new EntryIterator[K, V](t, f, 0, f, m)
     }
 
     def add(e: Map.Entry[K, V]): Boolean = {
@@ -2178,14 +2179,14 @@ object ConcurrentSHMap {
 
     final override def hashCode: Int = {
       var h: Int = 0
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       if ((({
         t = map.table; t
       })) != null) {
-        val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
+        val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = it.advance; p
           })) != null) {
@@ -2204,29 +2205,29 @@ object ConcurrentSHMap {
     }
 
     override def spliterator: Spliterator[Map.Entry[K, V]] = {
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       val m: ConcurrentSHMap[K, V] = map
       val n: Long = m.sumCount
       val f: Int = if ((({
         t = m.table; t
       })) == null) 0
       else t.length
-      return new ConcurrentSHMap.EntrySpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n, m)
+      return new EntrySpliterator[K, V](t, f, 0, f, if (n < 0L) 0L else n, m)
     }
 
     override def forEach(action: Consumer[_ >: Map.Entry[K, V]]) {
       if (action == null) throw new NullPointerException
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       if ((({
         t = map.table; t
       })) != null) {
-        val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
+        val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = it.advance; p
-          })) != null) action.accept(new ConcurrentSHMap.MapEntry[K, V](p.key, p.value, map))
+          })) != null) action.accept(new MapEntry[K, V](p.key, p.value, map))
         }
       }
     }
@@ -2236,11 +2237,11 @@ object ConcurrentSHMap {
    * Base class for bulk tasks. Repeats some fields and code from
    * class Traverser, because we need to subclass CountedCompleter.
    */
-  @SuppressWarnings(Array("serial")) abstract class BulkTask[K, V, R](val par: ConcurrentSHMap.BulkTask[K, V, _], var batch: Int, var baseIndex: Int, f: Int, var tab: Array[ConcurrentSHMap.Node[K, V]]) extends CountedCompleter[R](par) {
+  @SuppressWarnings(Array("serial")) abstract class BulkTask[K, V, R](val par: BulkTask[K, V, _], var batch: Int, var baseIndex: Int, f: Int, var tab: Array[Node[K, V]]) extends CountedCompleter[R](par) {
 
-    var next: ConcurrentSHMap.Node[K, V] = null
-    var stack: ConcurrentSHMap.TableStack[K, V] = null
-    var spare: ConcurrentSHMap.TableStack[K, V] = null
+    var next: Node[K, V] = null
+    var stack: TableStack[K, V] = null
+    var spare: TableStack[K, V] = null
     var index: Int = baseIndex
     var baseLimit: Int = if (tab == null) 0
     else if (par == null) tab.length
@@ -2251,14 +2252,14 @@ object ConcurrentSHMap {
     /**
      * Same as Traverser version
      */
-    final def advance: ConcurrentSHMap.Node[K, V] = {
-      var e: ConcurrentSHMap.Node[K, V] = null
+    final def advance: Node[K, V] = {
+      var e: Node[K, V] = null
       if ((({
         e = next; e
       })) != null) e = e.next
       while (true) {
         var continue = false
-        var t: Array[ConcurrentSHMap.Node[K, V]] = null
+        var t: Array[Node[K, V]] = null
         var i: Int = 0
         var n: Int = 0
         if (e != null) return { next = e; next }
@@ -2272,13 +2273,13 @@ object ConcurrentSHMap {
         if ((({
           e = tabAt(t, i); e
         })) != null && e.hash < 0) {
-          if (e.isInstanceOf[ConcurrentSHMap.ForwardingNode[_, _]]) {
-            tab = (e.asInstanceOf[ConcurrentSHMap.ForwardingNode[K, V]]).nextTable
+          if (e.isInstanceOf[ForwardingNode[_, _]]) {
+            tab = (e.asInstanceOf[ForwardingNode[K, V]]).nextTable
             e = null
             pushState(t, i, n)
             continue = true //todo: continue is not supported
           }
-          else if (e.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) e = (e.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]).first
+          else if (e.isInstanceOf[TreeBin[_, _]]) e = (e.asInstanceOf[TreeBin[K, V]]).first
           else e = null
         }
         if(!continue) {
@@ -2295,10 +2296,10 @@ object ConcurrentSHMap {
       null
     }
 
-    private def pushState(t: Array[ConcurrentSHMap.Node[K, V]], i: Int, n: Int) {
-      var s: ConcurrentSHMap.TableStack[K, V] = spare
+    private def pushState(t: Array[Node[K, V]], i: Int, n: Int) {
+      var s: TableStack[K, V] = spare
       if (s != null) spare = s.next
-      else s = new ConcurrentSHMap.TableStack[K, V]
+      else s = new TableStack[K, V]
       s.tab = t
       s.length = n
       s.index = i
@@ -2308,7 +2309,7 @@ object ConcurrentSHMap {
 
     private def recoverState(nIn: Int) {
       var n: Int = nIn
-      var s: ConcurrentSHMap.TableStack[K, V] = null
+      var s: TableStack[K, V] = null
       var len: Int = 0
       while ((({
         s = stack; s
@@ -2321,7 +2322,7 @@ object ConcurrentSHMap {
         index = s.index
         tab = s.tab
         s.tab = null
-        val next: ConcurrentSHMap.TableStack[K, V] = s.next
+        val next: TableStack[K, V] = s.next
         s.next = spare
         stack = next
         spare = s
@@ -2334,7 +2335,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachKeyTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val action: Consumer[_ >: K]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachKeyTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Consumer[_ >: K]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val action: Consumer[_ >: K] = this.action
@@ -2351,11 +2352,11 @@ object ConcurrentSHMap {
             })) + i) >>> 1; h
           })) > i) {
             addToPendingCount(1)
-            new ConcurrentSHMap.ForEachKeyTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
+            new ForEachKeyTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) action.accept(p.key)
@@ -2365,7 +2366,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachValueTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val action: Consumer[_ >: V]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachValueTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Consumer[_ >: V]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val action: Consumer[_ >: V] = this.action
@@ -2382,11 +2383,11 @@ object ConcurrentSHMap {
             })) + i) >>> 1; h
           })) > i) {
             addToPendingCount(1)
-            new ConcurrentSHMap.ForEachValueTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
+            new ForEachValueTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) action.accept(p.value)
@@ -2396,7 +2397,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachEntryTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val action: Consumer[_ >: Map.Entry[K, V]]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachEntryTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Consumer[_ >: Map.Entry[K, V]]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val action: Consumer[_ >: Map.Entry[K, V]] = this.action
@@ -2413,11 +2414,11 @@ object ConcurrentSHMap {
             })) + i) >>> 1; h
           })) > i) {
             addToPendingCount(1)
-            new ConcurrentSHMap.ForEachEntryTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
+            new ForEachEntryTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) action.accept(p)
@@ -2427,7 +2428,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachMappingTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val action: BiConsumer[_ >: K, _ >: V]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachMappingTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: BiConsumer[_ >: K, _ >: V]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val action: BiConsumer[_ >: K, _ >: V] = this.action
@@ -2444,11 +2445,11 @@ object ConcurrentSHMap {
             })) + i) >>> 1; h
           })) > i) {
             addToPendingCount(1)
-            new ConcurrentSHMap.ForEachMappingTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
+            new ForEachMappingTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) action.accept(p.key, p.value)
@@ -2458,7 +2459,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachTransformedKeyTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val transformer: Function[_ >: K, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachTransformedKeyTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: Function[_ >: K, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val transformer: Function[_ >: K, _ <: U] = this.transformer
@@ -2478,11 +2479,11 @@ object ConcurrentSHMap {
             })) + i) >>> 1; h
           })) > i) {
             addToPendingCount(1)
-            new ConcurrentSHMap.ForEachTransformedKeyTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, transformer, action).fork
+            new ForEachTransformedKeyTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, transformer, action).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -2497,7 +2498,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachTransformedValueTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val transformer: Function[_ >: V, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachTransformedValueTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: Function[_ >: V, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val transformer: Function[_ >: V, _ <: U] = this.transformer
@@ -2517,11 +2518,11 @@ object ConcurrentSHMap {
             })) + i) >>> 1; h
           })) > i) {
             addToPendingCount(1)
-            new ConcurrentSHMap.ForEachTransformedValueTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, transformer, action).fork
+            new ForEachTransformedValueTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, transformer, action).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -2536,7 +2537,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachTransformedEntryTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val transformer: Function[Map.Entry[K, V], _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachTransformedEntryTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: Function[Map.Entry[K, V], _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val transformer: Function[Map.Entry[K, V], _ <: U] = this.transformer
@@ -2556,11 +2557,11 @@ object ConcurrentSHMap {
             })) + i) >>> 1; h
           })) > i) {
             addToPendingCount(1)
-            new ConcurrentSHMap.ForEachTransformedEntryTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, transformer, action).fork
+            new ForEachTransformedEntryTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, transformer, action).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -2575,7 +2576,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachTransformedMappingTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val transformer: BiFunction[_ >: K, _ >: V, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachTransformedMappingTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: BiFunction[_ >: K, _ >: V, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val transformer: BiFunction[_ >: K, _ >: V, _ <: U] = this.transformer
@@ -2595,11 +2596,11 @@ object ConcurrentSHMap {
             })) + i) >>> 1; h
           })) > i) {
             addToPendingCount(1)
-            new ConcurrentSHMap.ForEachTransformedMappingTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, transformer, action).fork
+            new ForEachTransformedMappingTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, transformer, action).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -2614,7 +2615,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class SearchKeysTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val searchFunction: Function[_ >: K, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class SearchKeysTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[_ >: K, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
       return result.get
@@ -2639,13 +2640,13 @@ object ConcurrentSHMap {
           })) > i) {
             if (result.get != null) return
             addToPendingCount(1)
-            new ConcurrentSHMap.SearchKeysTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, searchFunction, result).fork
+            new SearchKeysTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, searchFunction, result).fork
           }
         }
         var break = false
         while (!break && (result.get == null)) {
           var u: U = null.asInstanceOf[U]
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           if ((({
             p = advance; p
           })) == null) {
@@ -2666,7 +2667,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class SearchValuesTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val searchFunction: Function[_ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class SearchValuesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[_ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
       return result.get
@@ -2691,13 +2692,13 @@ object ConcurrentSHMap {
           })) > i) {
             if (result.get != null) return
             addToPendingCount(1)
-            new ConcurrentSHMap.SearchValuesTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, searchFunction, result).fork
+            new SearchValuesTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, searchFunction, result).fork
           }
         }
         var break = false
         while (!break && (result.get == null)) {
           var u: U = null.asInstanceOf[U]
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           if ((({
             p = advance; p
           })) == null) {
@@ -2718,7 +2719,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class SearchEntriesTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val searchFunction: Function[Map.Entry[K, V], _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class SearchEntriesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[Map.Entry[K, V], _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
       return result.get
@@ -2743,13 +2744,13 @@ object ConcurrentSHMap {
           })) > i) {
             if (result.get != null) return
             addToPendingCount(1)
-            new ConcurrentSHMap.SearchEntriesTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, searchFunction, result).fork
+            new SearchEntriesTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, searchFunction, result).fork
           }
         }
         var break = false
         while (!break && (result.get == null)) {
           var u: U = null.asInstanceOf[U]
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           if ((({
             p = advance; p
           })) == null) {
@@ -2770,7 +2771,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class SearchMappingsTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val searchFunction: BiFunction[_ >: K, _ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class SearchMappingsTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: BiFunction[_ >: K, _ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
       return result.get
@@ -2795,13 +2796,13 @@ object ConcurrentSHMap {
           })) > i) {
             if (result.get != null) return
             addToPendingCount(1)
-            new ConcurrentSHMap.SearchMappingsTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, searchFunction, result).fork
+            new SearchMappingsTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, searchFunction, result).fork
           }
         }
         var break = false
         while (!break && (result.get == null)) {
           var u: U = null.asInstanceOf[U]
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           if ((({
             p = advance; p
           })) == null) {
@@ -2822,9 +2823,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ReduceKeysTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.ReduceKeysTask[K, V], final val reducer: BiFunction[_ >: K, _ >: K, _ <: K]) extends BulkTask[K, V, K](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ReduceKeysTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: ReduceKeysTask[K, V], final val reducer: BiFunction[_ >: K, _ >: K, _ <: K]) extends BulkTask[K, V, K](p,b,i,f,t) {
     var result: K = null.asInstanceOf[K]
-    var rights: ConcurrentSHMap.ReduceKeysTask[K, V] = null
+    var rights: ReduceKeysTask[K, V] = null
 
     final override def getRawResult: K = {
       return result
@@ -2846,14 +2847,14 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.ReduceKeysTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, reducer); rights
+              rights = new ReduceKeysTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, reducer); rights
             })).fork
           }
         }
         var r: K = null.asInstanceOf[K]
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -2868,8 +2869,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.ReduceKeysTask[K, V] = c.asInstanceOf[ConcurrentSHMap.ReduceKeysTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.ReduceKeysTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: ReduceKeysTask[K, V] = c.asInstanceOf[ReduceKeysTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: ReduceKeysTask[K, V] = t.rights
               while (s != null) {
                 var tr: K = null.asInstanceOf[K]
                 var sr: K = null.asInstanceOf[K]
@@ -2891,9 +2892,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ReduceValuesTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.ReduceValuesTask[K, V], final val reducer: BiFunction[_ >: V, _ >: V, _ <: V]) extends BulkTask[K, V, V](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ReduceValuesTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: ReduceValuesTask[K, V], final val reducer: BiFunction[_ >: V, _ >: V, _ <: V]) extends BulkTask[K, V, V](p,b,i,f,t) {
     var result: V = null.asInstanceOf[V]
-    var rights: ConcurrentSHMap.ReduceValuesTask[K, V] = null
+    var rights: ReduceValuesTask[K, V] = null
 
     final override def getRawResult: V = {
       return result
@@ -2915,14 +2916,14 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.ReduceValuesTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, reducer); rights
+              rights = new ReduceValuesTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, reducer); rights
             })).fork
           }
         }
         var r: V = null.asInstanceOf[V]
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -2937,8 +2938,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.ReduceValuesTask[K, V] = c.asInstanceOf[ConcurrentSHMap.ReduceValuesTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.ReduceValuesTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: ReduceValuesTask[K, V] = c.asInstanceOf[ReduceValuesTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: ReduceValuesTask[K, V] = t.rights
               while (s != null) {
                 var tr: V = null.asInstanceOf[V]
                 var sr: V = null.asInstanceOf[V]
@@ -2960,9 +2961,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ReduceEntriesTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.ReduceEntriesTask[K, V], final val reducer: BiFunction[Map.Entry[K, V], Map.Entry[K, V], _ <: Map.Entry[K, V]]) extends BulkTask[K, V, Map.Entry[K, V]](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ReduceEntriesTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: ReduceEntriesTask[K, V], final val reducer: BiFunction[Map.Entry[K, V], Map.Entry[K, V], _ <: Map.Entry[K, V]]) extends BulkTask[K, V, Map.Entry[K, V]](p,b,i,f,t) {
     var result: Map.Entry[K, V] = null
-    var rights: ConcurrentSHMap.ReduceEntriesTask[K, V] = null
+    var rights: ReduceEntriesTask[K, V] = null
 
     final override def getRawResult: Map.Entry[K, V] = {
       return result
@@ -2984,14 +2985,14 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.ReduceEntriesTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, reducer); rights
+              rights = new ReduceEntriesTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, reducer); rights
             })).fork
           }
         }
         var r: Map.Entry[K, V] = null.asInstanceOf[Map.Entry[K, V]]
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = if ((r == null)) p else reducer.apply(r, p)
@@ -3003,8 +3004,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.ReduceEntriesTask[K, V] = c.asInstanceOf[ConcurrentSHMap.ReduceEntriesTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.ReduceEntriesTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: ReduceEntriesTask[K, V] = c.asInstanceOf[ReduceEntriesTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: ReduceEntriesTask[K, V] = t.rights
               while (s != null) {
                 var tr: Map.Entry[K, V] = null.asInstanceOf[Map.Entry[K, V]]
                 var sr: Map.Entry[K, V] = null.asInstanceOf[Map.Entry[K, V]]
@@ -3026,9 +3027,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceKeysTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceKeysTask[K, V, U], final val transformer: Function[_ >: K, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceKeysTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysTask[K, V, U], final val transformer: Function[_ >: K, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
     var result: U = null.asInstanceOf[U]
-    var rights: ConcurrentSHMap.MapReduceKeysTask[K, V, U] = null
+    var rights: MapReduceKeysTask[K, V, U] = null
 
     final override def getRawResult: U = {
       return result
@@ -3053,14 +3054,14 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceKeysTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, reducer); rights
+              rights = new MapReduceKeysTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, reducer); rights
             })).fork
           }
         }
         var r: U = null.asInstanceOf[U]
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -3077,8 +3078,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceKeysTask[K, V, U] = c.asInstanceOf[ConcurrentSHMap.MapReduceKeysTask[K, V, U]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceKeysTask[K, V, U] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceKeysTask[K, V, U] = c.asInstanceOf[MapReduceKeysTask[K, V, U]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceKeysTask[K, V, U] = t.rights
               while (s != null) {
                 var tr: U = null.asInstanceOf[U]
                 var sr: U = null.asInstanceOf[U]
@@ -3100,9 +3101,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceValuesTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceValuesTask[K, V, U], final val transformer: Function[_ >: V, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceValuesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesTask[K, V, U], final val transformer: Function[_ >: V, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
     var result: U = null.asInstanceOf[U]
-    var rights: ConcurrentSHMap.MapReduceValuesTask[K, V, U] = null
+    var rights: MapReduceValuesTask[K, V, U] = null
 
     final override def getRawResult: U = {
       return result
@@ -3127,14 +3128,14 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceValuesTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, reducer); rights
+              rights = new MapReduceValuesTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, reducer); rights
             })).fork
           }
         }
         var r: U = null.asInstanceOf[U]
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -3151,8 +3152,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceValuesTask[K, V, U] = c.asInstanceOf[ConcurrentSHMap.MapReduceValuesTask[K, V, U]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceValuesTask[K, V, U] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceValuesTask[K, V, U] = c.asInstanceOf[MapReduceValuesTask[K, V, U]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceValuesTask[K, V, U] = t.rights
               while (s != null) {
                 var tr: U = null.asInstanceOf[U]
                 var sr: U = null.asInstanceOf[U]
@@ -3174,9 +3175,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceEntriesTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceEntriesTask[K, V, U], final val transformer: Function[Map.Entry[K, V], _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceEntriesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesTask[K, V, U], final val transformer: Function[Map.Entry[K, V], _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
     var result: U = null.asInstanceOf[U]
-    var rights: ConcurrentSHMap.MapReduceEntriesTask[K, V, U] = null
+    var rights: MapReduceEntriesTask[K, V, U] = null
 
     final override def getRawResult: U = {
       return result
@@ -3201,14 +3202,14 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceEntriesTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, reducer); rights
+              rights = new MapReduceEntriesTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, reducer); rights
             })).fork
           }
         }
         var r: U = null.asInstanceOf[U]
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -3225,8 +3226,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceEntriesTask[K, V, U] = c.asInstanceOf[ConcurrentSHMap.MapReduceEntriesTask[K, V, U]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceEntriesTask[K, V, U] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceEntriesTask[K, V, U] = c.asInstanceOf[MapReduceEntriesTask[K, V, U]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceEntriesTask[K, V, U] = t.rights
               while (s != null) {
                 var tr: U = null.asInstanceOf[U]
                 var sr: U = null.asInstanceOf[U]
@@ -3248,9 +3249,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceMappingsTask[K, V, U](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceMappingsTask[K, V, U], final val transformer: BiFunction[_ >: K, _ >: V, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceMappingsTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsTask[K, V, U], final val transformer: BiFunction[_ >: K, _ >: V, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
     var result: U = null.asInstanceOf[U]
-    var rights: ConcurrentSHMap.MapReduceMappingsTask[K, V, U] = null
+    var rights: MapReduceMappingsTask[K, V, U] = null
 
     final override def getRawResult: U = {
       return result
@@ -3275,14 +3276,14 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceMappingsTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, reducer); rights
+              rights = new MapReduceMappingsTask[K, V, U](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, reducer); rights
             })).fork
           }
         }
         var r: U = null.asInstanceOf[U]
 
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) {
@@ -3299,8 +3300,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceMappingsTask[K, V, U] = c.asInstanceOf[ConcurrentSHMap.MapReduceMappingsTask[K, V, U]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceMappingsTask[K, V, U] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceMappingsTask[K, V, U] = c.asInstanceOf[MapReduceMappingsTask[K, V, U]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceMappingsTask[K, V, U] = t.rights
               while (s != null) {
                 var tr: U = null.asInstanceOf[U]
                 var sr: U = null.asInstanceOf[U]
@@ -3322,9 +3323,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceKeysToDoubleTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceKeysToDoubleTask[K, V], final val transformer: ToDoubleFunction[_ >: K], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceKeysToDoubleTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysToDoubleTask[K, V], final val transformer: ToDoubleFunction[_ >: K], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
     var result: Double = .0
-    var rights: ConcurrentSHMap.MapReduceKeysToDoubleTask[K, V] = null
+    var rights: MapReduceKeysToDoubleTask[K, V] = null
 
     final override def getRawResult: Double = {
       return result
@@ -3351,12 +3352,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceKeysToDoubleTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceKeysToDoubleTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsDouble(r, transformer.applyAsDouble(p.key))
@@ -3368,8 +3369,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceKeysToDoubleTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceKeysToDoubleTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceKeysToDoubleTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceKeysToDoubleTask[K, V] = c.asInstanceOf[MapReduceKeysToDoubleTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceKeysToDoubleTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsDouble(t.result, s.result)
                 s = ({
@@ -3384,9 +3385,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceValuesToDoubleTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceValuesToDoubleTask[K, V], final val transformer: ToDoubleFunction[_ >: V], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceValuesToDoubleTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesToDoubleTask[K, V], final val transformer: ToDoubleFunction[_ >: V], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
     var result: Double = .0
-    var rights: ConcurrentSHMap.MapReduceValuesToDoubleTask[K, V] = null
+    var rights: MapReduceValuesToDoubleTask[K, V] = null
 
     final override def getRawResult: Double = {
       return result
@@ -3413,12 +3414,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceValuesToDoubleTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceValuesToDoubleTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsDouble(r, transformer.applyAsDouble(p.value))
@@ -3430,8 +3431,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceValuesToDoubleTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceValuesToDoubleTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceValuesToDoubleTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceValuesToDoubleTask[K, V] = c.asInstanceOf[MapReduceValuesToDoubleTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceValuesToDoubleTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsDouble(t.result, s.result)
                 s = ({
@@ -3446,9 +3447,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToDoubleTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceEntriesToDoubleTask[K, V], final val transformer: ToDoubleFunction[Map.Entry[K, V]], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToDoubleTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesToDoubleTask[K, V], final val transformer: ToDoubleFunction[Map.Entry[K, V]], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
     var result: Double = .0
-    var rights: ConcurrentSHMap.MapReduceEntriesToDoubleTask[K, V] = null
+    var rights: MapReduceEntriesToDoubleTask[K, V] = null
 
     final override def getRawResult: Double = {
       return result
@@ -3475,12 +3476,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceEntriesToDoubleTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceEntriesToDoubleTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsDouble(r, transformer.applyAsDouble(p))
@@ -3492,8 +3493,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceEntriesToDoubleTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceEntriesToDoubleTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceEntriesToDoubleTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceEntriesToDoubleTask[K, V] = c.asInstanceOf[MapReduceEntriesToDoubleTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceEntriesToDoubleTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsDouble(t.result, s.result)
                 s = ({
@@ -3508,9 +3509,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToDoubleTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceMappingsToDoubleTask[K, V], final val transformer: ToDoubleBiFunction[_ >: K, _ >: V], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToDoubleTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsToDoubleTask[K, V], final val transformer: ToDoubleBiFunction[_ >: K, _ >: V], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
     var result: Double = .0
-    var rights: ConcurrentSHMap.MapReduceMappingsToDoubleTask[K, V] = null
+    var rights: MapReduceMappingsToDoubleTask[K, V] = null
 
     final override def getRawResult: Double = {
       return result
@@ -3537,12 +3538,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceMappingsToDoubleTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceMappingsToDoubleTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsDouble(r, transformer.applyAsDouble(p.key, p.value))
@@ -3554,8 +3555,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceMappingsToDoubleTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceMappingsToDoubleTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceMappingsToDoubleTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceMappingsToDoubleTask[K, V] = c.asInstanceOf[MapReduceMappingsToDoubleTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceMappingsToDoubleTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsDouble(t.result, s.result)
                 s = ({
@@ -3570,9 +3571,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceKeysToLongTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceKeysToLongTask[K, V], final val transformer: ToLongFunction[_ >: K], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceKeysToLongTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysToLongTask[K, V], final val transformer: ToLongFunction[_ >: K], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
     var result: Long = 0L
-    var rights: ConcurrentSHMap.MapReduceKeysToLongTask[K, V] = null
+    var rights: MapReduceKeysToLongTask[K, V] = null
 
     final override def getRawResult: Long = {
       return result
@@ -3599,12 +3600,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceKeysToLongTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceKeysToLongTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsLong(r, transformer.applyAsLong(p.key))
@@ -3616,8 +3617,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceKeysToLongTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceKeysToLongTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceKeysToLongTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceKeysToLongTask[K, V] = c.asInstanceOf[MapReduceKeysToLongTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceKeysToLongTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsLong(t.result, s.result)
                 s = ({
@@ -3632,9 +3633,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceValuesToLongTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceValuesToLongTask[K, V], final val transformer: ToLongFunction[_ >: V], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceValuesToLongTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesToLongTask[K, V], final val transformer: ToLongFunction[_ >: V], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
     var result: Long = 0L
-    var rights: ConcurrentSHMap.MapReduceValuesToLongTask[K, V] = null
+    var rights: MapReduceValuesToLongTask[K, V] = null
 
     final override def getRawResult: Long = {
       return result
@@ -3661,12 +3662,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceValuesToLongTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceValuesToLongTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsLong(r, transformer.applyAsLong(p.value))
@@ -3678,8 +3679,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceValuesToLongTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceValuesToLongTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceValuesToLongTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceValuesToLongTask[K, V] = c.asInstanceOf[MapReduceValuesToLongTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceValuesToLongTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsLong(t.result, s.result)
                 s = ({
@@ -3694,9 +3695,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToLongTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceEntriesToLongTask[K, V], final val transformer: ToLongFunction[Map.Entry[K, V]], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToLongTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesToLongTask[K, V], final val transformer: ToLongFunction[Map.Entry[K, V]], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
     var result: Long = 0L
-    var rights: ConcurrentSHMap.MapReduceEntriesToLongTask[K, V] = null
+    var rights: MapReduceEntriesToLongTask[K, V] = null
 
     final override def getRawResult: Long = {
       return result
@@ -3723,12 +3724,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceEntriesToLongTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceEntriesToLongTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsLong(r, transformer.applyAsLong(p))
@@ -3740,8 +3741,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceEntriesToLongTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceEntriesToLongTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceEntriesToLongTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceEntriesToLongTask[K, V] = c.asInstanceOf[MapReduceEntriesToLongTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceEntriesToLongTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsLong(t.result, s.result)
                 s = ({
@@ -3756,9 +3757,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToLongTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceMappingsToLongTask[K, V], final val transformer: ToLongBiFunction[_ >: K, _ >: V], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToLongTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsToLongTask[K, V], final val transformer: ToLongBiFunction[_ >: K, _ >: V], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
     var result: Long = 0L
-    var rights: ConcurrentSHMap.MapReduceMappingsToLongTask[K, V] = null
+    var rights: MapReduceMappingsToLongTask[K, V] = null
 
     final override def getRawResult: Long = {
       return result
@@ -3785,12 +3786,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceMappingsToLongTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceMappingsToLongTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsLong(r, transformer.applyAsLong(p.key, p.value))
@@ -3802,8 +3803,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceMappingsToLongTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceMappingsToLongTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceMappingsToLongTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceMappingsToLongTask[K, V] = c.asInstanceOf[MapReduceMappingsToLongTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceMappingsToLongTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsLong(t.result, s.result)
                 s = ({
@@ -3818,9 +3819,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceKeysToIntTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceKeysToIntTask[K, V], final val transformer: ToIntFunction[_ >: K], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceKeysToIntTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysToIntTask[K, V], final val transformer: ToIntFunction[_ >: K], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
     var result: Int = 0
-    var rights: ConcurrentSHMap.MapReduceKeysToIntTask[K, V] = null
+    var rights: MapReduceKeysToIntTask[K, V] = null
 
     final override def getRawResult: Integer = {
       return result
@@ -3847,12 +3848,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceKeysToIntTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceKeysToIntTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsInt(r, transformer.applyAsInt(p.key))
@@ -3864,8 +3865,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceKeysToIntTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceKeysToIntTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceKeysToIntTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceKeysToIntTask[K, V] = c.asInstanceOf[MapReduceKeysToIntTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceKeysToIntTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsInt(t.result, s.result)
                 s = ({
@@ -3880,9 +3881,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceValuesToIntTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceValuesToIntTask[K, V], final val transformer: ToIntFunction[_ >: V], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceValuesToIntTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesToIntTask[K, V], final val transformer: ToIntFunction[_ >: V], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
     var result: Int = 0
-    var rights: ConcurrentSHMap.MapReduceValuesToIntTask[K, V] = null
+    var rights: MapReduceValuesToIntTask[K, V] = null
 
     final override def getRawResult: Integer = {
       return result
@@ -3909,12 +3910,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceValuesToIntTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceValuesToIntTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsInt(r, transformer.applyAsInt(p.value))
@@ -3926,8 +3927,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceValuesToIntTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceValuesToIntTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceValuesToIntTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceValuesToIntTask[K, V] = c.asInstanceOf[MapReduceValuesToIntTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceValuesToIntTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsInt(t.result, s.result)
                 s = ({
@@ -3942,9 +3943,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToIntTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceEntriesToIntTask[K, V], final val transformer: ToIntFunction[Map.Entry[K, V]], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToIntTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesToIntTask[K, V], final val transformer: ToIntFunction[Map.Entry[K, V]], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
     var result: Int = 0
-    var rights: ConcurrentSHMap.MapReduceEntriesToIntTask[K, V] = null
+    var rights: MapReduceEntriesToIntTask[K, V] = null
 
     final override def getRawResult: Integer = {
       return result
@@ -3971,12 +3972,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceEntriesToIntTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceEntriesToIntTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsInt(r, transformer.applyAsInt(p))
@@ -3988,8 +3989,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceEntriesToIntTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceEntriesToIntTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceEntriesToIntTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceEntriesToIntTask[K, V] = c.asInstanceOf[MapReduceEntriesToIntTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceEntriesToIntTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsInt(t.result, s.result)
                 s = ({
@@ -4004,9 +4005,9 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToIntTask[K, V](p: ConcurrentSHMap.BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[ConcurrentSHMap.Node[K, V]], final val nextRight: ConcurrentSHMap.MapReduceMappingsToIntTask[K, V], final val transformer: ToIntBiFunction[_ >: K, _ >: V], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToIntTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsToIntTask[K, V], final val transformer: ToIntBiFunction[_ >: K, _ >: V], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
     var result: Int = 0
-    var rights: ConcurrentSHMap.MapReduceMappingsToIntTask[K, V] = null
+    var rights: MapReduceMappingsToIntTask[K, V] = null
 
     final override def getRawResult: Integer = {
       return result
@@ -4033,12 +4034,12 @@ object ConcurrentSHMap {
           })) > i) {
             addToPendingCount(1)
             (({
-              rights = new ConcurrentSHMap.MapReduceMappingsToIntTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
+              rights = new MapReduceMappingsToIntTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, rights, transformer, r, reducer); rights
             })).fork
           }
         }
         {
-          var p: ConcurrentSHMap.Node[K, V] = null
+          var p: Node[K, V] = null
           while ((({
             p = advance; p
           })) != null) r = reducer.applyAsInt(r, transformer.applyAsInt(p.key, p.value))
@@ -4050,8 +4051,8 @@ object ConcurrentSHMap {
           c = firstComplete
           while (c != null) {
             {
-              @SuppressWarnings(Array("unchecked")) val t: ConcurrentSHMap.MapReduceMappingsToIntTask[K, V] = c.asInstanceOf[ConcurrentSHMap.MapReduceMappingsToIntTask[K, V]]
-              @SuppressWarnings(Array("unchecked")) var s: ConcurrentSHMap.MapReduceMappingsToIntTask[K, V] = t.rights
+              @SuppressWarnings(Array("unchecked")) val t: MapReduceMappingsToIntTask[K, V] = c.asInstanceOf[MapReduceMappingsToIntTask[K, V]]
+              @SuppressWarnings(Array("unchecked")) var s: MapReduceMappingsToIntTask[K, V] = t.rights
               while (s != null) {
                 t.result = reducer.applyAsInt(t.result, s.result)
                 s = ({
@@ -4072,9 +4073,9 @@ object ConcurrentSHMap {
   private val TRANSFERINDEX: Long = U.objectFieldOffset(k.getDeclaredField("transferIndex"))
   private val BASECOUNT: Long = U.objectFieldOffset(k.getDeclaredField("baseCount"))
   private val CELLSBUSY: Long = U.objectFieldOffset(k.getDeclaredField("cellsBusy"))
-  val ck: Class[_] = classOf[ConcurrentSHMap.CounterCell]
+  val ck: Class[_] = classOf[CounterCell]
   private val CELLVALUE: Long = U.objectFieldOffset(ck.getDeclaredField("value"))
-  val ak: Class[_] = classOf[Array[ConcurrentSHMap.Node[_, _]]]
+  val ak: Class[_] = classOf[Array[Node[_, _]]]
   private val ABASE: Long = U.arrayBaseOffset(ak)
   val scale: Int = U.arrayIndexScale(ak)
   if ((scale & (scale - 1)) != 0) throw new Error("data type scale not a power of two")
@@ -4092,13 +4093,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   @volatile
   @transient
-  var table: Array[ConcurrentSHMap.Node[K, V]] = null
+  var table: Array[Node[K, V]] = null
   /**
    * The next table to use; non-null only while resizing.
    */
   @volatile
   @transient
-  private var nextTable: Array[ConcurrentSHMap.Node[K, V]] = null
+  private var nextTable: Array[Node[K, V]] = null
   /**
    * Base counter value, used mainly when there is no contention,
    * but also as a fallback during table initialization
@@ -4135,13 +4136,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   @volatile
   @transient
-  private var counterCells: Array[ConcurrentSHMap.CounterCell] = null
+  private var counterCells: Array[CounterCell] = null
   @transient
-  private var keySetVar: ConcurrentSHMap.KeySetView[K, V] = null
+  private var keySetVar: KeySetView[K, V] = null
   @transient
-  private var valuesVar: ConcurrentSHMap.ValuesView[K, V] = null
+  private var valuesVar: ValuesView[K, V] = null
   @transient
-  private var entrySetVar: ConcurrentSHMap.EntrySetView[K, V] = null
+  private var entrySetVar: EntrySetView[K, V] = null
 
   /**
    * Creates a new, empty map with an initial table size
@@ -4156,7 +4157,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   def this(initialCapacity: Int) {
     this()
     if (initialCapacity < 0) throw new IllegalArgumentException
-    val cap: Int = (if ((initialCapacity >= (ConcurrentSHMap.MAXIMUM_CAPACITY >>> 1))) ConcurrentSHMap.MAXIMUM_CAPACITY else ConcurrentSHMap.tableSizeFor(initialCapacity + (initialCapacity >>> 1) + 1))
+    val cap: Int = (if ((initialCapacity >= (MAXIMUM_CAPACITY >>> 1))) MAXIMUM_CAPACITY else tableSizeFor(initialCapacity + (initialCapacity >>> 1) + 1))
     this.sizeCtl = cap
   }
 
@@ -4167,7 +4168,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def this(m: Map[_ <: K, _ <: V]) {
     this()
-    this.sizeCtl = ConcurrentSHMap.DEFAULT_CAPACITY
+    this.sizeCtl = DEFAULT_CAPACITY
     putAll(m)
   }
 
@@ -4195,7 +4196,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
     if (initialCapacity < concurrencyLevel) initialCapacity = concurrencyLevel
     val size: Long = (1.0 + initialCapacity.toLong / loadFactor).toLong
-    val cap: Int = if ((size >= ConcurrentSHMap.MAXIMUM_CAPACITY.toLong)) ConcurrentSHMap.MAXIMUM_CAPACITY else ConcurrentSHMap.tableSizeFor(size.toInt)
+    val cap: Int = if ((size >= MAXIMUM_CAPACITY.toLong)) MAXIMUM_CAPACITY else tableSizeFor(size.toInt)
     this.sizeCtl = cap
   }
 
@@ -4226,19 +4227,19 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @throws NullPointerException if the specified key is null
    */
   override def get(key: Any): V = {
-    var tab: Array[ConcurrentSHMap.Node[K, V]] = null
-    var e: ConcurrentSHMap.Node[K, V] = null
-    var p: ConcurrentSHMap.Node[K, V] = null
+    var tab: Array[Node[K, V]] = null
+    var e: Node[K, V] = null
+    var p: Node[K, V] = null
     var n: Int = 0
     var eh: Int = 0
     var ek: K = null.asInstanceOf[K]
-    val h: Int = ConcurrentSHMap.spread(key.hashCode)
+    val h: Int = spread(key.hashCode)
     if ((({
       tab = table; tab
     })) != null && (({
       n = tab.length; n
     })) > 0 && (({
-      e = ConcurrentSHMap.tabAt(tab, (n - 1) & h); e
+      e = tabAt(tab, (n - 1) & h); e
     })) != null) {
       if ((({
         eh = e.hash; eh
@@ -4289,9 +4290,9 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     if (value == null) throw new NullPointerException
     val t = table
     if (t != null) {
-      val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
+      val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
-      var p: ConcurrentSHMap.Node[K, V] = null
+      var p: Node[K, V] = null
       while ((({
         p = it.advance; p
       })) != null) {
@@ -4324,32 +4325,32 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   /** Implementation for put and putIfAbsent */
   final def putVal(key: K, value: V, onlyIfAbsent: Boolean): V = {
     if (key == null || value == null) throw new NullPointerException
-    val hash: Int = ConcurrentSHMap.spread(key.hashCode)
+    val hash: Int = spread(key.hashCode)
     var binCount: Int = 0
 
-    var tab: Array[ConcurrentSHMap.Node[K, V]] = table
+    var tab: Array[Node[K, V]] = table
     var break = false
     while (!break) {
-      var f: ConcurrentSHMap.Node[K, V] = null
+      var f: Node[K, V] = null
       var n: Int = 0
       var i: Int = 0
       var fh: Int = 0
       if ((tab == null) || ({n = tab.length; n } == 0)) {
         tab = initTable
-      } else if ({f = ConcurrentSHMap.tabAt(tab, {i = ((n - 1) & hash); i}); f} == null) {
-        if (ConcurrentSHMap.casTabAt(tab, i, null, new ConcurrentSHMap.Node[K, V](hash, key, value, null))) {
+      } else if ({f = tabAt(tab, {i = ((n - 1) & hash); i}); f} == null) {
+        if (casTabAt(tab, i, null, new Node[K, V](hash, key, value, null))) {
           break = true //todo: break is not supported
         }
-      } else if ({fh = f.hash; fh} == ConcurrentSHMap.MOVED) {
+      } else if ({fh = f.hash; fh} == MOVED) {
         tab = helpTransfer(tab, f)
       } else {
         var oldVal: V = null.asInstanceOf[V]
         f synchronized {
-          if (ConcurrentSHMap.tabAt(tab, i) eq f) {
+          if (tabAt(tab, i) eq f) {
             if (fh >= 0) {
               binCount = 1
 
-              var e: ConcurrentSHMap.Node[K, V] = f
+              var e: Node[K, V] = f
               break = false
               while (!break) {
                 var ek: K = null.asInstanceOf[K]
@@ -4361,19 +4362,19 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   break = true //todo: break is not supported
                 }
                 if(!break) {
-                  val pred: ConcurrentSHMap.Node[K, V] = e
+                  val pred: Node[K, V] = e
                   if ({e = e.next; e} == null) {
-                    pred.next = new ConcurrentSHMap.Node[K, V](hash, key, value, null)
+                    pred.next = new Node[K, V](hash, key, value, null)
                     break = true //todo: break is not supported
                   }
                   binCount += 1
                 }
               }
               break = false
-            } else if (f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) {
-              var p: ConcurrentSHMap.Node[K, V] = null
+            } else if (f.isInstanceOf[TreeBin[_, _]]) {
+              var p: Node[K, V] = null
               binCount = 2
-              if ({p = (f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]).putTreeVal(hash, key, value); p} != null) {
+              if ({p = (f.asInstanceOf[TreeBin[K, V]]).putTreeVal(hash, key, value); p} != null) {
                 oldVal = p.value
                 if (!onlyIfAbsent) {
                   p.value = value
@@ -4383,7 +4384,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           }
         }
         if (binCount != 0) {
-          if (binCount >= ConcurrentSHMap.TREEIFY_THRESHOLD) {
+          if (binCount >= TREEIFY_THRESHOLD) {
             treeifyBin(tab, i)
           }
           if (oldVal != null) {
@@ -4430,35 +4431,35 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * non-null.  If resulting value is null, delete.
    */
   final def replaceNode(key: Any, value: V, cv: Any): V = {
-    val hash: Int = ConcurrentSHMap.spread(key.hashCode)
+    val hash: Int = spread(key.hashCode)
 
     {
-      var tab: Array[ConcurrentSHMap.Node[K, V]] = table
+      var tab: Array[Node[K, V]] = table
       var break = false
       while (!break) {
-        var f: ConcurrentSHMap.Node[K, V] = null
+        var f: Node[K, V] = null
         var n: Int = 0
         var i: Int = 0
         var fh: Int = 0
         if (tab == null || (({
           n = tab.length; n
         })) == 0 || (({
-          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & hash; i}); f
+          f = tabAt(tab, {i = (n - 1) & hash; i}); f
         })) == null) break = true //todo: break is not supported
         else if ((({
           fh = f.hash; fh
-        })) == ConcurrentSHMap.MOVED) tab = helpTransfer(tab, f)
+        })) == MOVED) tab = helpTransfer(tab, f)
         else {
           var oldVal: V = null.asInstanceOf[V]
           var validated: Boolean = false
           f synchronized {
-            if (ConcurrentSHMap.tabAt(tab, i) eq f) {
+            if (tabAt(tab, i) eq f) {
               if (fh >= 0) {
                 validated = true
 
                 {
-                  var e: ConcurrentSHMap.Node[K, V] = f
-                  var pred: ConcurrentSHMap.Node[K, V] = null
+                  var e: Node[K, V] = f
+                  var pred: Node[K, V] = null
                   break = false;
                   while (!break) {
                     var ek: K = null.asInstanceOf[K]
@@ -4470,7 +4471,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                         oldVal = ev
                         if (value != null) e.value = value
                         else if (pred != null) pred.next = e.next
-                        else ConcurrentSHMap.setTabAt(tab, i, e.next)
+                        else setTabAt(tab, i, e.next)
                       }
                       break = true //todo: break is not supported
                     }
@@ -4485,11 +4486,11 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   break = false
                 }
               }
-              else if (f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) {
+              else if (f.isInstanceOf[TreeBin[_, _]]) {
                 validated = true
-                val t: ConcurrentSHMap.TreeBin[K, V] = f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]
-                var r: ConcurrentSHMap.TreeNode[K, V] = null
-                var p: ConcurrentSHMap.TreeNode[K, V] = null
+                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+                var r: TreeNode[K, V] = null
+                var p: TreeNode[K, V] = null
                 if ((({
                   r = t.root; r
                 })) != null && (({
@@ -4499,7 +4500,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   if ((cv == null) || refEquals(cv, pv) || ((pv != null) && (cv == pv))) {
                     oldVal = pv
                     if (value != null) p.value = value
-                    else if (t.removeTreeNode(p)) ConcurrentSHMap.setTabAt(tab, i, ConcurrentSHMap.untreeify(t.first))
+                    else if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
                   }
                 }
               }
@@ -4524,28 +4525,28 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   override def clear {
     var delta: Long = 0L
     var i: Int = 0
-    var tab: Array[ConcurrentSHMap.Node[K, V]] = table
+    var tab: Array[Node[K, V]] = table
     while (tab != null && i < tab.length) {
       var fh: Int = 0
-      val f: ConcurrentSHMap.Node[K, V] = ConcurrentSHMap.tabAt(tab, i)
+      val f: Node[K, V] = tabAt(tab, i)
       if (f == null) ({
         i += 1; i
       })
       else if ((({
         fh = f.hash; fh
-      })) == ConcurrentSHMap.MOVED) {
+      })) == MOVED) {
         tab = helpTransfer(tab, f)
         i = 0
       }
       else {
         f synchronized {
-          if (ConcurrentSHMap.tabAt(tab, i) eq f) {
-            var p: ConcurrentSHMap.Node[K, V] = (if (fh >= 0) f else if ((f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]])) (f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]).first else null)
+          if (tabAt(tab, i) eq f) {
+            var p: Node[K, V] = (if (fh >= 0) f else if ((f.isInstanceOf[TreeBin[_, _]])) (f.asInstanceOf[TreeBin[K, V]]).first else null)
             while (p != null) {
               delta -= 1
               p = p.next
             }
-            ConcurrentSHMap.setTabAt(tab, ({
+            setTabAt(tab, ({
               i += 1; i - 1
             }), null)
           }
@@ -4573,13 +4574,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    *
    * @return the set view
    */
-  override def keySet: ConcurrentSHMap.KeySetView[K, V] = {
-    var ks: ConcurrentSHMap.KeySetView[K, V] = null
+  override def keySet: KeySetView[K, V] = {
+    var ks: KeySetView[K, V] = null
     return if ((({
       ks = keySetVar; ks
     })) != null) ks
     else (({
-      keySetVar = new ConcurrentSHMap.KeySetView[K, V](this, null.asInstanceOf[V]); keySetVar
+      keySetVar = new KeySetView[K, V](this, null.asInstanceOf[V]); keySetVar
     }))
   }
 
@@ -4602,12 +4603,12 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @return the collection view
    */
   override def values: Collection[V] = {
-    var vs: ConcurrentSHMap.ValuesView[K, V] = null
+    var vs: ValuesView[K, V] = null
     return if ((({
       vs = valuesVar; vs
     })) != null) vs
     else (({
-      valuesVar = new ConcurrentSHMap.ValuesView[K, V](this); valuesVar
+      valuesVar = new ValuesView[K, V](this); valuesVar
     }))
   }
 
@@ -4629,12 +4630,12 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @return the set view
    */
   def entrySet: Set[Map.Entry[K, V]] = {
-    var es: ConcurrentSHMap.EntrySetView[K, V] = null
+    var es: EntrySetView[K, V] = null
     return if ((({
       es = entrySetVar; es
     })) != null) es
     else (({
-      entrySetVar = new ConcurrentSHMap.EntrySetView[K, V](this); entrySetVar
+      entrySetVar = new EntrySetView[K, V](this); entrySetVar
     }))
   }
 
@@ -4647,14 +4648,14 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def hashCode: Int = {
     var h: Int = 0
-    var t: Array[ConcurrentSHMap.Node[K, V]] = null
+    var t: Array[Node[K, V]] = null
     if ((({
       t = table; t
     })) != null) {
-      val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
+      val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
       {
-        var p: ConcurrentSHMap.Node[K, V] = null
+        var p: Node[K, V] = null
         while ((({
           p = it.advance; p
         })) != null) h += p.key.hashCode ^ p.value.hashCode
@@ -4675,15 +4676,15 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @return a string representation of this map
    */
   override def toString: String = {
-    var t: Array[ConcurrentSHMap.Node[K, V]] = null
+    var t: Array[Node[K, V]] = null
     val f: Int = if ((({
       t = table; t
     })) == null) 0
     else t.length
-    val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, f, 0, f)
+    val it: Traverser[K, V] = new Traverser[K, V](t, f, 0, f)
     val sb: StringBuilder = new StringBuilder
     sb.append('{')
-    var p: ConcurrentSHMap.Node[K, V] = null
+    var p: Node[K, V] = null
     if ((({
       p = it.advance; p
     })) != null) {
@@ -4717,15 +4718,15 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     if (!refEquals(o.asInstanceOf[AnyRef], this)) {
       if (!(o.isInstanceOf[Map[_, _]])) return false
       val m = o.asInstanceOf[Map[K,V]]
-      var t: Array[ConcurrentSHMap.Node[K, V]] = null
+      var t: Array[Node[K, V]] = null
       val f: Int = if ((({
         t = table; t
       })) == null) 0
       else t.length
-      val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, f, 0, f)
+      val it: Traverser[K, V] = new Traverser[K, V](t, f, 0, f)
 
       {
-        var p: ConcurrentSHMap.Node[K, V] = null
+        var p: Node[K, V] = null
         while ((({
           p = it.advance; p
         })) != null) {
@@ -4765,18 +4766,18 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   private def writeObject(s: ObjectOutputStream) {
     var sshift: Int = 0
     var ssize: Int = 1
-    while (ssize < ConcurrentSHMap.DEFAULT_CONCURRENCY_LEVEL) {
+    while (ssize < DEFAULT_CONCURRENCY_LEVEL) {
       sshift += 1
       ssize <<= 1
     }
     val segmentShift: Int = 32 - sshift
     val segmentMask: Int = ssize - 1
-    @SuppressWarnings(Array("unchecked")) var segments: Array[ConcurrentSHMap.Segment[K, V]] = new Array[ConcurrentSHMap.Segment[_, _]](ConcurrentSHMap.DEFAULT_CONCURRENCY_LEVEL).asInstanceOf[Array[ConcurrentSHMap.Segment[K, V]]]
+    @SuppressWarnings(Array("unchecked")) var segments: Array[Segment[K, V]] = new Array[Segment[_, _]](DEFAULT_CONCURRENCY_LEVEL).asInstanceOf[Array[Segment[K, V]]]
 
     {
       var i: Int = 0
       while (i < segments.length) {
-        segments(i) = new ConcurrentSHMap.Segment[K, V](ConcurrentSHMap.LOAD_FACTOR)
+        segments(i) = new Segment[K, V](LOAD_FACTOR)
         ({
           i += 1; i
         })
@@ -4786,14 +4787,14 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     s.putFields.put("segmentShift", segmentShift)
     s.putFields.put("segmentMask", segmentMask)
     s.writeFields
-    var t: Array[ConcurrentSHMap.Node[K, V]] = null
+    var t: Array[Node[K, V]] = null
     if ((({
       t = table; t
     })) != null) {
-      val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
+      val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
       {
-        var p: ConcurrentSHMap.Node[K, V] = null
+        var p: Node[K, V] = null
         while ((({
           p = it.advance; p
         })) != null) {
@@ -4820,13 +4821,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     sizeCtl = -1
     s.defaultReadObject
     var size: Long = 0L
-    var p: ConcurrentSHMap.Node[K, V] = null
+    var p: Node[K, V] = null
     var break = false
     while (!break) {
       @SuppressWarnings(Array("unchecked")) val k: K = s.readObject.asInstanceOf[K]
       @SuppressWarnings(Array("unchecked")) val v: V = s.readObject.asInstanceOf[V]
       if (k != null && v != null) {
-        p = new ConcurrentSHMap.Node[K, V](ConcurrentSHMap.spread(k.hashCode), k, v, p)
+        p = new Node[K, V](spread(k.hashCode), k, v, p)
         size += 1
       }
       else break = true //todo: break is not supported
@@ -4834,27 +4835,27 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     if (size == 0L) sizeCtl = 0
     else {
       var n: Int = 0
-      if (size >= (ConcurrentSHMap.MAXIMUM_CAPACITY >>> 1).toLong) n = ConcurrentSHMap.MAXIMUM_CAPACITY
+      if (size >= (MAXIMUM_CAPACITY >>> 1).toLong) n = MAXIMUM_CAPACITY
       else {
         val sz: Int = size.toInt
-        n = ConcurrentSHMap.tableSizeFor(sz + (sz >>> 1) + 1)
+        n = tableSizeFor(sz + (sz >>> 1) + 1)
       }
-      @SuppressWarnings(Array("unchecked")) val tab: Array[ConcurrentSHMap.Node[K, V]] = new Array[ConcurrentSHMap.Node[_, _]](n).asInstanceOf[Array[ConcurrentSHMap.Node[K, V]]]
+      @SuppressWarnings(Array("unchecked")) val tab: Array[Node[K, V]] = new Array[Node[_, _]](n).asInstanceOf[Array[Node[K, V]]]
       val mask: Int = n - 1
       var added: Long = 0L
       while (p != null) {
         var insertAtFront: Boolean = false
-        val next: ConcurrentSHMap.Node[K, V] = p.next
-        var first: ConcurrentSHMap.Node[K, V] = null
+        val next: Node[K, V] = p.next
+        var first: Node[K, V] = null
         val h: Int = p.hash
         val j: Int = h & mask
         if ((({
-          first = ConcurrentSHMap.tabAt(tab, j); first
+          first = tabAt(tab, j); first
         })) == null) insertAtFront = true
         else {
           val k: K = p.key
           if (first.hash < 0) {
-            val t: ConcurrentSHMap.TreeBin[K, V] = first.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]
+            val t: TreeBin[K, V] = first.asInstanceOf[TreeBin[K, V]]
             if (t.putTreeVal(h, k, p.value) == null) ({
               added += 1; added
             })
@@ -4863,7 +4864,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           else {
             var binCount: Int = 0
             insertAtFront = true
-            var q: ConcurrentSHMap.Node[K, V] = null
+            var q: Node[K, V] = null
             var qk: K = null.asInstanceOf[K]
 
             {
@@ -4882,18 +4883,18 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                 }
               }
             }
-            if (insertAtFront && binCount >= ConcurrentSHMap.TREEIFY_THRESHOLD) {
+            if (insertAtFront && binCount >= TREEIFY_THRESHOLD) {
               insertAtFront = false
               added += 1
               p.next = first
-              var hd: ConcurrentSHMap.TreeNode[K, V] = null
-              var tl: ConcurrentSHMap.TreeNode[K, V] = null
+              var hd: TreeNode[K, V] = null
+              var tl: TreeNode[K, V] = null
 
               {
                 q = p
                 while (q != null) {
                   {
-                    val t: ConcurrentSHMap.TreeNode[K, V] = new ConcurrentSHMap.TreeNode[K, V](q.hash, q.key, q.value, null, null)
+                    val t: TreeNode[K, V] = new TreeNode[K, V](q.hash, q.key, q.value, null, null)
                     if ((({
                       t.prev = tl; t.prev
                     })) == null) hd = t
@@ -4903,14 +4904,14 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   q = q.next
                 }
               }
-              ConcurrentSHMap.setTabAt(tab, j, new ConcurrentSHMap.TreeBin[K, V](hd))
+              setTabAt(tab, j, new TreeBin[K, V](hd))
             }
           }
         }
         if (insertAtFront) {
           added += 1
           p.next = first
-          ConcurrentSHMap.setTabAt(tab, j, p)
+          setTabAt(tab, j, p)
         }
         p = next
       }
@@ -4984,14 +4985,14 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
 
   override def forEach(action: BiConsumer[_ >: K, _ >: V]) {
     if (action == null) throw new NullPointerException
-    var t: Array[ConcurrentSHMap.Node[K, V]] = null
+    var t: Array[Node[K, V]] = null
     if ((({
       t = table; t
     })) != null) {
-      val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
+      val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
       {
-        var p: ConcurrentSHMap.Node[K, V] = null
+        var p: Node[K, V] = null
         while ((({
           p = it.advance; p
         })) != null) {
@@ -5003,14 +5004,14 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
 
   override def replaceAll(function: BiFunction[_ >: K, _ >: V, _ <: V]) {
     if (function == null) throw new NullPointerException
-    var t: Array[ConcurrentSHMap.Node[K, V]] = null
+    var t: Array[Node[K, V]] = null
     if ((({
       t = table; t
     })) != null) {
-      val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
+      val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
       {
-        var p: ConcurrentSHMap.Node[K, V] = null
+        var p: Node[K, V] = null
         while ((({
           p = it.advance; p
         })) != null) {
@@ -5056,15 +5057,15 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def computeIfAbsent(key: K, mappingFunction: Function[_ >: K, _ <: V]): V = {
     if (key == null || mappingFunction == null) throw new NullPointerException
-    val h: Int = ConcurrentSHMap.spread(key.hashCode)
+    val h: Int = spread(key.hashCode)
     var value: V = null.asInstanceOf[V]
     var binCount: Int = 0
 
     {
-      var tab: Array[ConcurrentSHMap.Node[K, V]] = table
+      var tab: Array[Node[K, V]] = table
       var break = false
       while (!break) {
-        var f: ConcurrentSHMap.Node[K, V] = null
+        var f: Node[K, V] = null
         var n: Int = 0
         var i: Int = 0
         var fh: Int = 0
@@ -5072,19 +5073,19 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           n = tab.length; n
         })) == 0) tab = initTable
         else if ((({
-          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & h; i}); f
+          f = tabAt(tab, {i = (n - 1) & h; i}); f
         })) == null) {
-          val r: ConcurrentSHMap.Node[K, V] = new ConcurrentSHMap.ReservationNode[K, V]
+          val r: Node[K, V] = new ReservationNode[K, V]
           r synchronized {
-            if (ConcurrentSHMap.casTabAt(tab, i, null, r)) {
+            if (casTabAt(tab, i, null, r)) {
               binCount = 1
-              var node: ConcurrentSHMap.Node[K, V] = null
+              var node: Node[K, V] = null
               try {
                 if ((({
                   value = mappingFunction.apply(key); value
-                })) != null) node = new ConcurrentSHMap.Node[K, V](h, key, value, null)
+                })) != null) node = new Node[K, V](h, key, value, null)
               } finally {
-                ConcurrentSHMap.setTabAt(tab, i, node)
+                setTabAt(tab, i, node)
               }
             }
           }
@@ -5092,16 +5093,16 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         }
         else if ((({
           fh = f.hash; fh
-        })) == ConcurrentSHMap.MOVED) tab = helpTransfer(tab, f)
+        })) == MOVED) tab = helpTransfer(tab, f)
         else {
           var added: Boolean = false
           f synchronized {
-            if (ConcurrentSHMap.tabAt(tab, i) eq f) {
+            if (tabAt(tab, i) eq f) {
               if (fh >= 0) {
                 binCount = 1
 
                 {
-                  var e: ConcurrentSHMap.Node[K, V] = f
+                  var e: Node[K, V] = f
                   break = false
                   while (!break) {
                     {
@@ -5114,7 +5115,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                         break = true //todo: break is not supported
                       }
                       if(!break) {
-                        val pred: ConcurrentSHMap.Node[K, V] = e
+                        val pred: Node[K, V] = e
                         if ((({
                           e = e.next;
                           e
@@ -5124,7 +5125,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                             value
                           })) != null) {
                             added = true
-                            pred.next = new ConcurrentSHMap.Node[K, V](h, key, value, null)
+                            pred.next = new Node[K, V](h, key, value, null)
                           }
                           break = true //todo: break is not supported
                         }
@@ -5135,11 +5136,11 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   break = false
                 }
               }
-              else if (f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) {
+              else if (f.isInstanceOf[TreeBin[_, _]]) {
                 binCount = 2
-                val t: ConcurrentSHMap.TreeBin[K, V] = f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]
-                var r: ConcurrentSHMap.TreeNode[K, V] = null
-                var p: ConcurrentSHMap.TreeNode[K, V] = null
+                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+                var r: TreeNode[K, V] = null
+                var p: TreeNode[K, V] = null
                 if ((({
                   r = t.root; r
                 })) != null && (({
@@ -5155,7 +5156,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
             }
           }
           if (binCount != 0) {
-            if (binCount >= ConcurrentSHMap.TREEIFY_THRESHOLD) treeifyBin(tab, i)
+            if (binCount >= TREEIFY_THRESHOLD) treeifyBin(tab, i)
             if (!added) return value
             break = true //todo: break is not supported
           }
@@ -5188,16 +5189,16 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def computeIfPresent(key: K, remappingFunction: BiFunction[_ >: K, _ >: V, _ <: V]): V = {
     if (key == null || remappingFunction == null) throw new NullPointerException
-    val h: Int = ConcurrentSHMap.spread(key.hashCode)
+    val h: Int = spread(key.hashCode)
     var value: V = null.asInstanceOf[V]
     var delta: Int = 0
     var binCount: Int = 0
 
     {
-      var tab: Array[ConcurrentSHMap.Node[K, V]] = table
+      var tab: Array[Node[K, V]] = table
       var break = false
       while (!break) {
-        var f: ConcurrentSHMap.Node[K, V] = null
+        var f: Node[K, V] = null
         var n: Int = 0
         var i: Int = 0
         var fh: Int = 0
@@ -5205,20 +5206,20 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           n = tab.length; n
         })) == 0) tab = initTable
         else if ((({
-          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & h; i}); f
+          f = tabAt(tab, {i = (n - 1) & h; i}); f
         })) == null) break = true //todo: break is not supported
         else if ((({
           fh = f.hash; fh
-        })) == ConcurrentSHMap.MOVED) tab = helpTransfer(tab, f)
+        })) == MOVED) tab = helpTransfer(tab, f)
         else {
           f synchronized {
-            if (ConcurrentSHMap.tabAt(tab, i) eq f) {
+            if (tabAt(tab, i) eq f) {
               if (fh >= 0) {
                 binCount = 1
 
                 {
-                  var e: ConcurrentSHMap.Node[K, V] = f
-                  var pred: ConcurrentSHMap.Node[K, V] = null
+                  var e: Node[K, V] = f
+                  var pred: Node[K, V] = null
                   break = false
                   while (!break) {
                     {
@@ -5230,9 +5231,9 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                         if (value != null) e.value = value
                         else {
                           delta = -1
-                          val en: ConcurrentSHMap.Node[K, V] = e.next
+                          val en: Node[K, V] = e.next
                           if (pred != null) pred.next = en
-                          else ConcurrentSHMap.setTabAt(tab, i, en)
+                          else setTabAt(tab, i, en)
                         }
                         break = true //todo: break is not supported
                       }
@@ -5249,11 +5250,11 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   break = false
                 }
               }
-              else if (f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) {
+              else if (f.isInstanceOf[TreeBin[_, _]]) {
                 binCount = 2
-                val t: ConcurrentSHMap.TreeBin[K, V] = f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]
-                var r: ConcurrentSHMap.TreeNode[K, V] = null
-                var p: ConcurrentSHMap.TreeNode[K, V] = null
+                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+                var r: TreeNode[K, V] = null
+                var p: TreeNode[K, V] = null
                 if ((({
                   r = t.root; r
                 })) != null && (({
@@ -5263,7 +5264,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   if (value != null) p.value = value
                   else {
                     delta = -1
-                    if (t.removeTreeNode(p)) ConcurrentSHMap.setTabAt(tab, i, ConcurrentSHMap.untreeify(t.first))
+                    if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
                   }
                 }
               }
@@ -5299,16 +5300,16 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def compute(key: K, remappingFunction: BiFunction[_ >: K, _ >: V, _ <: V]): V = {
     if (key == null || remappingFunction == null) throw new NullPointerException
-    val h: Int = ConcurrentSHMap.spread(key.hashCode)
+    val h: Int = spread(key.hashCode)
     var value: V = null.asInstanceOf[V]
     var delta: Int = 0
     var binCount: Int = 0
 
     {
-      var tab: Array[ConcurrentSHMap.Node[K, V]] = table
+      var tab: Array[Node[K, V]] = table
       var break = false
       while (!break) {
-        var f: ConcurrentSHMap.Node[K, V] = null
+        var f: Node[K, V] = null
         var n: Int = 0
         var i: Int = 0
         var fh: Int = 0
@@ -5316,22 +5317,22 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           n = tab.length; n
         })) == 0) tab = initTable
         else if ((({
-          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & h; i}); f
+          f = tabAt(tab, {i = (n - 1) & h; i}); f
         })) == null) {
-          val r: ConcurrentSHMap.Node[K, V] = new ConcurrentSHMap.ReservationNode[K, V]
+          val r: Node[K, V] = new ReservationNode[K, V]
           r synchronized {
-            if (ConcurrentSHMap.casTabAt(tab, i, null, r)) {
+            if (casTabAt(tab, i, null, r)) {
               binCount = 1
-              var node: ConcurrentSHMap.Node[K, V] = null
+              var node: Node[K, V] = null
               try {
                 if ((({
                   value = remappingFunction.apply(key, null.asInstanceOf[V]); value
                 })) != null) {
                   delta = 1
-                  node = new ConcurrentSHMap.Node[K, V](h, key, value, null)
+                  node = new Node[K, V](h, key, value, null)
                 }
               } finally {
-                ConcurrentSHMap.setTabAt(tab, i, node)
+                setTabAt(tab, i, node)
               }
             }
           }
@@ -5339,16 +5340,16 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         }
         else if ((({
           fh = f.hash; fh
-        })) == ConcurrentSHMap.MOVED) tab = helpTransfer(tab, f)
+        })) == MOVED) tab = helpTransfer(tab, f)
         else {
           f synchronized {
-            if (ConcurrentSHMap.tabAt(tab, i) eq f) {
+            if (tabAt(tab, i) eq f) {
               if (fh >= 0) {
                 binCount = 1
 
                 {
-                  var e: ConcurrentSHMap.Node[K, V] = f
-                  var pred: ConcurrentSHMap.Node[K, V] = null
+                  var e: Node[K, V] = f
+                  var pred: Node[K, V] = null
                   break = false
                   while (!break) {
                     {
@@ -5360,9 +5361,9 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                         if (value != null) e.value = value
                         else {
                           delta = -1
-                          val en: ConcurrentSHMap.Node[K, V] = e.next
+                          val en: Node[K, V] = e.next
                           if (pred != null) pred.next = en
-                          else ConcurrentSHMap.setTabAt(tab, i, en)
+                          else setTabAt(tab, i, en)
                         }
                         break = true //todo: break is not supported
                       }
@@ -5375,7 +5376,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                           value = remappingFunction.apply(key, null.asInstanceOf[V])
                           if (value != null) {
                             delta = 1
-                            pred.next = new ConcurrentSHMap.Node[K, V](h, key, value, null)
+                            pred.next = new Node[K, V](h, key, value, null)
                           }
                           break = true //todo: break is not supported
                         }
@@ -5386,11 +5387,11 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   break = false
                 }
               }
-              else if (f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) {
+              else if (f.isInstanceOf[TreeBin[_, _]]) {
                 binCount = 1
-                val t: ConcurrentSHMap.TreeBin[K, V] = f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]
-                var r: ConcurrentSHMap.TreeNode[K, V] = null
-                var p: ConcurrentSHMap.TreeNode[K, V] = null
+                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+                var r: TreeNode[K, V] = null
+                var p: TreeNode[K, V] = null
                 if ((({
                   r = t.root; r
                 })) != null) p = r.findTreeNode(h, key, null)
@@ -5406,13 +5407,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                 }
                 else if (p != null) {
                   delta = -1
-                  if (t.removeTreeNode(p)) ConcurrentSHMap.setTabAt(tab, i, ConcurrentSHMap.untreeify(t.first))
+                  if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
                 }
               }
             }
           }
           if (binCount != 0) {
-            if (binCount >= ConcurrentSHMap.TREEIFY_THRESHOLD) treeifyBin(tab, i)
+            if (binCount >= TREEIFY_THRESHOLD) treeifyBin(tab, i)
             break = true //todo: break is not supported
           }
         }
@@ -5444,16 +5445,16 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   override def merge(key: K, value: V, remappingFunction: BiFunction[_ >: V, _ >: V, _ <: V]): V = {
     if (key == null || value == null || remappingFunction == null) throw new NullPointerException
-    val h: Int = ConcurrentSHMap.spread(key.hashCode)
+    val h: Int = spread(key.hashCode)
     var theVal: V = null.asInstanceOf[V]
     var delta: Int = 0
     var binCount: Int = 0
 
     {
-      var tab: Array[ConcurrentSHMap.Node[K, V]] = table
+      var tab: Array[Node[K, V]] = table
       var break = false
       while (!break) {
-        var f: ConcurrentSHMap.Node[K, V] = null
+        var f: Node[K, V] = null
         var n: Int = 0
         var i: Int = 0
         var fh: Int = 0
@@ -5461,9 +5462,9 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           n = tab.length; n
         })) == 0) tab = initTable
         else if ((({
-          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & h; i}); f
+          f = tabAt(tab, {i = (n - 1) & h; i}); f
         })) == null) {
-          if (ConcurrentSHMap.casTabAt(tab, i, null, new ConcurrentSHMap.Node[K, V](h, key, value, null))) {
+          if (casTabAt(tab, i, null, new Node[K, V](h, key, value, null))) {
             delta = 1
             theVal = value
             break = true //todo: break is not supported
@@ -5471,16 +5472,16 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         }
         else if ((({
           fh = f.hash; fh
-        })) == ConcurrentSHMap.MOVED) tab = helpTransfer(tab, f)
+        })) == MOVED) tab = helpTransfer(tab, f)
         else {
           f synchronized {
-            if (ConcurrentSHMap.tabAt(tab, i) eq f) {
+            if (tabAt(tab, i) eq f) {
               if (fh >= 0) {
                 binCount = 1
 
                 {
-                  var e: ConcurrentSHMap.Node[K, V] = f
-                  var pred: ConcurrentSHMap.Node[K, V] = null
+                  var e: Node[K, V] = f
+                  var pred: Node[K, V] = null
                   break = false
                   while (!break) {
                     {
@@ -5492,9 +5493,9 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                         if (theVal != null) e.value = theVal
                         else {
                           delta = -1
-                          val en: ConcurrentSHMap.Node[K, V] = e.next
+                          val en: Node[K, V] = e.next
                           if (pred != null) pred.next = en
-                          else ConcurrentSHMap.setTabAt(tab, i, en)
+                          else setTabAt(tab, i, en)
                         }
                         break = true //todo: break is not supported
                       }
@@ -5506,7 +5507,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                         })) == null) {
                           delta = 1
                           theVal = value
-                          pred.next = new ConcurrentSHMap.Node[K, V](h, key, theVal, null)
+                          pred.next = new Node[K, V](h, key, theVal, null)
                           break = true //todo: break is not supported
                         }
                       }
@@ -5516,11 +5517,11 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   break = false
                 }
               }
-              else if (f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) {
+              else if (f.isInstanceOf[TreeBin[_, _]]) {
                 binCount = 2
-                val t: ConcurrentSHMap.TreeBin[K, V] = f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]
-                val r: ConcurrentSHMap.TreeNode[K, V] = t.root
-                val p: ConcurrentSHMap.TreeNode[K, V] = if ((r == null)) null else r.findTreeNode(h, key, null)
+                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+                val r: TreeNode[K, V] = t.root
+                val p: TreeNode[K, V] = if ((r == null)) null else r.findTreeNode(h, key, null)
                 theVal = if ((p == null)) value else remappingFunction.apply(p.value, value)
                 if (theVal != null) {
                   if (p != null) p.value = theVal
@@ -5531,13 +5532,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                 }
                 else if (p != null) {
                   delta = -1
-                  if (t.removeTreeNode(p)) ConcurrentSHMap.setTabAt(tab, i, ConcurrentSHMap.untreeify(t.first))
+                  if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
                 }
               }
             }
           }
           if (binCount != 0) {
-            if (binCount >= ConcurrentSHMap.TREEIFY_THRESHOLD) treeifyBin(tab, i)
+            if (binCount >= TREEIFY_THRESHOLD) treeifyBin(tab, i)
             break = true //todo: break is not supported
           }
         }
@@ -5573,12 +5574,12 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @see #keySet()
    */
   def keys: Enumeration[K] = {
-    var t: Array[ConcurrentSHMap.Node[K, V]] = null
+    var t: Array[Node[K, V]] = null
     val f: Int = if ((({
       t = table; t
     })) == null) 0
     else t.length
-    new ConcurrentSHMap.KeyIterator[K, V](t, f, 0, f, this)
+    new KeyIterator[K, V](t, f, 0, f, this)
   }
 
   /**
@@ -5588,12 +5589,12 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @see #values()
    */
   def elements: Enumeration[V] = {
-    var t: Array[ConcurrentSHMap.Node[K, V]] = null
+    var t: Array[Node[K, V]] = null
     val f: Int = if ((({
       t = table; t
     })) == null) 0
     else t.length
-    new ConcurrentSHMap.ValueIterator[K, V](t, f, 0, f, this)
+    new ValueIterator[K, V](t, f, 0, f, this)
   }
 
   /**
@@ -5622,16 +5623,16 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @return the set view
    * @throws NullPointerException if the mappedValue is null
    */
-  def keySet(mappedValue: V): ConcurrentSHMap.KeySetView[K, V] = {
+  def keySet(mappedValue: V): KeySetView[K, V] = {
     if (mappedValue == null) throw new NullPointerException
-    new ConcurrentSHMap.KeySetView[K, V](this, mappedValue)
+    new KeySetView[K, V](this, mappedValue)
   }
 
   /**
    * Initializes table, using the size recorded in sizeCtl.
    */
-  private final def initTable: Array[ConcurrentSHMap.Node[K, V]] = {
-    var tab: Array[ConcurrentSHMap.Node[K, V]] = null
+  private final def initTable: Array[Node[K, V]] = {
+    var tab: Array[Node[K, V]] = null
     var sc: Int = 0
     var break = false
     while (!break && ((({
@@ -5640,13 +5641,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       if ((({
         sc = sizeCtl; sc
       })) < 0) Thread.`yield`
-      else if (ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, -1)) {
+      else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
         try {
           if ((({
             tab = table; tab
           })) == null || tab.length == 0) {
-            val n: Int = if ((sc > 0)) sc else ConcurrentSHMap.DEFAULT_CAPACITY
-            @SuppressWarnings(Array("unchecked")) val nt: Array[ConcurrentSHMap.Node[K, V]] = new Array[ConcurrentSHMap.Node[_, _]](n).asInstanceOf[Array[ConcurrentSHMap.Node[K, V]]]
+            val n: Int = if ((sc > 0)) sc else DEFAULT_CAPACITY
+            @SuppressWarnings(Array("unchecked")) val nt: Array[Node[K, V]] = new Array[Node[_, _]](n).asInstanceOf[Array[Node[K, V]]]
             table = ({
               tab = nt; tab
             })
@@ -5672,13 +5673,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @param check if <0, don't check resize, if <= 1 only check if uncontended
    */
   private final def addCount(x: Long, check: Int) {
-    var as: Array[ConcurrentSHMap.CounterCell] = null
+    var as: Array[CounterCell] = null
     var b: Long = 0L
     var s: Long = 0L
     if ((({
       as = counterCells; as
-    })) != null || !ConcurrentSHMap.U.compareAndSwapLong(this, ConcurrentSHMap.BASECOUNT, {b = baseCount; b}, {s = b + x; s})) {
-      var a: ConcurrentSHMap.CounterCell = null
+    })) != null || !U.compareAndSwapLong(this, BASECOUNT, {b = baseCount; b}, {s = b + x; s})) {
+      var a: CounterCell = null
       var v: Long = 0L
       var m: Int = 0
       var uncontended: Boolean = true
@@ -5687,7 +5688,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       })) < 0 || (({
         a = as(MyThreadLocalRandom.getProbe & m); a
       })) == null || !(({
-        uncontended = ConcurrentSHMap.U.compareAndSwapLong(a, ConcurrentSHMap.CELLVALUE, {v = a.value; v}, v + x); uncontended
+        uncontended = U.compareAndSwapLong(a, CELLVALUE, {v = a.value; v}, v + x); uncontended
       }))) {
         fullAddCount(x, uncontended)
         return
@@ -5696,8 +5697,8 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       s = sumCount
     }
     if (check >= 0) {
-      var tab: Array[ConcurrentSHMap.Node[K, V]] = null
-      var nt: Array[ConcurrentSHMap.Node[K, V]] = null
+      var tab: Array[Node[K, V]] = null
+      var nt: Array[Node[K, V]] = null
       var n: Int = 0
       var sc: Int = 0
       var break = false
@@ -5707,15 +5708,15 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         tab = table; tab
       })) != null && (({
         n = tab.length; n
-      })) < ConcurrentSHMap.MAXIMUM_CAPACITY)) {
-        val rs: Int = ConcurrentSHMap.resizeStamp(n)
+      })) < MAXIMUM_CAPACITY)) {
+        val rs: Int = resizeStamp(n)
         if (sc < 0) {
-          if (((sc >>> ConcurrentSHMap.RESIZE_STAMP_SHIFT) != rs) || (sc == rs + 1) || (sc == rs + ConcurrentSHMap.MAX_RESIZERS) || (({
+          if (((sc >>> RESIZE_STAMP_SHIFT) != rs) || (sc == rs + 1) || (sc == rs + MAX_RESIZERS) || (({
             nt = nextTable; nt
           })) == null || transferIndex <= 0) break = true //todo: break is not supported
-          if (!break && ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, sc + 1)) transfer(tab, nt)
+          if (!break && U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) transfer(tab, nt)
         }
-        else if (ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, (rs << ConcurrentSHMap.RESIZE_STAMP_SHIFT) + 2)) transfer(tab, null)
+        else if (U.compareAndSwapInt(this, SIZECTL, sc, (rs << RESIZE_STAMP_SHIFT) + 2)) transfer(tab, null)
         if(!break) s = sumCount
       }
     }
@@ -5724,19 +5725,19 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   /**
    * Helps transfer if a resize is in progress.
    */
-  final def helpTransfer(tab: Array[ConcurrentSHMap.Node[K, V]], f: ConcurrentSHMap.Node[K, V]): Array[ConcurrentSHMap.Node[K, V]] = {
-    var nextTab: Array[ConcurrentSHMap.Node[K, V]] = null
+  final def helpTransfer(tab: Array[Node[K, V]], f: Node[K, V]): Array[Node[K, V]] = {
+    var nextTab: Array[Node[K, V]] = null
     var sc: Int = 0
-    if (tab != null && (f.isInstanceOf[ConcurrentSHMap.ForwardingNode[_, _]]) && (({
-      nextTab = (f.asInstanceOf[ConcurrentSHMap.ForwardingNode[K, V]]).nextTable; nextTab
+    if (tab != null && (f.isInstanceOf[ForwardingNode[_, _]]) && (({
+      nextTab = (f.asInstanceOf[ForwardingNode[K, V]]).nextTable; nextTab
     })) != null) {
-      val rs: Int = ConcurrentSHMap.resizeStamp(tab.length)
+      val rs: Int = resizeStamp(tab.length)
       var break = false
       while (!break && ((nextTab eq nextTable) && (table eq tab) && (({
         sc = sizeCtl; sc
       })) < 0)) {
-        if ((sc >>> ConcurrentSHMap.RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 || sc == rs + ConcurrentSHMap.MAX_RESIZERS || transferIndex <= 0) break = true //todo: break is not supported
-        if (!break && ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, sc + 1)) {
+        if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 || sc == rs + MAX_RESIZERS || transferIndex <= 0) break = true //todo: break is not supported
+        if (!break && U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
           transfer(tab, nextTab)
           break = true //todo: break is not supported
         }
@@ -5752,22 +5753,22 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @param size number of elements (doesn't need to be perfectly accurate)
    */
   private final def tryPresize(size: Int) {
-    val c: Int = if ((size >= (ConcurrentSHMap.MAXIMUM_CAPACITY >>> 1))) ConcurrentSHMap.MAXIMUM_CAPACITY else ConcurrentSHMap.tableSizeFor(size + (size >>> 1) + 1)
+    val c: Int = if ((size >= (MAXIMUM_CAPACITY >>> 1))) MAXIMUM_CAPACITY else tableSizeFor(size + (size >>> 1) + 1)
     var sc: Int = 0
     var break = false
     while (!break && ((({
       sc = sizeCtl; sc
     })) >= 0)) {
-      val tab: Array[ConcurrentSHMap.Node[K, V]] = table
+      val tab: Array[Node[K, V]] = table
       var n: Int = 0
       if (tab == null || (({
         n = tab.length; n
       })) == 0) {
         n = if ((sc > c)) sc else c
-        if (ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, -1)) {
+        if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
           try {
             if (table eq tab) {
-              @SuppressWarnings(Array("unchecked")) val nt: Array[ConcurrentSHMap.Node[K, V]] = new Array[ConcurrentSHMap.Node[_, _]](n).asInstanceOf[Array[ConcurrentSHMap.Node[K, V]]]
+              @SuppressWarnings(Array("unchecked")) val nt: Array[Node[K, V]] = new Array[Node[_, _]](n).asInstanceOf[Array[Node[K, V]]]
               table = nt
               sc = n - (n >>> 2)
             }
@@ -5776,17 +5777,17 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           }
         }
       }
-      else if (c <= sc || n >= ConcurrentSHMap.MAXIMUM_CAPACITY) break = true //todo: break is not supported
+      else if (c <= sc || n >= MAXIMUM_CAPACITY) break = true //todo: break is not supported
       else if (tab eq table) {
-        val rs: Int = ConcurrentSHMap.resizeStamp(n)
+        val rs: Int = resizeStamp(n)
         if (sc < 0) {
-          var nt: Array[ConcurrentSHMap.Node[K, V]] = null
-          if ((sc >>> ConcurrentSHMap.RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 || sc == rs + ConcurrentSHMap.MAX_RESIZERS || (({
+          var nt: Array[Node[K, V]] = null
+          if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 || sc == rs + MAX_RESIZERS || (({
             nt = nextTable; nt
           })) == null || transferIndex <= 0) break = true //todo: break is not supported
-          if (!break && ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, sc + 1)) transfer(tab, nt)
+          if (!break && U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) transfer(tab, nt)
         }
-        else if (ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, (rs << ConcurrentSHMap.RESIZE_STAMP_SHIFT) + 2)) transfer(tab, null)
+        else if (U.compareAndSwapInt(this, SIZECTL, sc, (rs << RESIZE_STAMP_SHIFT) + 2)) transfer(tab, null)
       }
     }
   }
@@ -5795,16 +5796,16 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * Moves and/or copies the nodes in each bin to new table. See
    * above for explanation.
    */
-  private final def transfer(tab: Array[ConcurrentSHMap.Node[K, V]], inNextTab: Array[ConcurrentSHMap.Node[K, V]]) {
-    var nextTab: Array[ConcurrentSHMap.Node[K, V]] = inNextTab
+  private final def transfer(tab: Array[Node[K, V]], inNextTab: Array[Node[K, V]]) {
+    var nextTab: Array[Node[K, V]] = inNextTab
     val n: Int = tab.length
     var stride: Int = 0
     if ((({
-      stride = if ((ConcurrentSHMap.NCPU > 1)) (n >>> 3) / ConcurrentSHMap.NCPU else n; stride
-    })) < ConcurrentSHMap.MIN_TRANSFER_STRIDE) stride = ConcurrentSHMap.MIN_TRANSFER_STRIDE
+      stride = if ((NCPU > 1)) (n >>> 3) / NCPU else n; stride
+    })) < MIN_TRANSFER_STRIDE) stride = MIN_TRANSFER_STRIDE
     if (nextTab == null) {
       try {
-        @SuppressWarnings(Array("unchecked")) val nt: Array[ConcurrentSHMap.Node[K, V]] = new Array[ConcurrentSHMap.Node[_, _]](n << 1).asInstanceOf[Array[ConcurrentSHMap.Node[K, V]]]
+        @SuppressWarnings(Array("unchecked")) val nt: Array[Node[K, V]] = new Array[Node[_, _]](n << 1).asInstanceOf[Array[Node[K, V]]]
         nextTab = nt
       }
       catch {
@@ -5817,7 +5818,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       transferIndex = n
     }
     val nextn: Int = nextTab.length
-    val fwd: ConcurrentSHMap.ForwardingNode[K, V] = new ConcurrentSHMap.ForwardingNode[K, V](nextTab)
+    val fwd: ForwardingNode[K, V] = new ForwardingNode[K, V](nextTab)
     var advance: Boolean = true
     var finishing: Boolean = false
 
@@ -5825,7 +5826,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       var i: Int = 0
       var bound: Int = 0
       while (true) {
-        var f: ConcurrentSHMap.Node[K, V] = null
+        var f: Node[K, V] = null
         var fh: Int = 0
         while (advance) {
           var nextIndex: Int = 0
@@ -5839,7 +5840,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
             i = -1
             advance = false
           }
-          else if (ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.TRANSFERINDEX, nextIndex, { nextBound = (if (nextIndex > stride) nextIndex - stride else 0); nextBound })) {
+          else if (U.compareAndSwapInt(this, TRANSFERINDEX, nextIndex, { nextBound = (if (nextIndex > stride) nextIndex - stride else 0); nextBound })) {
             bound = nextBound
             i = nextIndex - 1
             advance = false
@@ -5853,8 +5854,8 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
             sizeCtl = (n << 1) - (n >>> 1)
             return
           }
-          if (ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, {sc = sizeCtl; sc}, sc - 1)) {
-            if ((sc - 2) != (ConcurrentSHMap.resizeStamp(n) << ConcurrentSHMap.RESIZE_STAMP_SHIFT)) return
+          if (U.compareAndSwapInt(this, SIZECTL, {sc = sizeCtl; sc}, sc - 1)) {
+            if ((sc - 2) != (resizeStamp(n) << RESIZE_STAMP_SHIFT)) return
             finishing = ({
               advance = true; advance
             })
@@ -5862,22 +5863,22 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           }
         }
         else if ((({
-          f = ConcurrentSHMap.tabAt(tab, i); f
-        })) == null) advance = ConcurrentSHMap.casTabAt(tab, i, null, fwd)
+          f = tabAt(tab, i); f
+        })) == null) advance = casTabAt(tab, i, null, fwd)
         else if ((({
           fh = f.hash; fh
-        })) == ConcurrentSHMap.MOVED) advance = true
+        })) == MOVED) advance = true
         else {
           f synchronized {
-            if (ConcurrentSHMap.tabAt(tab, i) eq f) {
-              var ln: ConcurrentSHMap.Node[K, V] = null
-              var hn: ConcurrentSHMap.Node[K, V] = null
+            if (tabAt(tab, i) eq f) {
+              var ln: Node[K, V] = null
+              var hn: Node[K, V] = null
               if (fh >= 0) {
                 var runBit: Int = fh & n
-                var lastRun: ConcurrentSHMap.Node[K, V] = f
+                var lastRun: Node[K, V] = f
 
                 {
-                  var p: ConcurrentSHMap.Node[K, V] = f.next
+                  var p: Node[K, V] = f.next
                   while (p != null) {
                     {
                       val b: Int = p.hash & n
@@ -5898,38 +5899,38 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                   ln = null
                 }
                 {
-                  var p: ConcurrentSHMap.Node[K, V] = f
+                  var p: Node[K, V] = f
                   while (p ne lastRun) {
                     {
                       val ph: Int = p.hash
                       val pk: K = p.key
                       val pv: V = p.value
-                      if ((ph & n) == 0) ln = new ConcurrentSHMap.Node[K, V](ph, pk, pv, ln)
-                      else hn = new ConcurrentSHMap.Node[K, V](ph, pk, pv, hn)
+                      if ((ph & n) == 0) ln = new Node[K, V](ph, pk, pv, ln)
+                      else hn = new Node[K, V](ph, pk, pv, hn)
                     }
                     p = p.next
                   }
                 }
-                ConcurrentSHMap.setTabAt(nextTab, i, ln)
-                ConcurrentSHMap.setTabAt(nextTab, i + n, hn)
-                ConcurrentSHMap.setTabAt(tab, i, fwd)
+                setTabAt(nextTab, i, ln)
+                setTabAt(nextTab, i + n, hn)
+                setTabAt(tab, i, fwd)
                 advance = true
               }
-              else if (f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) {
-                val t: ConcurrentSHMap.TreeBin[K, V] = f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]
-                var lo: ConcurrentSHMap.TreeNode[K, V] = null
-                var loTail: ConcurrentSHMap.TreeNode[K, V] = null
-                var hi: ConcurrentSHMap.TreeNode[K, V] = null
-                var hiTail: ConcurrentSHMap.TreeNode[K, V] = null
+              else if (f.isInstanceOf[TreeBin[_, _]]) {
+                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+                var lo: TreeNode[K, V] = null
+                var loTail: TreeNode[K, V] = null
+                var hi: TreeNode[K, V] = null
+                var hiTail: TreeNode[K, V] = null
                 var lc: Int = 0
                 var hc: Int = 0
 
                 {
-                  var e: ConcurrentSHMap.Node[K, V] = t.first
+                  var e: Node[K, V] = t.first
                   while (e != null) {
                     {
                       val h: Int = e.hash
-                      val p: ConcurrentSHMap.TreeNode[K, V] = new ConcurrentSHMap.TreeNode[K, V](h, e.key, e.value, null, null)
+                      val p: TreeNode[K, V] = new TreeNode[K, V](h, e.key, e.value, null, null)
                       if ((h & n) == 0) {
                         if ((({
                           p.prev = loTail; p.prev
@@ -5950,11 +5951,11 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                     e = e.next
                   }
                 }
-                ln = if ((lc <= ConcurrentSHMap.UNTREEIFY_THRESHOLD)) ConcurrentSHMap.untreeify(lo) else if ((hc != 0)) new ConcurrentSHMap.TreeBin[K, V](lo) else t
-                hn = if ((hc <= ConcurrentSHMap.UNTREEIFY_THRESHOLD)) ConcurrentSHMap.untreeify(hi) else if ((lc != 0)) new ConcurrentSHMap.TreeBin[K, V](hi) else t
-                ConcurrentSHMap.setTabAt(nextTab, i, ln)
-                ConcurrentSHMap.setTabAt(nextTab, i + n, hn)
-                ConcurrentSHMap.setTabAt(tab, i, fwd)
+                ln = if ((lc <= UNTREEIFY_THRESHOLD)) untreeify(lo) else if ((hc != 0)) new TreeBin[K, V](lo) else t
+                hn = if ((hc <= UNTREEIFY_THRESHOLD)) untreeify(hi) else if ((lc != 0)) new TreeBin[K, V](hi) else t
+                setTabAt(nextTab, i, ln)
+                setTabAt(nextTab, i + n, hn)
+                setTabAt(tab, i, fwd)
                 advance = true
               }
             }
@@ -5965,8 +5966,8 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   }
 
   final def sumCount: Long = {
-    val as: Array[ConcurrentSHMap.CounterCell] = counterCells
-    var a: ConcurrentSHMap.CounterCell = null
+    val as: Array[CounterCell] = counterCells
+    var a: CounterCell = null
     var sum: Long = baseCount
     if (as != null) {
       {
@@ -6000,8 +6001,8 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     var break = false
     while (!break) {
       var continue = false
-      var as: Array[ConcurrentSHMap.CounterCell] = null
-      var a: ConcurrentSHMap.CounterCell = null
+      var as: Array[CounterCell] = null
+      var a: CounterCell = null
       var n: Int = 0
       var v: Long = 0L
       if ((({
@@ -6013,11 +6014,11 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           a = as((n - 1) & h); a
         })) == null) {
           if (cellsBusy == 0) {
-            val r: ConcurrentSHMap.CounterCell = new ConcurrentSHMap.CounterCell(x)
-            if (cellsBusy == 0 && ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.CELLSBUSY, 0, 1)) {
+            val r: CounterCell = new CounterCell(x)
+            if (cellsBusy == 0 && U.compareAndSwapInt(this, CELLSBUSY, 0, 1)) {
               var created: Boolean = false
               try {
-                var rs: Array[ConcurrentSHMap.CounterCell] = null
+                var rs: Array[CounterCell] = null
                 var m: Int = 0
                 var j: Int = 0
                 if ((({
@@ -6040,13 +6041,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           if(!break && !continue) collide = false
         }
         else if (!wasUncontended) wasUncontended = true
-        else if (ConcurrentSHMap.U.compareAndSwapLong(a, ConcurrentSHMap.CELLVALUE, {v = a.value; v}, v + x)) break = true //todo: break is not supported
-        else if ((counterCells ne as) || (n >= ConcurrentSHMap.NCPU)) collide = false
+        else if (U.compareAndSwapLong(a, CELLVALUE, {v = a.value; v}, v + x)) break = true //todo: break is not supported
+        else if ((counterCells ne as) || (n >= NCPU)) collide = false
         else if (!collide) collide = true
-        else if (cellsBusy == 0 && ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.CELLSBUSY, 0, 1)) {
+        else if (cellsBusy == 0 && U.compareAndSwapInt(this, CELLSBUSY, 0, 1)) {
           try {
             if (counterCells eq as) {
-              val rs: Array[ConcurrentSHMap.CounterCell] = new Array[ConcurrentSHMap.CounterCell](n << 1)
+              val rs: Array[CounterCell] = new Array[CounterCell](n << 1)
 
               {
                 var i: Int = 0
@@ -6067,12 +6068,12 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         }
         if(!break && !continue) h = MyThreadLocalRandom.advanceProbe(h)
       }
-      else if ((cellsBusy == 0) && (counterCells eq as) && ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.CELLSBUSY, 0, 1)) {
+      else if ((cellsBusy == 0) && (counterCells eq as) && U.compareAndSwapInt(this, CELLSBUSY, 0, 1)) {
         var init: Boolean = false
         try {
           if (counterCells eq as) {
-            val rs: Array[ConcurrentSHMap.CounterCell] = new Array[ConcurrentSHMap.CounterCell](2)
-            rs(h & 1) = new ConcurrentSHMap.CounterCell(x)
+            val rs: Array[CounterCell] = new Array[CounterCell](2)
+            rs(h & 1) = new CounterCell(x)
             counterCells = rs
             init = true
           }
@@ -6081,7 +6082,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
         }
         if (init) break = true //todo: break is not supported
       }
-      else if (ConcurrentSHMap.U.compareAndSwapLong(this, ConcurrentSHMap.BASECOUNT, {v = baseCount; v}, v + x)) break = true //todo: break is not supported
+      else if (U.compareAndSwapLong(this, BASECOUNT, {v = baseCount; v}, v + x)) break = true //todo: break is not supported
     }
   }
 
@@ -6089,27 +6090,27 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * Replaces all linked nodes in bin at given index unless table is
    * too small, in which case resizes instead.
    */
-  private final def treeifyBin(tab: Array[ConcurrentSHMap.Node[K, V]], index: Int) {
-    var b: ConcurrentSHMap.Node[K, V] = null
+  private final def treeifyBin(tab: Array[Node[K, V]], index: Int) {
+    var b: Node[K, V] = null
     var n: Int = 0
     val sc: Int = 0
     if (tab != null) {
       if ((({
         n = tab.length; n
-      })) < ConcurrentSHMap.MIN_TREEIFY_CAPACITY) tryPresize(n << 1)
+      })) < MIN_TREEIFY_CAPACITY) tryPresize(n << 1)
       else if ((({
-        b = ConcurrentSHMap.tabAt(tab, index); b
+        b = tabAt(tab, index); b
       })) != null && b.hash >= 0) {
         b synchronized {
-          if (ConcurrentSHMap.tabAt(tab, index) eq b) {
-            var hd: ConcurrentSHMap.TreeNode[K, V] = null
-            var tl: ConcurrentSHMap.TreeNode[K, V] = null
+          if (tabAt(tab, index) eq b) {
+            var hd: TreeNode[K, V] = null
+            var tl: TreeNode[K, V] = null
 
             {
-              var e: ConcurrentSHMap.Node[K, V] = b
+              var e: Node[K, V] = b
               while (e != null) {
                 {
-                  val p: ConcurrentSHMap.TreeNode[K, V] = new ConcurrentSHMap.TreeNode[K, V](e.hash, e.key, e.value, null, null)
+                  val p: TreeNode[K, V] = new TreeNode[K, V](e.hash, e.key, e.value, null, null)
                   if ((({
                     p.prev = tl; p.prev
                   })) == null) hd = p
@@ -6119,7 +6120,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
                 e = e.next
               }
             }
-            ConcurrentSHMap.setTabAt(tab, index, new ConcurrentSHMap.TreeBin[K, V](hd))
+            setTabAt(tab, index, new TreeBin[K, V](hd))
           }
         }
       }
@@ -6156,7 +6157,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def forEach(parallelismThreshold: Long, action: BiConsumer[_ >: K, _ >: V]) {
     if (action == null) throw new NullPointerException
-    new ConcurrentSHMap.ForEachMappingTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
+    new ForEachMappingTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
   }
 
   /**
@@ -6174,7 +6175,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def forEach[U](parallelismThreshold: Long, transformer: BiFunction[_ >: K, _ >: V, _ <: U], action: Consumer[_ >: U]) {
     if (transformer == null || action == null) throw new NullPointerException
-    new ConcurrentSHMap.ForEachTransformedMappingTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, transformer, action).invoke
+    new ForEachTransformedMappingTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, transformer, action).invoke
   }
 
   /**
@@ -6195,7 +6196,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def search[U](parallelismThreshold: Long, searchFunction: BiFunction[_ >: K, _ >: V, _ <: U]): U = {
     if (searchFunction == null) throw new NullPointerException
-    new ConcurrentSHMap.SearchMappingsTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
+    new SearchMappingsTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
   }
 
   /**
@@ -6216,7 +6217,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduce[U](parallelismThreshold: Long, transformer: BiFunction[_ >: K, _ >: V, _ <: U], reducer: BiFunction[_ >: U, _ >: U, _ <: U]): U = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceMappingsTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
+    return new MapReduceMappingsTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
   }
 
   /**
@@ -6236,7 +6237,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceToDouble(parallelismThreshold: Long, transformer: ToDoubleBiFunction[_ >: K, _ >: V], basis: Double, reducer: DoubleBinaryOperator): Double = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceMappingsToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceMappingsToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6256,7 +6257,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceToLong(parallelismThreshold: Long, transformer: ToLongBiFunction[_ >: K, _ >: V], basis: Long, reducer: LongBinaryOperator): Long = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceMappingsToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceMappingsToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6276,7 +6277,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceToInt(parallelismThreshold: Long, transformer: ToIntBiFunction[_ >: K, _ >: V], basis: Int, reducer: IntBinaryOperator): Int = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceMappingsToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceMappingsToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6289,7 +6290,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def forEachKey(parallelismThreshold: Long, action: Consumer[_ >: K]) {
     if (action == null) throw new NullPointerException
-    new ConcurrentSHMap.ForEachKeyTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
+    new ForEachKeyTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
   }
 
   /**
@@ -6307,7 +6308,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def forEachKey[U](parallelismThreshold: Long, transformer: Function[_ >: K, _ <: U], action: Consumer[_ >: U]) {
     if (transformer == null || action == null) throw new NullPointerException
-    new ConcurrentSHMap.ForEachTransformedKeyTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, transformer, action).invoke
+    new ForEachTransformedKeyTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, transformer, action).invoke
   }
 
   /**
@@ -6328,7 +6329,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def searchKeys[U](parallelismThreshold: Long, searchFunction: Function[_ >: K, _ <: U]): U = {
     if (searchFunction == null) throw new NullPointerException
-    return new ConcurrentSHMap.SearchKeysTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
+    return new SearchKeysTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
   }
 
   /**
@@ -6344,7 +6345,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeys(parallelismThreshold: Long, reducer: BiFunction[_ >: K, _ >: K, _ <: K]): K = {
     if (reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.ReduceKeysTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
+    return new ReduceKeysTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
   }
 
   /**
@@ -6365,7 +6366,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeys[U](parallelismThreshold: Long, transformer: Function[_ >: K, _ <: U], reducer: BiFunction[_ >: U, _ >: U, _ <: U]): U = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceKeysTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
+    return new MapReduceKeysTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
   }
 
   /**
@@ -6385,7 +6386,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeysToDouble(parallelismThreshold: Long, transformer: ToDoubleFunction[_ >: K], basis: Double, reducer: DoubleBinaryOperator): Double = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceKeysToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceKeysToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6405,7 +6406,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeysToLong(parallelismThreshold: Long, transformer: ToLongFunction[_ >: K], basis: Long, reducer: LongBinaryOperator): Long = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceKeysToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceKeysToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6425,7 +6426,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceKeysToInt(parallelismThreshold: Long, transformer: ToIntFunction[_ >: K], basis: Int, reducer: IntBinaryOperator): Int = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceKeysToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceKeysToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6438,7 +6439,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def forEachValue(parallelismThreshold: Long, action: Consumer[_ >: V]) {
     if (action == null) throw new NullPointerException
-    new ConcurrentSHMap.ForEachValueTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
+    new ForEachValueTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
   }
 
   /**
@@ -6456,7 +6457,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def forEachValue[U](parallelismThreshold: Long, transformer: Function[_ >: V, _ <: U], action: Consumer[_ >: U]) {
     if (transformer == null || action == null) throw new NullPointerException
-    new ConcurrentSHMap.ForEachTransformedValueTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, transformer, action).invoke
+    new ForEachTransformedValueTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, transformer, action).invoke
   }
 
   /**
@@ -6477,7 +6478,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def searchValues[U](parallelismThreshold: Long, searchFunction: Function[_ >: V, _ <: U]): U = {
     if (searchFunction == null) throw new NullPointerException
-    return new ConcurrentSHMap.SearchValuesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
+    return new SearchValuesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
   }
 
   /**
@@ -6492,7 +6493,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValues(parallelismThreshold: Long, reducer: BiFunction[_ >: V, _ >: V, _ <: V]): V = {
     if (reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.ReduceValuesTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
+    return new ReduceValuesTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
   }
 
   /**
@@ -6513,7 +6514,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValues[U](parallelismThreshold: Long, transformer: Function[_ >: V, _ <: U], reducer: BiFunction[_ >: U, _ >: U, _ <: U]): U = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceValuesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
+    return new MapReduceValuesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
   }
 
   /**
@@ -6533,7 +6534,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValuesToDouble(parallelismThreshold: Long, transformer: ToDoubleFunction[_ >: V], basis: Double, reducer: DoubleBinaryOperator): Double = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceValuesToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceValuesToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6553,7 +6554,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValuesToLong(parallelismThreshold: Long, transformer: ToLongFunction[_ >: V], basis: Long, reducer: LongBinaryOperator): Long = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceValuesToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceValuesToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6573,7 +6574,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceValuesToInt(parallelismThreshold: Long, transformer: ToIntFunction[_ >: V], basis: Int, reducer: IntBinaryOperator): Int = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceValuesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceValuesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6586,7 +6587,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def forEachEntry(parallelismThreshold: Long, action: Consumer[_ >: Map.Entry[K, V]]) {
     if (action == null) throw new NullPointerException
-    new ConcurrentSHMap.ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
+    new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
   }
 
   /**
@@ -6604,7 +6605,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def forEachEntry[U](parallelismThreshold: Long, transformer: Function[Map.Entry[K, V], _ <: U], action: Consumer[_ >: U]) {
     if (transformer == null || action == null) throw new NullPointerException
-    new ConcurrentSHMap.ForEachTransformedEntryTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, transformer, action).invoke
+    new ForEachTransformedEntryTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, transformer, action).invoke
   }
 
   /**
@@ -6625,7 +6626,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def searchEntries[U](parallelismThreshold: Long, searchFunction: Function[Map.Entry[K, V], _ <: U]): U = {
     if (searchFunction == null) throw new NullPointerException
-    return new ConcurrentSHMap.SearchEntriesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
+    return new SearchEntriesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, searchFunction, new AtomicReference[U]).invoke
   }
 
   /**
@@ -6640,7 +6641,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntries(parallelismThreshold: Long, reducer: BiFunction[Map.Entry[K, V], Map.Entry[K, V], _ <: Map.Entry[K, V]]): Map.Entry[K, V] = {
     if (reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.ReduceEntriesTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
+    return new ReduceEntriesTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, reducer).invoke
   }
 
   /**
@@ -6661,7 +6662,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntries[U](parallelismThreshold: Long, transformer: Function[Map.Entry[K, V], _ <: U], reducer: BiFunction[_ >: U, _ >: U, _ <: U]): U = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceEntriesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
+    return new MapReduceEntriesTask[K, V, U](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, reducer).invoke
   }
 
   /**
@@ -6681,7 +6682,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntriesToDouble(parallelismThreshold: Long, transformer: ToDoubleFunction[Map.Entry[K, V]], basis: Double, reducer: DoubleBinaryOperator): Double = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceEntriesToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceEntriesToDoubleTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6701,7 +6702,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntriesToLong(parallelismThreshold: Long, transformer: ToLongFunction[Map.Entry[K, V]], basis: Long, reducer: LongBinaryOperator): Long = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceEntriesToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceEntriesToLongTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
   /**
@@ -6721,6 +6722,6 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    */
   def reduceEntriesToInt(parallelismThreshold: Long, transformer: ToIntFunction[Map.Entry[K, V]], basis: Int, reducer: IntBinaryOperator): Int = {
     if (transformer == null || reducer == null) throw new NullPointerException
-    return new ConcurrentSHMap.MapReduceEntriesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+    return new MapReduceEntriesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 }
