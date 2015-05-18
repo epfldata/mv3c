@@ -476,15 +476,15 @@ object ConcurrentSHMap {
    * class), else 0.
    */
   @SuppressWarnings(Array("rawtypes", "unchecked")) private[concurrent] def compareComparables(kc: Class[_], k: Any, x: Any): Int = {
-    return (if ((x == null) || (x.getClass ne kc)) 0 else (k.asInstanceOf[Comparable[Any]]).compareTo(x))
+    (if ((x == null) || (x.getClass ne kc)) 0 else (k.asInstanceOf[Comparable[Any]]).compareTo(x))
   }
 
   @SuppressWarnings(Array("unchecked")) private[concurrent] def tabAt[K, V](tab: Array[ConcurrentSHMap.Node[K, V]], i: Int): ConcurrentSHMap.Node[K, V] = {
-    return U.getObjectVolatile(tab, (i.toLong << ASHIFT) + ABASE).asInstanceOf[ConcurrentSHMap.Node[K, V]]
+    U.getObjectVolatile(tab, (i.toLong << ASHIFT) + ABASE).asInstanceOf[ConcurrentSHMap.Node[K, V]]
   }
 
   private[concurrent] def casTabAt[K, V](tab: Array[ConcurrentSHMap.Node[K, V]], i: Int, c: ConcurrentSHMap.Node[K, V], v: ConcurrentSHMap.Node[K, V]): Boolean = {
-    return U.compareAndSwapObject(tab, (i.toLong << ASHIFT) + ABASE, c, v)
+    U.compareAndSwapObject(tab, (i.toLong << ASHIFT) + ABASE, c, v)
   }
 
   private[concurrent] def setTabAt[K, V](tab: Array[ConcurrentSHMap.Node[K, V]], i: Int, v: ConcurrentSHMap.Node[K, V]) {
