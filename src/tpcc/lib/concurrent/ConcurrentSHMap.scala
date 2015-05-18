@@ -5053,13 +5053,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       while (!break) {
         var f: ConcurrentSHMap.Node[K, V] = null
         var n: Int = 0
-        val i: Int = 0
+        var i: Int = 0
         var fh: Int = 0
         if (tab == null || (({
           n = tab.length; n
         })) == 0) tab = initTable
         else if ((({
-          f = ConcurrentSHMap.tabAt(tab, i = (n - 1) & h); f
+          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & h; i}); f
         })) == null) {
           val r: ConcurrentSHMap.Node[K, V] = new ConcurrentSHMap.ReservationNode[K, V]
           r synchronized {
@@ -5297,13 +5297,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       while (!break) {
         var f: ConcurrentSHMap.Node[K, V] = null
         var n: Int = 0
-        val i: Int = 0
+        var i: Int = 0
         var fh: Int = 0
         if (tab == null || (({
           n = tab.length; n
         })) == 0) tab = initTable
         else if ((({
-          f = ConcurrentSHMap.tabAt(tab, i = (n - 1) & h); f
+          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & h; i}); f
         })) == null) {
           val r: ConcurrentSHMap.Node[K, V] = new ConcurrentSHMap.ReservationNode[K, V]
           r synchronized {
@@ -5442,13 +5442,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       while (!break) {
         var f: ConcurrentSHMap.Node[K, V] = null
         var n: Int = 0
-        val i: Int = 0
+        var i: Int = 0
         var fh: Int = 0
         if (tab == null || (({
           n = tab.length; n
         })) == 0) tab = initTable
         else if ((({
-          f = ConcurrentSHMap.tabAt(tab, i = (n - 1) & h); f
+          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & h; i}); f
         })) == null) {
           if (ConcurrentSHMap.casTabAt(tab, i, null, new ConcurrentSHMap.Node[K, V](h, key, value, null))) {
             delta = 1
