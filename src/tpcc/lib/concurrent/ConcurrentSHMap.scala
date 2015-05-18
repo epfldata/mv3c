@@ -535,6 +535,7 @@ object ConcurrentSHMap {
       {
         var tab: Array[ConcurrentSHMap.Node[K, V]] = nextTable
         while (true) {
+          var continue = false
           var e: ConcurrentSHMap.Node[K, V] = null
           var n: Int = 0
           if (k == null || tab == null || (({
@@ -542,8 +543,7 @@ object ConcurrentSHMap {
           })) == 0 || (({
             e = tabAt(tab, (n - 1) & h); e
           })) == null) return null
-          while (true) {
-            var continue = false
+          while (!continue) {
             var eh: Int = 0
             var ek: K = null.asInstanceOf[K]
             if ((({
@@ -5729,7 +5729,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       })) < ConcurrentSHMap.MAXIMUM_CAPACITY)) {
         val rs: Int = ConcurrentSHMap.resizeStamp(n)
         if (sc < 0) {
-          if ((sc >>> ConcurrentSHMap.RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 || sc == rs + ConcurrentSHMap.MAX_RESIZERS || (({
+          if (((sc >>> ConcurrentSHMap.RESIZE_STAMP_SHIFT) != rs) || (sc == rs + 1) || (sc == rs + ConcurrentSHMap.MAX_RESIZERS) || (({
             nt = nextTable; nt
           })) == null || transferIndex <= 0) break = true //todo: break is not supported
           if (!break && ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.SIZECTL, sc, sc + 1)) transfer(tab, nt)
