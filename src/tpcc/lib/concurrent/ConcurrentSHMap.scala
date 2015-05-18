@@ -4177,7 +4177,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    *                                  negative or the load factor or concurrencyLevel are
    *                                  nonpositive
    */
-  def this(inInitialCapacity: Int, loadFactor: Float, concurrencyLevel: Int) {
+  def this(inInitialCapacity: Int, loadFactor: Float, concurrencyLevel: Int = 1) {
     this()
     var initialCapacity: Int = inInitialCapacity
     if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
@@ -4187,14 +4187,22 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     this.sizeCtl = cap
   }
 
-  def this(loadFactor: Float, inInitialCapacity: Int, concurrencyLevel: Int = 1) {
+  //TODO: FIXT IT by adding projs
+  def this(loadFactor: Float, inInitialCapacity: Int, projs:(K,V)=>_ *) {
     this()
+    val concurrencyLevel = 1
     var initialCapacity: Int = inInitialCapacity
     if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
     if (initialCapacity < concurrencyLevel) initialCapacity = concurrencyLevel
     val size: Long = (1.0 + initialCapacity.toLong / loadFactor).toLong
     val cap: Int = if ((size >= MAXIMUM_CAPACITY.toLong)) MAXIMUM_CAPACITY else tableSizeFor(size.toInt)
     this.sizeCtl = cap
+  }
+
+  //TODO: FIXT IT by adding projs
+  def this(projs:(K,V)=>_ *) {
+    this()
+    this.sizeCtl = DEFAULT_CAPACITY
   }
 
   /**
@@ -4259,6 +4267,42 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     }
     null.asInstanceOf[V]
   }
+  def getEntry(key: Any): SEntry[K,V] = {
+    var tab: Array[Node[K, V]] = null
+    var e: Node[K, V] = null
+    var p: Node[K, V] = null
+    var n: Int = 0
+    var eh: Int = 0
+    var ek: K = null.asInstanceOf[K]
+    val h: Int = spread(key.hashCode)
+    if ((({
+      tab = table; tab
+    })) != null && (({
+      n = tab.length; n
+    })) > 0 && (({
+      e = tabAt(tab, (n - 1) & h); e
+    })) != null) {
+      if ((({
+        eh = e.hash; eh
+      })) == h) {
+        if (refEquals((({
+          ek = e.key; ek
+        })), key) || (ek != null && (key == ek))) return e
+      }
+      else if (eh < 0) return if ((({
+        p = e.find(h, key); p
+      })) != null) p
+      else null
+      while ((({
+        e = e.next; e
+      })) != null) {
+        if (e.hash == h && (refEquals((({
+          ek = e.key; ek
+        })), key) || (ek != null && (key == ek)))) return e
+      }
+    }
+    null
+  }
 
   /**
    * Tests if the specified object is a key in this table.
@@ -4318,9 +4362,23 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   override def put(key: K, value: V): V = {
     putVal(key, value, false)
   }
+  def +=(key: K, value: V): V = {
+    putVal(key, value, true)
+  }
+
+  def update(key: K, value: V): V = {
+    //TODO: FIX IT
+    putVal(key, value, false, true)
+  }
+
+  def update(key: K, updateFunc:V=>V): V = {
+    //TODO: FIX IT
+    putVal(key, updateFunc(null.asInstanceOf[V]), false, true)
+  }
 
   /** Implementation for put and putIfAbsent */
-  final def putVal(key: K, value: V, onlyIfAbsent: Boolean): V = {
+  //TODO: FIX IT by using onlyIfPresent correctly
+  final def putVal(key: K, value: V, onlyIfAbsent: Boolean, onlyIfPresent: Boolean = false): V = {
     if (key == null || value == null) throw new NullPointerException
     val hash: Int = spread(key.hashCode)
     var binCount: Int = 0
@@ -4419,6 +4477,9 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @throws NullPointerException if the specified key is null
    */
   override def remove(key: Any): V = {
+    replaceNode(key, null.asInstanceOf[V], null)
+  }
+  def -=(key: Any): V = {
     replaceNode(key, null.asInstanceOf[V], null)
   }
 
