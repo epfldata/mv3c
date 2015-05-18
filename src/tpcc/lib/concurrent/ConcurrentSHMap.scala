@@ -4314,81 +4314,73 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     val hash: Int = ConcurrentSHMap.spread(key.hashCode)
     var binCount: Int = 0
 
-    {
-      var tab: Array[ConcurrentSHMap.Node[K, V]] = table
-      var break = false
-      while (!break) {
-        var f: ConcurrentSHMap.Node[K, V] = null
-        var n: Int = 0
-        val i: Int = 0
-        var fh: Int = 0
-        if (tab == null || (({
-          n = tab.length; n
-        })) == 0) tab = initTable
-        else if ((({
-          f = ConcurrentSHMap.tabAt(tab, i = (n - 1) & hash); f
-        })) == null) {
-          if (ConcurrentSHMap.casTabAt(tab, i, null, new ConcurrentSHMap.Node[K, V](hash, key, value, null))) break = true //todo: break is not supported
+    var tab: Array[ConcurrentSHMap.Node[K, V]] = table
+    var break = false
+    while (!break) {
+      var f: ConcurrentSHMap.Node[K, V] = null
+      var n: Int = 0
+      var i: Int = 0
+      var fh: Int = 0
+      if ((tab == null) || ({n = tab.length; n } == 0)) {
+        tab = initTable
+      } else if ({f = ConcurrentSHMap.tabAt(tab, {i = ((n - 1) & hash); i}); f} == null) {
+        if (ConcurrentSHMap.casTabAt(tab, i, null, new ConcurrentSHMap.Node[K, V](hash, key, value, null))) {
+          break = true //todo: break is not supported
         }
-        else if ((({
-          fh = f.hash; fh
-        })) == ConcurrentSHMap.MOVED) tab = helpTransfer(tab, f)
-        else {
-          var oldVal: V = null.asInstanceOf[V]
-          f synchronized {
-            if (ConcurrentSHMap.tabAt(tab, i) eq f) {
-              if (fh >= 0) {
-                binCount = 1
+      } else if ({fh = f.hash; fh} == ConcurrentSHMap.MOVED) {
+        tab = helpTransfer(tab, f)
+      } else {
+        var oldVal: V = null.asInstanceOf[V]
+        f synchronized {
+          if (ConcurrentSHMap.tabAt(tab, i) eq f) {
+            if (fh >= 0) {
+              binCount = 1
 
-                {
-                  var e: ConcurrentSHMap.Node[K, V] = f
-                  break = false
-                  while (!break) {
-                    {
-                      var ek: K = null.asInstanceOf[K]
-                      if (e.hash == hash && (refEquals((({
-                        ek = e.key; ek
-                      })), key) || (ek != null && (key == ek)))) {
-                        oldVal = e.value
-                        if (!onlyIfAbsent) e.value = value
-                        break = true //todo: break is not supported
-                      }
-                      if(!break) {
-                        val pred: ConcurrentSHMap.Node[K, V] = e
-                        if ((({
-                          e = e.next;
-                          e
-                        })) == null) {
-                          pred.next = new ConcurrentSHMap.Node[K, V](hash, key, value, null)
-                          break = true //todo: break is not supported
-                        }
-                      }
-                    }
-                    if(!break) binCount += 1
+              var e: ConcurrentSHMap.Node[K, V] = f
+              break = false
+              while (!break) {
+                var ek: K = null.asInstanceOf[K]
+                if (e.hash == hash && (refEquals({ek = e.key; ek}, key) || ((ek != null) && (key == ek)))) {
+                  oldVal = e.value
+                  if (!onlyIfAbsent) {
+                    e.value = value
                   }
-                  break = false
+                  break = true //todo: break is not supported
+                }
+                if(!break) {
+                  val pred: ConcurrentSHMap.Node[K, V] = e
+                  if ({e = e.next; e} == null) {
+                    pred.next = new ConcurrentSHMap.Node[K, V](hash, key, value, null)
+                    break = true //todo: break is not supported
+                  }
+                  binCount += 1
                 }
               }
-              else if (f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) {
-                var p: ConcurrentSHMap.Node[K, V] = null
-                binCount = 2
-                if ((({
-                  p = (f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]).putTreeVal(hash, key, value); p
-                })) != null) {
-                  oldVal = p.value
-                  if (!onlyIfAbsent) p.value = value
+              break = false
+            } else if (f.isInstanceOf[ConcurrentSHMap.TreeBin[_, _]]) {
+              var p: ConcurrentSHMap.Node[K, V] = null
+              binCount = 2
+              if ({p = (f.asInstanceOf[ConcurrentSHMap.TreeBin[K, V]]).putTreeVal(hash, key, value); p} != null) {
+                oldVal = p.value
+                if (!onlyIfAbsent) {
+                  p.value = value
                 }
               }
             }
           }
-          if (binCount != 0) {
-            if (binCount >= ConcurrentSHMap.TREEIFY_THRESHOLD) treeifyBin(tab, i)
-            if (oldVal != null) return oldVal
-            break = true //todo: break is not supported
+        }
+        if (binCount != 0) {
+          if (binCount >= ConcurrentSHMap.TREEIFY_THRESHOLD) {
+            treeifyBin(tab, i)
           }
+          if (oldVal != null) {
+            return oldVal
+          }
+          break = true //todo: break is not supported
         }
       }
     }
+    
     addCount(1L, binCount)
     return null.asInstanceOf[V]
   }
