@@ -4074,7 +4074,7 @@ object ConcurrentSHMap {
  * Creates a new, empty map with the default initial table size (16).
  */
 //TODO: FIXT IT by adding projs
-class ConcurrentSHMap[K, V](projs:Seq[(K,V)=>_]) extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable {
+class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable {
   /**
    * The array of bins. Lazily initialized upon first insertion.
    * Size is always a power of two. Accessed directly by iterators.
@@ -4133,7 +4133,7 @@ class ConcurrentSHMap[K, V](projs:Seq[(K,V)=>_]) extends AbstractMap[K, V] with 
   private var entrySetVar: EntrySetView[K, V] = null
 
   def this() {
-    this(List())
+    this(List():_*)
     this.sizeCtl = DEFAULT_CAPACITY
   }
   /**
@@ -4194,7 +4194,7 @@ class ConcurrentSHMap[K, V](projs:Seq[(K,V)=>_]) extends AbstractMap[K, V] with 
 
   //TODO: FIXT IT by adding projs
   def this(loadFactor: Float, inInitialCapacity: Int, projs:(K,V)=>_ *) {
-    this(projs)
+    this(projs:_*)
     val concurrencyLevel = 1
     var initialCapacity: Int = inInitialCapacity
     if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
@@ -4231,6 +4231,42 @@ class ConcurrentSHMap[K, V](projs:Seq[(K,V)=>_]) extends AbstractMap[K, V] with 
    * @throws NullPointerException if the specified key is null
    */
   override def get(key: Any): V = {
+    var tab: Array[Node[K, V]] = null
+    var e: Node[K, V] = null
+    var p: Node[K, V] = null
+    var n: Int = 0
+    var eh: Int = 0
+    var ek: K = null.asInstanceOf[K]
+    val h: Int = spread(key.hashCode)
+    if ((({
+      tab = table; tab
+    })) != null && (({
+      n = tab.length; n
+    })) > 0 && (({
+      e = tabAt(tab, (n - 1) & h); e
+    })) != null) {
+      if ((({
+        eh = e.hash; eh
+      })) == h) {
+        if (refEquals((({
+          ek = e.key; ek
+        })), key) || (ek != null && (key == ek))) return e.value
+      }
+      else if (eh < 0) return if ((({
+        p = e.find(h, key); p
+      })) != null) p.value
+      else null.asInstanceOf[V]
+      while ((({
+        e = e.next; e
+      })) != null) {
+        if (e.hash == h && (refEquals((({
+          ek = e.key; ek
+        })), key) || (ek != null && (key == ek)))) return e.value
+      }
+    }
+    null.asInstanceOf[V]
+  }
+  def apply(key: Any): V = {
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -6793,5 +6829,17 @@ class ConcurrentSHMap[K, V](projs:Seq[(K,V)=>_]) extends AbstractMap[K, V] with 
   def reduceEntriesToInt(parallelismThreshold: Long, transformer: ToIntFunction[Map.Entry[K, V]], basis: Int, reducer: IntBinaryOperator): Int = {
     if (transformer == null || reducer == null) throw new NullPointerException
     new MapReduceEntriesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
+  }
+
+  val idxs:List[ConcurrentSHIndex[_,K,V]] = {
+    def idx[P](f:(K,V)=>P, lf:Float, initC:Int) = new ConcurrentSHIndex[P,K,V](f,lf,initC)
+    //TODO: pass the correct capacity and load factor if necessary
+    // projs.zip(lfInitIndex).toList.map{case (p, (lf, initC)) => idx(p , lf, initC)}
+    projs.map{ p => idx(p , LOAD_FACTOR, DEFAULT_CAPACITY)}.toList
+  }
+
+  def slice[P](part:Int, partKey:P):ConcurrentSHIndexEntry[K,V] = {
+    val ix=idxs(part)
+    ix.asInstanceOf[ConcurrentSHIndex[P,K,V]].slice(partKey) // type information P is erased anyway
   }
 }
