@@ -2331,32 +2331,28 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachKeyTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Consumer[_ >: K]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachKeyTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: K => Unit) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
-      val action: Consumer[_ >: K] = this.action
+      val action = this.action
       if ((({
         action
       })) != null) {
-        {
-          val i: Int = baseIndex
-          var f: Int = 0
-          var h: Int = 0
-          while (batch > 0 && (({
-            h = ((({
-              f = baseLimit; f
-            })) + i) >>> 1; h
-          })) > i) {
-            addToPendingCount(1)
-            new ForEachKeyTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
-          }
+        val i: Int = baseIndex
+        var f: Int = 0
+        var h: Int = 0
+        while (batch > 0 && (({
+          h = ((({
+            f = baseLimit; f
+          })) + i) >>> 1; h
+        })) > i) {
+          addToPendingCount(1)
+          new ForEachKeyTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
         }
-        {
-          var p: Node[K, V] = null
-          while ((({
-            p = advance; p
-          })) != null) action.accept(p.key)
-        }
+        var p: Node[K, V] = null
+        while ((({
+          p = advance; p
+        })) != null) action(p.key)
         propagateCompletion
       }
     }
@@ -2393,32 +2389,28 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachEntryTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Consumer[_ >: Map.Entry[K, V]]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachEntryTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Map.Entry[K, V] => Unit) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
-      val action: Consumer[_ >: Map.Entry[K, V]] = this.action
+      val action = this.action
       if ((({
         action
       })) != null) {
-        {
-          val i: Int = baseIndex
-          var f: Int = 0
-          var h: Int = 0
-          while (batch > 0 && (({
-            h = ((({
-              f = baseLimit; f
-            })) + i) >>> 1; h
-          })) > i) {
-            addToPendingCount(1)
-            new ForEachEntryTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
-          }
+        val i: Int = baseIndex
+        var f: Int = 0
+        var h: Int = 0
+        while (batch > 0 && (({
+          h = ((({
+            f = baseLimit; f
+          })) + i) >>> 1; h
+        })) > i) {
+          addToPendingCount(1)
+          new ForEachEntryTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
         }
-        {
-          var p: Node[K, V] = null
-          while ((({
-            p = advance; p
-          })) != null) action.accept(p)
-        }
+        var p: Node[K, V] = null
+        while ((({
+          p = advance; p
+        })) != null) action(p)
         propagateCompletion
       }
     }
@@ -6284,7 +6276,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @param action the action
    * @since 1.8
    */
-  def forEachKey(parallelismThreshold: Long, action: Consumer[_ >: K]) {
+  def forEachKey(parallelismThreshold: Long, action: K => Unit) {
     if (action == null) throw new NullPointerException
     new ForEachKeyTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
   }
@@ -6581,7 +6573,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @param action the action
    * @since 1.8
    */
-  def forEachEntry(parallelismThreshold: Long, action: Consumer[_ >: Map.Entry[K, V]]) {
+  def forEachEntry(parallelismThreshold: Long, action: Map.Entry[K, V] => Unit) {
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
   }
