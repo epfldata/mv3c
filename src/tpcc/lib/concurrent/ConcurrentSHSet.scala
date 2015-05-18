@@ -8,8 +8,6 @@ object SHSet {
    * Default value for inner ConcurrentSHMap in SHSet
    */
   val DEFAULT_PRESENT_VALUE: Boolean = true
-
-  val PARALLELISM_THRESHOLD = Long.MaxValue
 }
 
 class SHSet[K] {
@@ -116,19 +114,19 @@ class SHSet[K] {
   // }
 
   @inline
-  final def foreach(f: K => Unit): Unit = map.forEachKey(PARALLELISM_THRESHOLD, f)
+  final def foreach(f: K => Unit): Unit = map.foreachKey(f)
 
   @inline
-  final def foreachEntry(f: Map.Entry[K, Boolean] => Unit): Unit = map.forEachEntry(PARALLELISM_THRESHOLD, f)
+  final def foreachEntry(f: Map.Entry[K, Boolean] => Unit): Unit = map.foreachEntry(f)
 
   override def toString: String = {
     var res = new StringBuilder("[")
     var first = true
-    map.forEachEntry(PARALLELISM_THRESHOLD,{ e =>
+    map.foreachEntry{ e =>
       if(first) first = false
       else res.append(", ")
       res.append(e.getKey.toString)
-    })
+    }
     res.append("]")
     res.toString
   }

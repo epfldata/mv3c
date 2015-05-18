@@ -231,6 +231,7 @@ import ConcurrentSHMap._
  * @param <V> the type of mapped values
  */
 object ConcurrentSHMap {
+  val ONE_THREAD_NO_PARALLELISM = Long.MaxValue
   /**
    * The largest possible table capacity.  This value must be
    * exactly 1<<30 to stay within Java array allocation and indexing
@@ -2416,32 +2417,28 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachMappingTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: BiConsumer[_ >: K, _ >: V]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachMappingTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: (K,V) => Unit) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
-      val action: BiConsumer[_ >: K, _ >: V] = this.action
+      val action = this.action
       if ((({
         action
       })) != null) {
-        {
-          val i: Int = baseIndex
-          var f: Int = 0
-          var h: Int = 0
-          while (batch > 0 && (({
-            h = ((({
-              f = baseLimit; f
-            })) + i) >>> 1; h
-          })) > i) {
-            addToPendingCount(1)
-            new ForEachMappingTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
-          }
+        val i: Int = baseIndex
+        var f: Int = 0
+        var h: Int = 0
+        while (batch > 0 && (({
+          h = ((({
+            f = baseLimit; f
+          })) + i) >>> 1; h
+        })) > i) {
+          addToPendingCount(1)
+          new ForEachMappingTask[K, V](this, {batch >>>= 1; batch}, {baseLimit = h; baseLimit}, f, tab, action).fork
         }
-        {
-          var p: Node[K, V] = null
-          while ((({
-            p = advance; p
-          })) != null) action.accept(p.key, p.value)
-        }
+        var p: Node[K, V] = null
+        while ((({
+          p = advance; p
+        })) != null) action(p.key, p.value)
         propagateCompletion
       }
     }
@@ -6143,9 +6140,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
    * @param action the action
    * @since 1.8
    */
-  def forEach(parallelismThreshold: Long, action: BiConsumer[_ >: K, _ >: V]) {
+  def forEach(parallelismThreshold: Long, action: (K,V) => Unit) {
     if (action == null) throw new NullPointerException
     new ForEachMappingTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
+  }
+  def foreach(action: (K,V) => Unit) {
+    if (action == null) throw new NullPointerException
+    new ForEachMappingTask[K, V](null, batchFor(ONE_THREAD_NO_PARALLELISM), 0, 0, table, action).invoke
   }
 
   /**
@@ -6279,6 +6280,10 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   def forEachKey(parallelismThreshold: Long, action: K => Unit) {
     if (action == null) throw new NullPointerException
     new ForEachKeyTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
+  }
+  def foreachKey(action: K => Unit) {
+    if (action == null) throw new NullPointerException
+    new ForEachKeyTask[K, V](null, batchFor(ONE_THREAD_NO_PARALLELISM), 0, 0, table, action).invoke
   }
 
   /**
@@ -6576,6 +6581,11 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
   def forEachEntry(parallelismThreshold: Long, action: Map.Entry[K, V] => Unit) {
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
+  }
+
+  def foreachEntry(action: Map.Entry[K, V] => Unit) {
+    if (action == null) throw new NullPointerException
+    new ForEachEntryTask[K, V](null, batchFor(ONE_THREAD_NO_PARALLELISM), 0, 0, table, action).invoke
   }
 
   /**
