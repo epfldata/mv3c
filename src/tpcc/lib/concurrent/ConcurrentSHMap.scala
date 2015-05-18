@@ -31,6 +31,9 @@ import java.util.function.ToIntFunction
 import java.util.function.ToLongBiFunction
 import java.util.function.ToLongFunction
 import java.util.stream.Stream
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountedCompleter;
+import java.util.concurrent.ForkJoinPool;
 
 import sun.misc.Unsafe
 
@@ -964,7 +967,7 @@ object ConcurrentSHMap {
       return true
     }
 
-    private val U: Unsafe = sun.misc.Unsafe.getUnsafe
+    private val U: Unsafe = MyThreadLocalRandom.getUnsafe
     val k: Class[_] = classOf[ConcurrentSHMap.TreeBin[_, _]]
     private val LOCKSTATE: Long = U.objectFieldOffset(k.getDeclaredField("lockState"))
   }
@@ -4052,7 +4055,7 @@ object ConcurrentSHMap {
     }
   }
 
-  private val U: Unsafe = sun.misc.Unsafe.getUnsafe
+  private val U: Unsafe = MyThreadLocalRandom.getUnsafe
   val k: Class[_] = classOf[ConcurrentSHMap[_, _]]
   private val SIZECTL: Long = U.objectFieldOffset(k.getDeclaredField("sizeCtl"))
   private val TRANSFERINDEX: Long = U.objectFieldOffset(k.getDeclaredField("transferIndex"))
@@ -5677,7 +5680,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       if (as == null || (({
         m = as.length - 1; m
       })) < 0 || (({
-        a = as(ThreadLocalRandom.getProbe & m); a
+        a = as(MyThreadLocalRandom.getProbe & m); a
       })) == null || !(({
         uncontended = ConcurrentSHMap.U.compareAndSwapLong(a, ConcurrentSHMap.CELLVALUE, {v = a.value; v}, v + x); uncontended
       }))) {
@@ -5982,10 +5985,10 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     var wasUncontended: Boolean = inWasUncontended
     var h: Int = 0
     if ((({
-      h = ThreadLocalRandom.getProbe; h
+      h = MyThreadLocalRandom.getProbe; h
     })) == 0) {
-      ThreadLocalRandom.localInit
-      h = ThreadLocalRandom.getProbe
+      MyThreadLocalRandom.localInit
+      h = MyThreadLocalRandom.getProbe
       wasUncontended = true
     }
     var collide: Boolean = false
@@ -6057,7 +6060,7 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
           collide = false
           continue = true //todo: continue is not supported
         }
-        if(!break && !continue) h = ThreadLocalRandom.advanceProbe(h)
+        if(!break && !continue) h = MyThreadLocalRandom.advanceProbe(h)
       }
       else if ((cellsBusy == 0) && (counterCells eq as) && ConcurrentSHMap.U.compareAndSwapInt(this, ConcurrentSHMap.CELLSBUSY, 0, 1)) {
         var init: Boolean = false
