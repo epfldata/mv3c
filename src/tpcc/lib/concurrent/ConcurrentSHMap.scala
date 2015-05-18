@@ -4425,12 +4425,12 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       while (!break) {
         var f: ConcurrentSHMap.Node[K, V] = null
         var n: Int = 0
-        val i: Int = 0
+        var i: Int = 0
         var fh: Int = 0
         if (tab == null || (({
           n = tab.length; n
         })) == 0 || (({
-          f = ConcurrentSHMap.tabAt(tab, i = (n - 1) & hash); f
+          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & hash; i}); f
         })) == null) break = true //todo: break is not supported
         else if ((({
           fh = f.hash; fh
@@ -5186,13 +5186,13 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
       while (!break) {
         var f: ConcurrentSHMap.Node[K, V] = null
         var n: Int = 0
-        val i: Int = 0
+        var i: Int = 0
         var fh: Int = 0
         if (tab == null || (({
           n = tab.length; n
         })) == 0) tab = initTable
         else if ((({
-          f = ConcurrentSHMap.tabAt(tab, i = (n - 1) & h); f
+          f = ConcurrentSHMap.tabAt(tab, {i = (n - 1) & h; i}); f
         })) == null) break = true //todo: break is not supported
         else if ((({
           fh = f.hash; fh
