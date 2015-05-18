@@ -15,7 +15,7 @@ class SIndexMVCCEntry[K,V <: Product] {
 
   def foreach(f: ((K, V)) => Unit)(implicit xact:Transaction): Unit = s.foreach(e => f(e.key, e.getValueImage))
 
-  def foreachEntry(f: ddbt.tpcc.lib.shm.SEntry[SEntryMVCC[K,V], Boolean] => Unit)(implicit xact:Transaction): Unit = s.foreachEntry(e => f(e))
+  def foreachEntry(f: java.util.Map.Entry[SEntryMVCC[K,V], Boolean] => Unit)(implicit xact:Transaction): Unit = s.foreachEntry(e => f(e))
 }
 
 class SIndexMVCC[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Float, initialCapacity: Int) {

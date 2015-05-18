@@ -106,7 +106,7 @@ class SHSet[K] {
 
   def foreach(f: K => Unit): Unit = map.foreachEntry(e => f(e.key))
 
-  def foreachEntry(f: SEntry[K, Boolean] => Unit): Unit = map.foreachEntry(e => f(e))
+  def foreachEntry(f: java.util.Map.Entry[K, Boolean] => Unit): Unit = map.foreachEntry(e => f(e))
 
   override def toString: String = {
     var res = new StringBuilder("[")

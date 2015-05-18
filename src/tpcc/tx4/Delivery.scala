@@ -122,7 +122,7 @@ class Delivery extends InMemoryTxImpl with IDeliveryInMem {
     def updateOrderLineDeliveryDateAndFindOrderLineTotalAmount(ol_w_id_input:Int, ol_d_id_input:Int, ol_o_id_input:Int, ol_delivery_d_input:Date):Float = {
       var ol_total = 0f
       SharedData.orderLineTbl.slice(0, (ol_o_id_input, ol_d_id_input, ol_w_id_input)).foreachEntry { cv => 
-        val k = cv.key
+        val k = cv.getKey
         k.value = k.value.copy(_3 = Some(ol_delivery_d_input))
         ol_total += k.value._5
       }

@@ -47,7 +47,7 @@ object SHMap {
   final val DEFAULT_LOAD_FACTOR: Float = 0.75f
 }
 
-class SEntry[K,V](var hash: Int, var key: K, var value: V, var next: SEntry[K, V]) { self =>
+class SEntry[K,V](var hash: Int, var key: K, var value: V, var next: SEntry[K, V]) extends java.util.Map.Entry[K,V] { self =>
 
   def this() {
     this(0,null.asInstanceOf[K],null.asInstanceOf[V],null.asInstanceOf[SEntry[K, V]])

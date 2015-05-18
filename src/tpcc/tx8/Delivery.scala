@@ -123,7 +123,7 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV1 with IDeliveryInMem {
     def updateOrderLineDeliveryDateAndFindOrderLineTotalAmount(ol_w_id_input:Int, ol_d_id_input:Int, ol_o_id_input:Int, ol_delivery_d_input:Date)(implicit xact:Transaction):Float = {
       var ol_total = 0f
       ISharedData.orderLineTblSliceEntry(0, (ol_o_id_input, ol_d_id_input, ol_w_id_input), { cv => 
-        val k = cv.key
+        val k = cv.getKey
         val v = k.getValue
         val vi = v.getImage
         ol_total += vi._5

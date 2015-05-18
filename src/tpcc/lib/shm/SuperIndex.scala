@@ -11,7 +11,7 @@ class SIndexEntry[K,V] {
 
   def foreach(f: ((K, V)) => Unit): Unit = s.foreach(e => f(e.key, e.value))
 
-  def foreachEntry(f: SEntry[SEntry[K,V], Boolean] => Unit): Unit = s.foreachEntry(e => f(e))
+  def foreachEntry(f: java.util.Map.Entry[SEntry[K,V], Boolean] => Unit): Unit = s.foreachEntry(e => f(e))
 }
 
 class SIndex[P,K,V](val proj:(K,V)=>P, loadFactor: Float, initialCapacity: Int) {

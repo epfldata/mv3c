@@ -171,7 +171,7 @@ class MVCCTpccTableV0 extends TpccTable(7) {
     /*Func*/ def orderLineTblSlice[P](part:Int, partKey:P, f: (((Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String))) => Unit)(implicit xact:Transaction) = {
 		orderLineTbl.slice(0, partKey).foreach(f)
     }
-    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: ddbt.tpcc.lib.shm.SEntry[SEntry[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)], Boolean] => Unit)(implicit xact:Transaction) = {
+    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: java.util.Map.Entry[SEntry[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)], Boolean] => Unit)(implicit xact:Transaction) = {
 		orderLineTbl.slice(0, partKey).foreachEntry(f)
     }
 
