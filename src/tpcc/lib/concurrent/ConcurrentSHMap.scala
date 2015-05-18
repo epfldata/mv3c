@@ -4280,8 +4280,10 @@ class ConcurrentSHMap[K, V] extends AbstractMap[K, V] with ConcurrentMap[K, V] w
     if (t != null) {
       val it: ConcurrentSHMap.Traverser[K, V] = new ConcurrentSHMap.Traverser[K, V](t, t.length, 0, t.length)
 
-      val p: ConcurrentSHMap.Node[K, V] = it.advance
-      while (p != null) {
+      var p: ConcurrentSHMap.Node[K, V] = null
+      while ((({
+        p = it.advance; p
+      })) != null) {
         val v: V = p.value
         if (refEquals(v, value) || ((v != null) && (value == v))) {
           return true
