@@ -68,6 +68,15 @@ addCommandAlias("unit5", ";unit 5") ++
 addCommandAlias("unit6", ";unit 6") ++
 addCommandAlias("unit7", ";unit 7")
 
+addCommandAlias("testmap1", ";test:run-main ddbt.tpcc.lib.concurrent.DistinctEntrySetElements") ++
+addCommandAlias("testmap2", ";test:run-main ddbt.tpcc.lib.concurrent.DistinctEntrySetElements2") ++
+addCommandAlias("testmap3", ";test:run-main org.testng.TestNG -testclass ddbt.tpcc.lib.concurrent.ConcurrentContainsKeyTest") ++
+addCommandAlias("testmap4", ";test:run-main org.testng.TestNG -testclass ddbt.tpcc.lib.concurrent.ConcurrentAssociateTest") ++
+addCommandAlias("testmap5", ";test:run-main ddbt.tpcc.lib.concurrent.MapCheck") ++
+addCommandAlias("testmap6", ";test:run-main ddbt.tpcc.lib.concurrent.MapLoops") ++
+addCommandAlias("testmap7", ";test:run-main ddbt.tpcc.lib.concurrent.ToArray") ++
+addCommandAlias("testmap", ";testmap1;testmap2;testmap3;testmap4;testmap5;testmap6;testmap7")
+
 // --------- LMS codegen, enabled with ddbt.lms = 1 in conf/config.properties
 {
   val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/config.properties")) } catch { case _:Throwable => }
