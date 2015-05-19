@@ -346,8 +346,10 @@ object ConcurrentSHMap {
       key + "=" + value
     }
 
-    final def setValue(value: V): V = {
-      throw new UnsupportedOperationException
+    final def setValue(v: V): V = {
+      //throw new UnsupportedOperationException
+      val v: V = value
+      v
     }
 
     final override def equals(o: Any): Boolean = {
@@ -4073,7 +4075,6 @@ object ConcurrentSHMap {
 /**
  * Creates a new, empty map with the default initial table size (16).
  */
-//TODO: FIXT IT by adding projs
 class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable {
   /**
    * The array of bins. Lazily initialized upon first insertion.
@@ -4192,7 +4193,6 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
     this.sizeCtl = cap
   }
 
-  //TODO: FIXT IT by adding projs
   def this(loadFactor: Float, inInitialCapacity: Int, projs:(K,V)=>_ *) {
     this(projs:_*)
     val concurrencyLevel = 1
@@ -4402,18 +4402,19 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
   }
 
   def update(key: K, value: V): V = {
-    //TODO: FIX IT
-    putVal(key, value, false, true)
+    putVal(key, value, false)
   }
 
   def update(key: K, updateFunc:V=>V): V = {
     //TODO: FIX IT
-    putVal(key, updateFunc(null.asInstanceOf[V]), false, true)
+    putVal(key, updateFunc(get(key)), false)
   }
 
   /** Implementation for put and putIfAbsent */
-  //TODO: FIX IT by using onlyIfPresent correctly
-  final def putVal(key: K, value: V, onlyIfAbsent: Boolean, onlyIfPresent: Boolean = false): V = {
+  final def putVal(key: K, value: V, onlyIfAbsent: Boolean): V = {
+    var oldVal = null.asInstanceOf[V]
+    var entry = null.asInstanceOf[Node[K, V]]
+
     if (key == null || value == null) throw new NullPointerException
     val hash: Int = spread(key.hashCode)
     var binCount: Int = 0
@@ -4428,13 +4429,13 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
       if ((tab == null) || ({n = tab.length; n } == 0)) {
         tab = initTable
       } else if ({f = tabAt(tab, {i = ((n - 1) & hash); i}); f} == null) {
-        if (casTabAt(tab, i, null, new Node[K, V](hash, key, value, null))) {
+        entry = new Node[K, V](hash, key, value, null)
+        if (casTabAt(tab, i, null, entry)) {
           break = true //todo: break is not supported
         }
       } else if ({fh = f.hash; fh} == MOVED) {
         tab = helpTransfer(tab, f)
       } else {
-        var oldVal: V = null.asInstanceOf[V]
         f synchronized {
           if (tabAt(tab, i) eq f) {
             if (fh >= 0) {
@@ -4446,6 +4447,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
                 var ek: K = null.asInstanceOf[K]
                 if (e.hash == hash && (refEquals({ek = e.key; ek}, key) || ((ek != null) && (key == ek)))) {
                   oldVal = e.value
+                  entry = e
                   if (!onlyIfAbsent) {
                     e.value = value
                   }
@@ -4454,10 +4456,11 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
                 if(!break) {
                   val pred: Node[K, V] = e
                   if ({e = e.next; e} == null) {
-                    pred.next = new Node[K, V](hash, key, value, null)
+                    entry = new Node[K, V](hash, key, value, null)
+                    pred.next = entry
                     break = true //todo: break is not supported
                   }
-                  binCount += 1
+                  if(!break) binCount += 1
                 }
               }
               break = false
@@ -4466,6 +4469,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
               binCount = 2
               if ({p = (f.asInstanceOf[TreeBin[K, V]]).putTreeVal(hash, key, value); p} != null) {
                 oldVal = p.value
+                entry = p
                 if (!onlyIfAbsent) {
                   p.value = value
                 }
@@ -4477,16 +4481,29 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
           if (binCount >= TREEIFY_THRESHOLD) {
             treeifyBin(tab, i)
           }
-          if (oldVal != null) {
-            return oldVal
-          }
           break = true //todo: break is not supported
         }
       }
     }
     
     addCount(1L, binCount)
-    null.asInstanceOf[V]
+
+    if (idxs != Nil) {
+      idxs.foreach{ idx => 
+        if(oldVal == null){
+          idx.set(entry)
+        } else {
+          val pOld = idx.proj(key,oldVal)
+          val pNew = idx.proj(key,value)
+          if(pNew != pOld) {
+            idx.del(entry, oldVal)
+            idx.set(entry)
+          }
+        }
+      }
+    }
+
+    oldVal
   }
 
   /**
@@ -4565,6 +4582,8 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
                         if (value != null) e.value = value
                         else if (pred != null) pred.next = e.next
                         else setTabAt(tab, i, e.next)
+
+                        if (idxs!=Nil) idxs.foreach(_.del(e))
                       }
                       break = true //todo: break is not supported
                     }
@@ -4594,6 +4613,8 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
                     oldVal = pv
                     if (value != null) p.value = value
                     else if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
+
+                    if (idxs!=Nil) idxs.foreach(_.del(p))
                   }
                 }
               }
@@ -4647,6 +4668,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
       }
     }
     if (delta != 0L) addCount(delta, -1)
+    if (idxs!=Nil) idxs.foreach(_.clear)
   }
 
   /**
@@ -6835,7 +6857,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
     def idx[P](f:(K,V)=>P, lf:Float, initC:Int) = new ConcurrentSHIndex[P,K,V](f,lf,initC)
     //TODO: pass the correct capacity and load factor if necessary
     // projs.zip(lfInitIndex).toList.map{case (p, (lf, initC)) => idx(p , lf, initC)}
-    projs.map{ p => idx(p , LOAD_FACTOR, DEFAULT_CAPACITY)}.toList
+    projs.toList.map{ p => idx(p , LOAD_FACTOR, DEFAULT_CAPACITY)}
   }
 
   def slice[P](part:Int, partKey:P):ConcurrentSHIndexEntry[K,V] = {
