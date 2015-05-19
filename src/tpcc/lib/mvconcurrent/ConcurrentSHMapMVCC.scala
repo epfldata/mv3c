@@ -409,7 +409,7 @@ object ConcurrentSHMapMVCC {
     /**
      * Virtualized support for map.get(); overridden in subclasses.
      */
-    def find(h: Int, k: Any): Node[K, V] = {
+    def find(h: Int, k: K): Node[K, V] = {
       var e: Node[K, V] = this
       if (k != null) {
         do {
@@ -556,7 +556,7 @@ object ConcurrentSHMapMVCC {
    */
   final class ForwardingNode[K, V <: Product](val nextTable: Array[Node[K, V]]) extends Node[K, V](MOVED, null.asInstanceOf[K], null, null) {
 
-    override def find(h: Int, k: Any): Node[K, V] = {
+    override def find(h: Int, k: K): Node[K, V] = {
       {
         var tab: Array[Node[K, V]] = nextTable
         while (true) {
@@ -600,7 +600,7 @@ object ConcurrentSHMapMVCC {
    * A place-holder node used in computeIfAbsent and compute
    */
   final class ReservationNode[K, V <: Product] extends Node[K, V](RESERVED, null.asInstanceOf[K], null, null) {
-    override def find(h: Int, k: Any): Node[K, V] = null
+    override def find(h: Int, k: K): Node[K, V] = null
   }
 
   /**
@@ -662,7 +662,7 @@ object ConcurrentSHMapMVCC {
     var prev: TreeNode[K, V] = null
     var red: Boolean = false
 
-    override def find(h: Int, k: Any): Node[K, V] = {
+    override def find(h: Int, k: K): Node[K, V] = {
       findTreeNode(h, k, null)
     }
 
@@ -1121,7 +1121,7 @@ object ConcurrentSHMapMVCC {
      * using tree comparisons from root, but continues linear
      * search when lock not available.
      */
-    final override def find(h: Int, k: Any): Node[K, V] = {
+    final override def find(h: Int, k: K): Node[K, V] = {
       if (k != null) {
         {
           var e: Node[K, V] = first
@@ -4285,7 +4285,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractM
    *
    * @throws NullPointerException if the specified key is null
    */
-  def get(key: Any)(implicit xact:Transaction): V = {
+  def get(key: K)(implicit xact:Transaction): V = {
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -4321,7 +4321,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractM
     }
     null.asInstanceOf[V]
   }
-  def apply(key: Any)(implicit xact:Transaction): V = {
+  def apply(key: K)(implicit xact:Transaction): V = {
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -4357,7 +4357,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractM
     }
     null.asInstanceOf[V]
   }
-  def getEntry(key: Any)(implicit xact:Transaction): DeltaVersion[K,V] = {
+  def getEntry(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
