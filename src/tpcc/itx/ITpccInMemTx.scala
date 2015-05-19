@@ -57,6 +57,15 @@ trait InMemoryTxImplViaMVCCTpccTableV2 extends InMemoryTxImpl {
 	}
 }
 
+trait InMemoryTxImplViaMVCCTpccTableV3 extends InMemoryTxImpl {
+	var ISharedData:MVCCTpccTableV3 = null
+
+	override def setSharedData(db:AnyRef) = {
+		ISharedData = db.asInstanceOf[MVCCTpccTableV3]
+		this
+	}
+}
+
 trait INewOrderInMem extends INewOrder with IInMemoryTx
 trait IPaymentInMem extends IPayment with IInMemoryTx
 trait IOrderStatusInMem extends IOrderStatus with IInMemoryTx

@@ -36,7 +36,10 @@ import java.util.concurrent.CountedCompleter;
 import java.util.concurrent.ForkJoinPool;
 import ddbt.tpcc.lib.util.Comp._
 import sun.misc.Unsafe
-import ConcurrentSHMap._
+import ddbt.tpcc.lib.concurrent.MyThreadLocalRandom
+import ConcurrentSHMapMVCC._
+import ddbt.tpcc.tx._
+import MVCCTpccTableV3._
 
 /**
  * A hash table supporting full concurrency of retrievals and
@@ -93,17 +96,17 @@ import ConcurrentSHMap._
  * hash table. To ameliorate impact, when keys are {@link Comparable},
  * this class may use comparison order among keys to help break ties.
  *
- * <p>A {@link Set} projection of a ConcurrentSHMap may be created
+ * <p>A {@link Set} projection of a ConcurrentSHMapMVCC may be created
  * (using {@link #newKeySet()} or {@link #newKeySet(int)}), or viewed
  * (using {@link #keySet(Object)} when only keys are of interest, and the
  * mapped values are (perhaps transiently) not used or all take the
  * same mapping value.
  *
- * <p>A ConcurrentSHMap can be used as scalable frequency map (a
+ * <p>A ConcurrentSHMapMVCC can be used as scalable frequency map (a
  * form of histogram or multiset) by using {@link
  * java.util.concurrent.atomic.LongAdder} values and initializing via
  * {@link #computeIfAbsent computeIfAbsent}. For example, to add a count
- * to a {@code ConcurrentSHMap<String,LongAdder> freqs}, you can use
+ * to a {@code ConcurrentSHMapMVCC<String,LongAdder> freqs}, you can use
  * {@code freqs.computeIfAbsent(k -> new LongAdder()).increment();}
  *
  * <p>This class and its views and iterators implement all of the
@@ -113,14 +116,14 @@ import ConcurrentSHMap._
  * <p>Like {@link Hashtable} but unlike {@link HashMap}, this class
  * does <em>not</em> allow {@code null} to be used as a key or value.
  *
- * <p>ConcurrentSHMaps support a set of sequential and parallel bulk
+ * <p>ConcurrentSHMapMVCCs support a set of sequential and parallel bulk
  * operations that, unlike most {@link Stream} methods, are designed
  * to be safely, and often sensibly, applied even with maps that are
  * being concurrently updated by other threads; for example, when
  * computing a snapshot summary of the values in a shared registry.
  * There are three kinds of operation, each with four forms, accepting
  * functions with Keys, Values, Entries, and (Key, Value) arguments
- * and/or return values. Because the elements of a ConcurrentSHMap
+ * and/or return values. Because the elements of a ConcurrentSHMapMVCC
  * are not ordered in any particular way, and may be processed in
  * different orders in different parallel executions, the correctness
  * of supplied functions should not depend on any ordering, or on any
@@ -170,7 +173,7 @@ import ConcurrentSHMap._
  * values that trade off overhead versus throughput.
  *
  * <p>The concurrency properties of bulk operations follow
- * from those of ConcurrentSHMap: Any non-null result returned
+ * from those of ConcurrentSHMapMVCC: Any non-null result returned
  * from {@code get(key)} and related access methods bears a
  * happens-before relation with the associated insertion or
  * update.  The result of any bulk operation reflects the
@@ -230,8 +233,15 @@ import ConcurrentSHMap._
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
  */
-object ConcurrentSHMap {
-  type SEntry[K,V] = Node[K,V]
+object ConcurrentSHMapMVCC {
+  type SEntryMVCC[K,V <: Product] = Node[K,V]
+  
+  type Operation = Int
+  val INSERT_OP:Operation = 1
+  val DELETE_OP:Operation = 2
+  val UPDATE_OP:Operation = 3
+
+  val NO_TRANSACTION_AVAILABLE = null
 
   val ONE_THREAD_NO_PARALLELISM = Long.MaxValue
   /**
@@ -320,6 +330,16 @@ object ConcurrentSHMap {
   /** For serialization compatibility. */
   private val serialPersistentFields: Array[ObjectStreamField] = Array(new ObjectStreamField("segments", classOf[Array[Segment[_, _]]]), new ObjectStreamField("segmentMask", Integer.TYPE), new ObjectStreamField("segmentShift", Integer.TYPE))
 
+  final case class DeltaVersion[K,V <: Product](val xact:Transaction, val entry:SEntryMVCC[K,V], var img:V, var colIds:List[Int]=Nil /*all columns*/, var op: Operation=INSERT_OP, var next: DeltaVersion[K,V]=null, var prev: DeltaVersion[K,V]=null) {
+    @inline
+    final def getImage: V = img
+
+    @inline
+    final def setEntryValue(newValue: V)(implicit xact:Transaction): V = {
+      entry.setTheValue(newValue)
+    }
+  }
+
   /**
    * Key-value entry.  This class is never exported out as a
    * user-mutable Map.Entry (i.e., one supporting setValue; see
@@ -328,43 +348,61 @@ object ConcurrentSHMap {
    * are special, and contain null keys and values (but are never
    * exported).  Otherwise, keys and vals are never null.
    */
-  class Node[K, V](val hash: Int, val key: K, @volatile var value: V, @volatile var next: Node[K, V]) extends Map.Entry[K, V] {
+  class Node[K, V <: Product](val hash: Int, val key: K, @volatile var value: DeltaVersion[K,V], @volatile var next: Node[K, V]) extends Map.Entry[K, V] {
+
+    def this(h: Int, k: K, v: V=null, n: Node[K, V]=null)(implicit xact:Transaction) {
+      this(h,k,null,n)
+      setTheValue(v)(xact)
+    }
 
     final def getKey: K = {
       key
     }
 
-    final def getValue: V = {
-      value
+    @inline
+    final def getValueImage(implicit xact:Transaction) = value.getImage
+
+    final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
+    final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
+    
+    @inline
+    final def getValue(implicit xact:Transaction) = value
+
+    @inline
+    final def setTheValue(newValue: V)(implicit xact:Transaction): V = {
+      val oldValue: V = if(value == null) null.asInstanceOf[V] else value.img
+      value = DeltaVersion(xact,this,newValue)
+      oldValue
     }
 
     final override def hashCode: Int = {
-      key.hashCode ^ value.hashCode
+      key.hashCode //^ value.hashCode
     }
 
     final override def toString: String = {
-      key + "=" + value
+    throw new UnsupportedOperationException("The toString method is not supported in SEntryMVCC. You should use the overloaded method accepting the Transaction as an extra parameter.")
     }
-
-    final def setValue(v: V): V = {
-      //throw new UnsupportedOperationException
-      val v: V = value
-      v
+    final def toString(implicit xact:Transaction): String = {
+      key + "=" + getValueImage
     }
 
     final override def equals(o: Any): Boolean = {
+      throw new UnsupportedOperationException("The equals method is not supported in SEntryMVCC. You should use the overloaded method accepting the Transaction as an extra parameter.")
+    }
+
+    final def equals(o: Any)(implicit xact:Transaction): Boolean = {
       var k: K = null.asInstanceOf[K]
       var v: V = null.asInstanceOf[V]
       var u: V = null.asInstanceOf[V]
-      var e: Map.Entry[K, V] = null
-      (o.isInstanceOf[Map.Entry[_, _]] && {
+      var e: SEntryMVCC[K, V] = null
+      (o.isInstanceOf[SEntryMVCC[_, _]] && {
         k = {
-          e = o.asInstanceOf[Map.Entry[K, V]]; e
+          e = o.asInstanceOf[SEntryMVCC[K, V]]; e
         }.getKey; k
       } != null && (({
-        v = e.getValue; v
+        v = e.getValueImage; v
       })) != null && (refEquals(k, key) || (k == key)) && (refEquals(v, ({
-        u = value; u
+        u = getValueImage; u
       })) || (v == u)))
     }
 
@@ -466,15 +504,15 @@ object ConcurrentSHMap {
     (if ((x == null) || (x.getClass ne kc)) 0 else (k.asInstanceOf[Comparable[Any]]).compareTo(x))
   }
 
-  @SuppressWarnings(Array("unchecked")) def tabAt[K, V](tab: Array[Node[K, V]], i: Int): Node[K, V] = {
+  @SuppressWarnings(Array("unchecked")) def tabAt[K, V <: Product](tab: Array[Node[K, V]], i: Int): Node[K, V] = {
     U.getObjectVolatile(tab, (i.toLong << ASHIFT) + ABASE).asInstanceOf[Node[K, V]]
   }
 
-  def casTabAt[K, V](tab: Array[Node[K, V]], i: Int, c: Node[K, V], v: Node[K, V]): Boolean = {
+  def casTabAt[K, V <: Product](tab: Array[Node[K, V]], i: Int, c: Node[K, V], v: Node[K, V]): Boolean = {
     U.compareAndSwapObject(tab, (i.toLong << ASHIFT) + ABASE, c, v)
   }
 
-  def setTabAt[K, V](tab: Array[Node[K, V]], i: Int, v: Node[K, V]) {
+  def setTabAt[K, V <: Product](tab: Array[Node[K, V]], i: Int, v: Node[K, V]) {
     U.putObjectVolatile(tab, (i.toLong << ASHIFT) + ABASE, v)
   }
 
@@ -486,19 +524,19 @@ object ConcurrentSHMap {
   class Segment[K, V](val loadFactor: Float) extends ReentrantLock with Serializable
 
   /**
-   * Creates a new {@link Set} backed by a ConcurrentSHMap
+   * Creates a new {@link Set} backed by a ConcurrentSHMapMVCC
    * from the given type to {@code Boolean.TRUE}.
    *
    * @param <K> the element type of the returned set
    * @return the new set
    * @since 1.8
    */
-  def newKeySet[K]: KeySetView[K, Boolean] = {
-    new KeySetView[K, Boolean](new ConcurrentSHMap[K, Boolean], true)
+  def newKeySet[K]: KeySetView[K, Tuple1[Boolean]] = {
+    new KeySetView[K, Tuple1[Boolean]](new ConcurrentSHMapMVCC[K, Tuple1[Boolean]], Tuple1(true))
   }
 
   /**
-   * Creates a new {@link Set} backed by a ConcurrentSHMap
+   * Creates a new {@link Set} backed by a ConcurrentSHMapMVCC
    * from the given type to {@code Boolean.TRUE}.
    *
    * @param initialCapacity The implementation performs internal
@@ -509,14 +547,14 @@ object ConcurrentSHMap {
    *                                  elements is negative
    * @since 1.8
    */
-  def newKeySet[K](initialCapacity: Int): KeySetView[K, Boolean] = {
-    new KeySetView[K, Boolean](new ConcurrentSHMap[K, Boolean](initialCapacity), true)
+  def newKeySet[K](initialCapacity: Int): KeySetView[K, Tuple1[Boolean]] = {
+    new KeySetView[K, Tuple1[Boolean]](new ConcurrentSHMapMVCC[K, Tuple1[Boolean]](initialCapacity), Tuple1(true))
   }
 
   /**
    * A node inserted at head of bins during transfer operations.
    */
-  final class ForwardingNode[K, V](val nextTable: Array[Node[K, V]]) extends Node[K, V](MOVED, null.asInstanceOf[K], null.asInstanceOf[V], null) {
+  final class ForwardingNode[K, V <: Product](val nextTable: Array[Node[K, V]]) extends Node[K, V](MOVED, null.asInstanceOf[K], null, null) {
 
     override def find(h: Int, k: Any): Node[K, V] = {
       {
@@ -561,7 +599,7 @@ object ConcurrentSHMap {
   /**
    * A place-holder node used in computeIfAbsent and compute
    */
-  final class ReservationNode[K, V] extends Node[K, V](RESERVED, null.asInstanceOf[K], null.asInstanceOf[V], null) {
+  final class ReservationNode[K, V <: Product] extends Node[K, V](RESERVED, null.asInstanceOf[K], null, null) {
     override def find(h: Int, k: Any): Node[K, V] = null
   }
 
@@ -590,7 +628,7 @@ object ConcurrentSHMap {
   /**
    * Returns a list on non-TreeNodes replacing those in given list.
    */
-  def untreeify[K, V](b: Node[K, V]): Node[K, V] = {
+  def untreeify[K, V <: Product](b: Node[K, V]): Node[K, V] = {
     var hd: Node[K, V] = null
     var tl: Node[K, V] = null
 
@@ -612,7 +650,13 @@ object ConcurrentSHMap {
   /**
    * Nodes for use in TreeBins
    */
-  final class TreeNode[K, V](hash: Int, key: K, value: V, next: Node[K, V], var parent: TreeNode[K, V]) extends Node[K, V](hash, key, value, next) {
+  final class TreeNode[K, V <: Product](h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V], var parent: TreeNode[K, V]) extends Node[K, V](h, k, v, n) {
+
+    def this(h: Int, k: K, v: V, n: Node[K, V], p: TreeNode[K, V])(implicit xact:Transaction) {
+      this(h,k,null,n,p)
+      setTheValue(v)(xact)
+    }
+
     var left: TreeNode[K, V] = null
     var right: TreeNode[K, V] = null
     var prev: TreeNode[K, V] = null
@@ -688,7 +732,7 @@ object ConcurrentSHMap {
       d
     }
 
-    def rotateLeft[K, V](rootIn: TreeNode[K, V], p: TreeNode[K, V]): TreeNode[K, V] = {
+    def rotateLeft[K, V <: Product](rootIn: TreeNode[K, V], p: TreeNode[K, V]): TreeNode[K, V] = {
       var root: TreeNode[K, V] = rootIn
       var r: TreeNode[K, V] = null
       var pp: TreeNode[K, V] = null
@@ -716,7 +760,7 @@ object ConcurrentSHMap {
       root
     }
 
-    def rotateRight[K, V](rootIn: TreeNode[K, V], p: TreeNode[K, V]): TreeNode[K, V] = {
+    def rotateRight[K, V <: Product](rootIn: TreeNode[K, V], p: TreeNode[K, V]): TreeNode[K, V] = {
       var root: TreeNode[K, V] = rootIn
       var l: TreeNode[K, V] = null
       var pp: TreeNode[K, V] = null
@@ -744,7 +788,7 @@ object ConcurrentSHMap {
       root
     }
 
-    def balanceInsertion[K, V](rootIn: TreeNode[K, V], xIn: TreeNode[K, V]): TreeNode[K, V] = {
+    def balanceInsertion[K, V <: Product](rootIn: TreeNode[K, V], xIn: TreeNode[K, V]): TreeNode[K, V] = {
       var root: TreeNode[K, V] = rootIn
       var x: TreeNode[K, V] = xIn
       x.red = true
@@ -819,7 +863,7 @@ object ConcurrentSHMap {
       null
     }
 
-    def balanceDeletion[K, V](rootIn: TreeNode[K, V], xIn: TreeNode[K, V]): TreeNode[K, V] = {
+    def balanceDeletion[K, V <: Product](rootIn: TreeNode[K, V], xIn: TreeNode[K, V]): TreeNode[K, V] = {
       var root: TreeNode[K, V] = rootIn
       var x: TreeNode[K, V] = xIn
 
@@ -935,7 +979,7 @@ object ConcurrentSHMap {
     /**
      * Recursive invariant check
      */
-    def checkInvariants[K, V](t: TreeNode[K, V]): Boolean = {
+    def checkInvariants[K, V <: Product](t: TreeNode[K, V]): Boolean = {
       val tp: TreeNode[K, V] = t.parent
       val tl: TreeNode[K, V] = t.left
       val tr: TreeNode[K, V] = t.right
@@ -957,7 +1001,7 @@ object ConcurrentSHMap {
     private val LOCKSTATE: Long = U.objectFieldOffset(k.getDeclaredField("lockState"))
   }
 
-  final class TreeBin[K, V] extends Node[K, V](TREEBIN, null.asInstanceOf[K], null.asInstanceOf[V], null) {
+  final class TreeBin[K, V <: Product] extends Node[K, V](TREEBIN, null.asInstanceOf[K], null, null) {
     var root: TreeNode[K, V] = null
     @volatile
     var first: TreeNode[K, V] = null
@@ -1118,7 +1162,7 @@ object ConcurrentSHMap {
      * Finds or adds a node.
      * @return null if added
      */
-    final def putTreeVal(h: Int, k: K, v: V): TreeNode[K, V] = {
+    final def putTreeVal(h: Int, k: K, v: V)(implicit xact:Transaction): TreeNode[K, V] = {
       var kc: Class[_] = null
       var searched: Boolean = false
 
@@ -1308,7 +1352,7 @@ object ConcurrentSHMap {
    * traverser that must process a region of a forwarded table before
    * proceeding with current table.
    */
-  final class TableStack[K, V] {
+  final class TableStack[K, V <: Product] {
     var length: Int = 0
     var index: Int = 0
     var tab: Array[Node[K, V]] = null
@@ -1336,7 +1380,7 @@ object ConcurrentSHMap {
    * across threads, iteration terminates if a bounds checks fails
    * for a table read.
    */
-  class Traverser[K, V](var tab: Array[Node[K, V]], val baseSize: Int, var baseIndex: Int, var baseLimit: Int) {
+  class Traverser[K, V <: Product](var tab: Array[Node[K, V]], val baseSize: Int, var baseIndex: Int, var baseLimit: Int) {
     var nextNode: Node[K, V] = null
     var stack: TableStack[K, V] = null
     var spare: TableStack[K, V] = null
@@ -1440,7 +1484,7 @@ object ConcurrentSHMap {
    * Base of key, value, and entry Iterators. Adds fields to
    * Traverser to support iterator.remove.
    */
-  class BaseIterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, val map: ConcurrentSHMap[K, V]) extends Traverser[K, V](t, s, i, l) {
+  class BaseIterator[K, V <: Product](t: Array[Node[K, V]], s: Int, i: Int, l: Int, val map: ConcurrentSHMapMVCC[K, V]) extends Traverser[K, V](t, s, i, l) {
     advance
 
     var lastReturned: Node[K, V] = null
@@ -1459,12 +1503,12 @@ object ConcurrentSHMap {
     //     p = lastReturned; p
     //   })) == null) throw new IllegalStateException
     //   lastReturned = null
-    //   map.replaceNode(p.key, null.asInstanceOf[V], null)
+    //   map.replaceNode(p.key, null.asInstanceOf[V], null)(NO_TRANSACTION_AVAILABLE)
     //   ()
     // }
   }
 
-  final class KeyIterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[K] with Enumeration[K] {
+  final class KeyIterator[K, V <: Product](t: Array[Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMapMVCC[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[K] with Enumeration[K] {
     final def next: K = {
       var p: Node[K, V] = null
       if ((({
@@ -1486,19 +1530,19 @@ object ConcurrentSHMap {
         p = lastReturned; p
       })) == null) throw new IllegalStateException
       lastReturned = null
-      map.replaceNode(p.key, null.asInstanceOf[V], null)
+      map.replaceNode(p.key, null.asInstanceOf[V], null)(NO_TRANSACTION_AVAILABLE)
       ()
     }
   }
 
-  final class ValueIterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[V] with Enumeration[V] {
+  final class ValueIterator[K, V <: Product](t: Array[Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMapMVCC[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[V] with Enumeration[V] {
 
     final def next: V = {
       var p: Node[K, V] = null
       if ((({
         p = nextNode; p
       })) == null) throw new NoSuchElementException
-      val v: V = p.value
+      val v: V = p.getValue
       lastReturned = p
       advance
       v
@@ -1514,12 +1558,12 @@ object ConcurrentSHMap {
         p = lastReturned; p
       })) == null) throw new IllegalStateException
       lastReturned = null
-      map.replaceNode(p.key, null.asInstanceOf[V], null)
+      map.replaceNode(p.key, null.asInstanceOf[V], null)(NO_TRANSACTION_AVAILABLE)
       ()
     }
   }
 
-  final class EntryIterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMap[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[Map.Entry[K, V]] {
+  final class EntryIterator[K, V <: Product](t: Array[Node[K, V]], s: Int, i: Int, l: Int, m: ConcurrentSHMapMVCC[K, V]) extends BaseIterator[K, V](t, s, i, l,m) with Iterator[Map.Entry[K, V]] {
 
     final def next: Map.Entry[K, V] = {
       var p: Node[K, V] = null
@@ -1527,7 +1571,7 @@ object ConcurrentSHMap {
         p = nextNode; p
       })) == null) throw new NoSuchElementException
       val k: K = p.key
-      val v: V = p.value
+      val v: V = p.getValue
       lastReturned = p
       advance
       new MapEntry[K, V](k, v, map)
@@ -1539,7 +1583,7 @@ object ConcurrentSHMap {
         p = lastReturned; p
       })) == null) throw new IllegalStateException
       lastReturned = null
-      map.replaceNode(p.key, null.asInstanceOf[V], null)
+      map.replaceNode(p.key, null.asInstanceOf[V], null)(NO_TRANSACTION_AVAILABLE)
       ()
     }
   }
@@ -1547,7 +1591,7 @@ object ConcurrentSHMap {
   /**
    * Exported Entry for EntryIterator
    */
-  final class MapEntry[K, V](final val key: K, var value: V, final val map: ConcurrentSHMap[K, V]) extends Map.Entry[K, V] {
+  final class MapEntry[K, V <: Product](final val key: K, var value: V, final val map: ConcurrentSHMapMVCC[K, V]) extends Map.Entry[K, V] {
 
     def getKey: K = {
       key
@@ -1587,15 +1631,16 @@ object ConcurrentSHMap {
      * re-establish). We do not and cannot guarantee more.
      */
     def setValue(newValue: V): V = {
-      if (newValue == null) throw new NullPointerException
-      val v: V = value
-      value = newValue
-      map.put(key, newValue)
-      v
+      // if (newValue == null) throw new NullPointerException
+      // val v: V = value
+      // value = newValue
+      // map.put(key, newValue)(NO_TRANSACTION_AVAILABLE)
+      // v
+      throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
     }
   }
 
-  final class KeySpliterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, var est: Long) extends Traverser[K, V](t, s, i, l) with Spliterator[K] {
+  final class KeySpliterator[K, V <: Product](t: Array[Node[K, V]], s: Int, i: Int, l: Int, var est: Long) extends Traverser[K, V](t, s, i, l) with Spliterator[K] {
 
     def trySplit: Spliterator[K] = {
       var i: Int = 0
@@ -1640,7 +1685,7 @@ object ConcurrentSHMap {
     }
   }
 
-  final class ValueSpliterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, var est: Long) extends Traverser[K, V](t, s, i, l) with Spliterator[V] {
+  final class ValueSpliterator[K, V <: Product](t: Array[Node[K, V]], s: Int, i: Int, l: Int, var est: Long) extends Traverser[K, V](t, s, i, l) with Spliterator[V] {
 
     def trySplit: Spliterator[V] = {
       var i: Int = 0
@@ -1662,7 +1707,7 @@ object ConcurrentSHMap {
         var p: Node[K, V] = null
         while ((({
           p = advance; p
-        })) != null) action.accept(p.value)
+        })) != null) action.accept(p.getValue)
       }
     }
 
@@ -1672,7 +1717,7 @@ object ConcurrentSHMap {
       if ((({
         p = advance; p
       })) == null) return false
-      action.accept(p.value)
+      action.accept(p.getValue)
       true
     }
 
@@ -1685,7 +1730,7 @@ object ConcurrentSHMap {
     }
   }
 
-  final class EntrySpliterator[K, V](t: Array[Node[K, V]], s: Int, i: Int, l: Int, var est: Long, val map: ConcurrentSHMap[K, V]) extends Traverser[K, V](t, s, i, l) with Spliterator[Map.Entry[K, V]] {
+  final class EntrySpliterator[K, V <: Product](t: Array[Node[K, V]], s: Int, i: Int, l: Int, var est: Long, val map: ConcurrentSHMapMVCC[K, V]) extends Traverser[K, V](t, s, i, l) with Spliterator[Map.Entry[K, V]] {
 
     def trySplit: Spliterator[Map.Entry[K, V]] = {
       var i: Int = 0
@@ -1707,7 +1752,7 @@ object ConcurrentSHMap {
         var p: Node[K, V] = null
         while ((({
           p = advance; p
-        })) != null) action.accept(new MapEntry[K, V](p.key, p.value, map))
+        })) != null) action.accept(new MapEntry[K, V](p.key, p.getValue, map))
       }
     }
 
@@ -1717,7 +1762,7 @@ object ConcurrentSHMap {
       if ((({
         p = advance; p
       })) == null) return false
-      action.accept(new MapEntry[K, V](p.key, p.value, map))
+      action.accept(new MapEntry[K, V](p.key, p.getValue, map))
       true
     }
 
@@ -1739,14 +1784,14 @@ object ConcurrentSHMap {
   }
 
   @SerialVersionUID(7249069246763182397L)
-  abstract class CollectionView[K, V, E](val map: ConcurrentSHMap[K, V]) extends Collection[E] with java.io.Serializable {
+  abstract class CollectionView[K, V <: Product, E](val map: ConcurrentSHMapMVCC[K, V]) extends Collection[E] with java.io.Serializable {
 
     /**
      * Returns the map backing this view.
      *
      * @return the map backing this view
      */
-    def getMap: ConcurrentSHMap[K, V] = {
+    def getMap: ConcurrentSHMapMVCC[K, V] = {
       map
     }
 
@@ -1755,7 +1800,8 @@ object ConcurrentSHMap {
      * the mappings from the map backing this view.
      */
     final def clear {
-      map.clear
+      throw new UnsupportedOperationException()
+      // map.clear
     }
 
     final def size: Int = {
@@ -1898,7 +1944,7 @@ object ConcurrentSHMap {
   }
 
   /**
-   * A view of a ConcurrentSHMap as a {@link Set} of keys, in
+   * A view of a ConcurrentSHMapMVCC as a {@link Set} of keys, in
    * which additions may optionally be enabled by mapping to a
    * common value.  This class cannot be directly instantiated.
    * See {@link #keySet() keySet()},
@@ -1909,7 +1955,7 @@ object ConcurrentSHMap {
    * @since 1.8
    */
   @SerialVersionUID(7249069246763182397L)
-  class KeySetView[K, V](override val map: ConcurrentSHMap[K, V], final val value: V) extends CollectionView[K, V, K](map) with Set[K] with java.io.Serializable {
+  class KeySetView[K, V <: Product](override val map: ConcurrentSHMapMVCC[K, V], final val value: V) extends CollectionView[K, V, K](map) with Set[K] with java.io.Serializable {
 
     /**
      * Returns the default mapped value for additions,
@@ -1940,7 +1986,8 @@ object ConcurrentSHMap {
      * @throws NullPointerException if the specified key is null
      */
     def remove(o: Any): Boolean = {
-      map.remove(o) != null
+      throw new UnsupportedOperationException()
+      // map.remove(o) != null
     }
 
     /**
@@ -1948,7 +1995,7 @@ object ConcurrentSHMap {
      */
     def iterator: Iterator[K] = {
       var t: Array[Node[K, V]] = null
-      val m: ConcurrentSHMap[K, V] = map
+      val m: ConcurrentSHMapMVCC[K, V] = map
       val f: Int = if ((({
         t = m.table; t
       })) == null) 0
@@ -1967,11 +2014,12 @@ object ConcurrentSHMap {
      *                                       for additions was provided
      */
     def add(e: K): Boolean = {
-      var v: V = null.asInstanceOf[V]
-      if ((({
-        v = value; v
-      })) == null) throw new UnsupportedOperationException
-      map.putVal(e, v, true) == null
+      throw new UnsupportedOperationException()
+      // var v: V = null.asInstanceOf[V]
+      // if ((({
+      //   v = value; v
+      // })) == null) throw new UnsupportedOperationException
+      // map.putVal(e, v, true) == null
     }
 
     /**
@@ -1986,16 +2034,17 @@ object ConcurrentSHMap {
      *                                       for additions was provided
      */
     def addAll(c: Collection[_ <: K]): Boolean = {
-      var added: Boolean = false
-      var v: V = null.asInstanceOf[V]
-      if ((({
-        v = value; v
-      })) == null) throw new UnsupportedOperationException
-      import scala.collection.JavaConversions._
-      for (e <- c) {
-        if (map.putVal(e, v, true) == null) added = true
-      }
-      added
+      throw new UnsupportedOperationException()
+      // var added: Boolean = false
+      // var v: V = null.asInstanceOf[V]
+      // if ((({
+      //   v = value; v
+      // })) == null) throw new UnsupportedOperationException
+      // import scala.collection.JavaConversions._
+      // for (e <- c) {
+      //   if (map.putVal(e, v, true) == null) added = true
+      // }
+      // added
     }
 
     override def hashCode: Int = {
@@ -2014,7 +2063,7 @@ object ConcurrentSHMap {
 
     override def spliterator: Spliterator[K] = {
       var t: Array[Node[K, V]] = null
-      val m: ConcurrentSHMap[K, V] = map
+      val m: ConcurrentSHMapMVCC[K, V] = map
       val n: Long = m.sumCount
       val f: Int = if ((({
         t = m.table; t
@@ -2042,12 +2091,12 @@ object ConcurrentSHMap {
   }
 
   /**
-   * A view of a ConcurrentSHMap as a {@link Collection} of
+   * A view of a ConcurrentSHMapMVCC as a {@link Collection} of
    * values, in which additions are disabled. This class cannot be
    * directly instantiated. See {@link #values()}.
    */
   @SerialVersionUID(2249069246763182397L)
-  final class ValuesView[K, V](override val map: ConcurrentSHMap[K, V]) extends CollectionView[K, V, V](map) with Collection[V] with java.io.Serializable {
+  final class ValuesView[K, V <: Product](override val map: ConcurrentSHMapMVCC[K, V]) extends CollectionView[K, V, V](map) with Collection[V] with java.io.Serializable {
 
     final def contains(o: Any): Boolean = {
       map.containsValue(o)
@@ -2069,7 +2118,7 @@ object ConcurrentSHMap {
     }
 
     final def iterator: Iterator[V] = {
-      val m: ConcurrentSHMap[K, V] = map
+      val m: ConcurrentSHMapMVCC[K, V] = map
       var t: Array[Node[K, V]] = null
       val f: Int = if ((({
         t = m.table; t
@@ -2088,7 +2137,7 @@ object ConcurrentSHMap {
 
     override def spliterator: Spliterator[V] = {
       var t: Array[Node[K, V]] = null
-      val m: ConcurrentSHMap[K, V] = map
+      val m: ConcurrentSHMapMVCC[K, V] = map
       val n: Long = m.sumCount
       val f: Int = if ((({
         t = m.table; t
@@ -2109,54 +2158,56 @@ object ConcurrentSHMap {
           var p: Node[K, V] = null
           while ((({
             p = it.advance; p
-          })) != null) action.accept(p.value)
+          })) != null) action.accept(p.getValue)
         }
       }
     }
   }
 
   /**
-   * A view of a ConcurrentSHMap as a {@link Set} of (key, value)
+   * A view of a ConcurrentSHMapMVCC as a {@link Set} of (key, value)
    * entries.  This class cannot be directly instantiated. See
    * {@link #entrySet()}.
    */
   @SerialVersionUID(2249069246763182397L)
-  final class EntrySetView[K, V](override val map: ConcurrentSHMap[K, V]) extends CollectionView[K, V, Map.Entry[K, V]](map) with Set[Map.Entry[K, V]] with java.io.Serializable {
+  final class EntrySetView[K, V <: Product](override val map: ConcurrentSHMapMVCC[K, V]) extends CollectionView[K, V, Map.Entry[K, V]](map) with Set[Map.Entry[K, V]] with java.io.Serializable {
 
     def contains(o: Any): Boolean = {
-      var k: K = null.asInstanceOf[K]
-      var v: V = null.asInstanceOf[V]
-      var r: V = null.asInstanceOf[V]
-      var e: Map.Entry[K, V] = null
-      ((o.isInstanceOf[Map.Entry[_, _]]) && (({
-        k = (({
-          e = o.asInstanceOf[Map.Entry[K, V]]; e
-        })).getKey; k
-      })) != null && (({
-        r = map.get(k); r
-      })) != null && (({
-        v = e.getValue; v
-      })) != null && (refEquals(v, r) || (v == r)))
+      throw new UnsupportedOperationException()
+      // var k: K = null.asInstanceOf[K]
+      // var v: V = null.asInstanceOf[V]
+      // var r: V = null.asInstanceOf[V]
+      // var e: Map.Entry[K, V] = null
+      // ((o.isInstanceOf[Map.Entry[_, _]]) && (({
+      //   k = (({
+      //     e = o.asInstanceOf[Map.Entry[K, V]]; e
+      //   })).getKey; k
+      // })) != null && (({
+      //   r = map.get(k); r
+      // })) != null && (({
+      //   v = e.getValue; v
+      // })) != null && (refEquals(v, r) || (v == r)))
     }
 
     def remove(o: Any): Boolean = {
-      var k: K = null.asInstanceOf[K]
-      var v: V = null.asInstanceOf[V]
-      var e: Map.Entry[K, V] = null
-      ((o.isInstanceOf[Map.Entry[_, _]]) && (({
-        k = (({
-          e = o.asInstanceOf[Map.Entry[K, V]]; e
-        })).getKey; k
-      })) != null && (({
-        v = e.getValue; v
-      })) != null && map.remove(k, v))
+      throw new UnsupportedOperationException()
+      // var k: K = null.asInstanceOf[K]
+      // var v: V = null.asInstanceOf[V]
+      // var e: Map.Entry[K, V] = null
+      // ((o.isInstanceOf[Map.Entry[_, _]]) && (({
+      //   k = (({
+      //     e = o.asInstanceOf[Map.Entry[K, V]]; e
+      //   })).getKey; k
+      // })) != null && (({
+      //   v = e.getValue; v
+      // })) != null && map.remove(k, v))
     }
 
     /**
      * @return an iterator over the entries of the backing map
      */
     def iterator: Iterator[Map.Entry[K, V]] = {
-      val m: ConcurrentSHMap[K, V] = map
+      val m: ConcurrentSHMapMVCC[K, V] = map
       var t: Array[Node[K, V]] = null
       val f: Int = if ((({
         t = m.table; t
@@ -2166,7 +2217,8 @@ object ConcurrentSHMap {
     }
 
     def add(e: Map.Entry[K, V]): Boolean = {
-      map.putVal(e.getKey, e.getValue, false) == null
+      throw new UnsupportedOperationException()
+      // map.putVal(e.getKey, e.getValue, false) == null
     }
 
     def addAll(c: Collection[_ <: Map.Entry[K, V]]): Boolean = {
@@ -2207,7 +2259,7 @@ object ConcurrentSHMap {
 
     override def spliterator: Spliterator[Map.Entry[K, V]] = {
       var t: Array[Node[K, V]] = null
-      val m: ConcurrentSHMap[K, V] = map
+      val m: ConcurrentSHMapMVCC[K, V] = map
       val n: Long = m.sumCount
       val f: Int = if ((({
         t = m.table; t
@@ -2228,7 +2280,7 @@ object ConcurrentSHMap {
           var p: Node[K, V] = null
           while ((({
             p = it.advance; p
-          })) != null) action.accept(new MapEntry[K, V](p.key, p.value, map))
+          })) != null) action.accept(new MapEntry[K, V](p.key, p.getValue, map))
         }
       }
     }
@@ -2238,7 +2290,7 @@ object ConcurrentSHMap {
    * Base class for bulk tasks. Repeats some fields and code from
    * class Traverser, because we need to subclass CountedCompleter.
    */
-  @SuppressWarnings(Array("serial")) abstract class BulkTask[K, V, R](val par: BulkTask[K, V, _], var batch: Int, var baseIndex: Int, f: Int, var tab: Array[Node[K, V]]) extends CountedCompleter[R](par) {
+  @SuppressWarnings(Array("serial")) abstract class BulkTask[K, V <: Product, R](val par: BulkTask[K, V, _], var batch: Int, var baseIndex: Int, f: Int, var tab: Array[Node[K, V]]) extends CountedCompleter[R](par) {
 
     var next: Node[K, V] = null
     var stack: TableStack[K, V] = null
@@ -2336,7 +2388,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachKeyTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: K => Unit) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachKeyTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: K => Unit) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val action = this.action
@@ -2363,7 +2415,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachValueTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Consumer[_ >: V]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachValueTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Consumer[_ >: V]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val action: Consumer[_ >: V] = this.action
@@ -2387,14 +2439,14 @@ object ConcurrentSHMap {
           var p: Node[K, V] = null
           while ((({
             p = advance; p
-          })) != null) action.accept(p.value)
+          })) != null) action.accept(p.getValue)
         }
         propagateCompletion
       }
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachEntryTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Map.Entry[K, V] => Unit) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachEntryTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: Map.Entry[K, V] => Unit) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val action = this.action
@@ -2421,7 +2473,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachMappingTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: (K,V) => Unit) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachMappingTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val action: (K,V) => Unit)(implicit xact:Transaction) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val action = this.action
@@ -2442,13 +2494,13 @@ object ConcurrentSHMap {
         var p: Node[K, V] = null
         while ((({
           p = advance; p
-        })) != null) action(p.key, p.value)
+        })) != null) action(p.key, p.getValueImage)
         propagateCompletion
       }
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachTransformedKeyTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: Function[_ >: K, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachTransformedKeyTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: Function[_ >: K, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val transformer: Function[_ >: K, _ <: U] = this.transformer
@@ -2487,7 +2539,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachTransformedValueTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: Function[_ >: V, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachTransformedValueTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: Function[_ >: V, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val transformer: Function[_ >: V, _ <: U] = this.transformer
@@ -2517,7 +2569,7 @@ object ConcurrentSHMap {
           })) != null) {
             var u: U = null.asInstanceOf[U]
             if ((({
-              u = transformer.apply(p.value); u
+              u = transformer.apply(p.getValue); u
             })) != null) action.accept(u)
           }
         }
@@ -2526,7 +2578,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachTransformedEntryTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: Function[Map.Entry[K, V], _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachTransformedEntryTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: Function[Map.Entry[K, V], _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val transformer: Function[Map.Entry[K, V], _ <: U] = this.transformer
@@ -2565,7 +2617,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ForEachTransformedMappingTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: BiFunction[_ >: K, _ >: V, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ForEachTransformedMappingTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val transformer: BiFunction[_ >: K, _ >: V, _ <: U], final val action: Consumer[_ >: U]) extends BulkTask[K, V, Void](p,b,i,f,t) {
 
     final def compute {
       val transformer: BiFunction[_ >: K, _ >: V, _ <: U] = this.transformer
@@ -2595,7 +2647,7 @@ object ConcurrentSHMap {
           })) != null) {
             var u: U = null.asInstanceOf[U]
             if ((({
-              u = transformer.apply(p.key, p.value); u
+              u = transformer.apply(p.key, p.getValue); u
             })) != null) action.accept(u)
           }
         }
@@ -2604,7 +2656,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class SearchKeysTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[_ >: K, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class SearchKeysTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[_ >: K, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
       result.get
@@ -2656,7 +2708,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class SearchValuesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[_ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class SearchValuesTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[_ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
       result.get
@@ -2696,7 +2748,7 @@ object ConcurrentSHMap {
           }
           if(!break) {
             if ((({
-              u = searchFunction.apply(p.value);
+              u = searchFunction.apply(p.getValue);
               u
             })) != null) {
               if (result.compareAndSet(null.asInstanceOf[U], u)) quietlyCompleteRoot
@@ -2708,7 +2760,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class SearchEntriesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[Map.Entry[K, V], _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class SearchEntriesTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: Function[Map.Entry[K, V], _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
       result.get
@@ -2760,7 +2812,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class SearchMappingsTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: BiFunction[_ >: K, _ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class SearchMappingsTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val searchFunction: BiFunction[_ >: K, _ >: V, _ <: U], final val result: AtomicReference[U]) extends BulkTask[K, V, U](p,b,i,f,t) {
 
     final override def getRawResult: U = {
       result.get
@@ -2800,7 +2852,7 @@ object ConcurrentSHMap {
           }
           if(!break) {
             if ((({
-              u = searchFunction.apply(p.key, p.value);
+              u = searchFunction.apply(p.key, p.getValue);
               u
             })) != null) {
               if (result.compareAndSet(null.asInstanceOf[U], u)) quietlyCompleteRoot
@@ -2812,7 +2864,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ReduceKeysTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: ReduceKeysTask[K, V], final val reducer: BiFunction[_ >: K, _ >: K, _ <: K]) extends BulkTask[K, V, K](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ReduceKeysTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: ReduceKeysTask[K, V], final val reducer: BiFunction[_ >: K, _ >: K, _ <: K]) extends BulkTask[K, V, K](p,b,i,f,t) {
     var result: K = null.asInstanceOf[K]
     var rights: ReduceKeysTask[K, V] = null
 
@@ -2881,7 +2933,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ReduceValuesTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: ReduceValuesTask[K, V], final val reducer: BiFunction[_ >: V, _ >: V, _ <: V]) extends BulkTask[K, V, V](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ReduceValuesTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: ReduceValuesTask[K, V], final val reducer: BiFunction[_ >: V, _ >: V, _ <: V]) extends BulkTask[K, V, V](p,b,i,f,t) {
     var result: V = null.asInstanceOf[V]
     var rights: ReduceValuesTask[K, V] = null
 
@@ -2916,7 +2968,7 @@ object ConcurrentSHMap {
           while ((({
             p = advance; p
           })) != null) {
-            val v: V = p.value
+            val v: V = p.getValue
             r = if ((r == null)) v else reducer.apply(r, v)
           }
         }
@@ -2950,7 +3002,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class ReduceEntriesTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: ReduceEntriesTask[K, V], final val reducer: BiFunction[Map.Entry[K, V], Map.Entry[K, V], _ <: Map.Entry[K, V]]) extends BulkTask[K, V, Map.Entry[K, V]](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class ReduceEntriesTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: ReduceEntriesTask[K, V], final val reducer: BiFunction[Map.Entry[K, V], Map.Entry[K, V], _ <: Map.Entry[K, V]]) extends BulkTask[K, V, Map.Entry[K, V]](p,b,i,f,t) {
     var result: Map.Entry[K, V] = null
     var rights: ReduceEntriesTask[K, V] = null
 
@@ -3016,7 +3068,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceKeysTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysTask[K, V, U], final val transformer: Function[_ >: K, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceKeysTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysTask[K, V, U], final val transformer: Function[_ >: K, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
     var result: U = null.asInstanceOf[U]
     var rights: MapReduceKeysTask[K, V, U] = null
 
@@ -3090,7 +3142,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceValuesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesTask[K, V, U], final val transformer: Function[_ >: V, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceValuesTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesTask[K, V, U], final val transformer: Function[_ >: V, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
     var result: U = null.asInstanceOf[U]
     var rights: MapReduceValuesTask[K, V, U] = null
 
@@ -3130,7 +3182,7 @@ object ConcurrentSHMap {
           })) != null) {
             var u: U = null.asInstanceOf[U]
             if ((({
-              u = transformer.apply(p.value); u
+              u = transformer.apply(p.getValue); u
             })) != null) r = if ((r == null)) u else reducer.apply(r, u)
           }
         }
@@ -3164,7 +3216,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceEntriesTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesTask[K, V, U], final val transformer: Function[Map.Entry[K, V], _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceEntriesTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesTask[K, V, U], final val transformer: Function[Map.Entry[K, V], _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
     var result: U = null.asInstanceOf[U]
     var rights: MapReduceEntriesTask[K, V, U] = null
 
@@ -3238,7 +3290,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceMappingsTask[K, V, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsTask[K, V, U], final val transformer: BiFunction[_ >: K, _ >: V, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceMappingsTask[K, V <: Product, U](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsTask[K, V, U], final val transformer: BiFunction[_ >: K, _ >: V, _ <: U], final val reducer: BiFunction[_ >: U, _ >: U, _ <: U]) extends BulkTask[K, V, U](p,b,i,f,t) {
     var result: U = null.asInstanceOf[U]
     var rights: MapReduceMappingsTask[K, V, U] = null
 
@@ -3278,7 +3330,7 @@ object ConcurrentSHMap {
           })) != null) {
             var u: U = null.asInstanceOf[U]
             if ((({
-              u = transformer.apply(p.key, p.value); u
+              u = transformer.apply(p.key, p.getValue); u
             })) != null) r = if ((r == null)) u else reducer.apply(r, u)
           }
         }
@@ -3312,7 +3364,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceKeysToDoubleTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysToDoubleTask[K, V], final val transformer: ToDoubleFunction[_ >: K], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceKeysToDoubleTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysToDoubleTask[K, V], final val transformer: ToDoubleFunction[_ >: K], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
     var result: Double = .0
     var rights: MapReduceKeysToDoubleTask[K, V] = null
 
@@ -3374,7 +3426,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceValuesToDoubleTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesToDoubleTask[K, V], final val transformer: ToDoubleFunction[_ >: V], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceValuesToDoubleTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesToDoubleTask[K, V], final val transformer: ToDoubleFunction[_ >: V], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
     var result: Double = .0
     var rights: MapReduceValuesToDoubleTask[K, V] = null
 
@@ -3411,7 +3463,7 @@ object ConcurrentSHMap {
           var p: Node[K, V] = null
           while ((({
             p = advance; p
-          })) != null) r = reducer.applyAsDouble(r, transformer.applyAsDouble(p.value))
+          })) != null) r = reducer.applyAsDouble(r, transformer.applyAsDouble(p.getValue))
         }
         result = r
         var c: CountedCompleter[_] = null
@@ -3436,7 +3488,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToDoubleTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesToDoubleTask[K, V], final val transformer: ToDoubleFunction[Map.Entry[K, V]], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToDoubleTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesToDoubleTask[K, V], final val transformer: ToDoubleFunction[Map.Entry[K, V]], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
     var result: Double = .0
     var rights: MapReduceEntriesToDoubleTask[K, V] = null
 
@@ -3498,7 +3550,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToDoubleTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsToDoubleTask[K, V], final val transformer: ToDoubleBiFunction[_ >: K, _ >: V], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToDoubleTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsToDoubleTask[K, V], final val transformer: ToDoubleBiFunction[_ >: K, _ >: V], final val basis: Double, final val reducer: DoubleBinaryOperator) extends BulkTask[K, V, Double](p,b,i,f,t) {
     var result: Double = .0
     var rights: MapReduceMappingsToDoubleTask[K, V] = null
 
@@ -3535,7 +3587,7 @@ object ConcurrentSHMap {
           var p: Node[K, V] = null
           while ((({
             p = advance; p
-          })) != null) r = reducer.applyAsDouble(r, transformer.applyAsDouble(p.key, p.value))
+          })) != null) r = reducer.applyAsDouble(r, transformer.applyAsDouble(p.key, p.getValue))
         }
         result = r
         var c: CountedCompleter[_] = null
@@ -3560,7 +3612,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceKeysToLongTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysToLongTask[K, V], final val transformer: ToLongFunction[_ >: K], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceKeysToLongTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysToLongTask[K, V], final val transformer: ToLongFunction[_ >: K], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
     var result: Long = 0L
     var rights: MapReduceKeysToLongTask[K, V] = null
 
@@ -3622,7 +3674,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceValuesToLongTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesToLongTask[K, V], final val transformer: ToLongFunction[_ >: V], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceValuesToLongTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesToLongTask[K, V], final val transformer: ToLongFunction[_ >: V], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
     var result: Long = 0L
     var rights: MapReduceValuesToLongTask[K, V] = null
 
@@ -3659,7 +3711,7 @@ object ConcurrentSHMap {
           var p: Node[K, V] = null
           while ((({
             p = advance; p
-          })) != null) r = reducer.applyAsLong(r, transformer.applyAsLong(p.value))
+          })) != null) r = reducer.applyAsLong(r, transformer.applyAsLong(p.getValue))
         }
         result = r
         var c: CountedCompleter[_] = null
@@ -3684,7 +3736,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToLongTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesToLongTask[K, V], final val transformer: ToLongFunction[Map.Entry[K, V]], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToLongTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesToLongTask[K, V], final val transformer: ToLongFunction[Map.Entry[K, V]], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
     var result: Long = 0L
     var rights: MapReduceEntriesToLongTask[K, V] = null
 
@@ -3746,7 +3798,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToLongTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsToLongTask[K, V], final val transformer: ToLongBiFunction[_ >: K, _ >: V], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToLongTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsToLongTask[K, V], final val transformer: ToLongBiFunction[_ >: K, _ >: V], final val basis: Long, final val reducer: LongBinaryOperator) extends BulkTask[K, V, Long](p,b,i,f,t) {
     var result: Long = 0L
     var rights: MapReduceMappingsToLongTask[K, V] = null
 
@@ -3783,7 +3835,7 @@ object ConcurrentSHMap {
           var p: Node[K, V] = null
           while ((({
             p = advance; p
-          })) != null) r = reducer.applyAsLong(r, transformer.applyAsLong(p.key, p.value))
+          })) != null) r = reducer.applyAsLong(r, transformer.applyAsLong(p.key, p.getValue))
         }
         result = r
         var c: CountedCompleter[_] = null
@@ -3808,7 +3860,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceKeysToIntTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysToIntTask[K, V], final val transformer: ToIntFunction[_ >: K], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceKeysToIntTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceKeysToIntTask[K, V], final val transformer: ToIntFunction[_ >: K], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
     var result: Int = 0
     var rights: MapReduceKeysToIntTask[K, V] = null
 
@@ -3870,7 +3922,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceValuesToIntTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesToIntTask[K, V], final val transformer: ToIntFunction[_ >: V], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceValuesToIntTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceValuesToIntTask[K, V], final val transformer: ToIntFunction[_ >: V], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
     var result: Int = 0
     var rights: MapReduceValuesToIntTask[K, V] = null
 
@@ -3907,7 +3959,7 @@ object ConcurrentSHMap {
           var p: Node[K, V] = null
           while ((({
             p = advance; p
-          })) != null) r = reducer.applyAsInt(r, transformer.applyAsInt(p.value))
+          })) != null) r = reducer.applyAsInt(r, transformer.applyAsInt(p.getValue))
         }
         result = r
         var c: CountedCompleter[_] = null
@@ -3932,7 +3984,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToIntTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesToIntTask[K, V], final val transformer: ToIntFunction[Map.Entry[K, V]], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceEntriesToIntTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceEntriesToIntTask[K, V], final val transformer: ToIntFunction[Map.Entry[K, V]], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
     var result: Int = 0
     var rights: MapReduceEntriesToIntTask[K, V] = null
 
@@ -3994,7 +4046,7 @@ object ConcurrentSHMap {
     }
   }
 
-  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToIntTask[K, V](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsToIntTask[K, V], final val transformer: ToIntBiFunction[_ >: K, _ >: V], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
+  @SuppressWarnings(Array("serial")) final class MapReduceMappingsToIntTask[K, V <: Product](p: BulkTask[K, V, _], b: Int, i: Int, f: Int, t: Array[Node[K, V]], final val nextRight: MapReduceMappingsToIntTask[K, V], final val transformer: ToIntBiFunction[_ >: K, _ >: V], final val basis: Int, final val reducer: IntBinaryOperator) extends BulkTask[K, V, Integer](p,b,i,f,t) {
     var result: Int = 0
     var rights: MapReduceMappingsToIntTask[K, V] = null
 
@@ -4031,7 +4083,7 @@ object ConcurrentSHMap {
           var p: Node[K, V] = null
           while ((({
             p = advance; p
-          })) != null) r = reducer.applyAsInt(r, transformer.applyAsInt(p.key, p.value))
+          })) != null) r = reducer.applyAsInt(r, transformer.applyAsInt(p.key, p.getValue))
         }
         result = r
         var c: CountedCompleter[_] = null
@@ -4057,7 +4109,7 @@ object ConcurrentSHMap {
   }
 
   private val U: Unsafe = MyThreadLocalRandom.getUnsafe
-  val k: Class[_] = classOf[ConcurrentSHMap[_, _]]
+  val k: Class[_] = classOf[ConcurrentSHMapMVCC[_, _]]
   private val SIZECTL: Long = U.objectFieldOffset(k.getDeclaredField("sizeCtl"))
   private val TRANSFERINDEX: Long = U.objectFieldOffset(k.getDeclaredField("transferIndex"))
   private val BASECOUNT: Long = U.objectFieldOffset(k.getDeclaredField("baseCount"))
@@ -4075,7 +4127,7 @@ object ConcurrentSHMap {
 /**
  * Creates a new, empty map with the default initial table size (16).
  */
-class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable {
+class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable*/ {
   /**
    * The array of bins. Lazily initialized upon first insertion.
    * Size is always a power of two. Accessed directly by iterators.
@@ -4207,7 +4259,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
   /**
    * {@inheritDoc}
    */
-  override def size: Int = {
+  def size: Int = {
     val n: Long = sumCount
     (if ((n < 0L)) 0 else if ((n > Integer.MAX_VALUE.toLong)) Integer.MAX_VALUE else n.toInt)
   }
@@ -4215,10 +4267,13 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
   /**
    * {@inheritDoc}
    */
-  override def isEmpty: Boolean = {
+  def isEmpty: Boolean = {
     sumCount <= 0L
   }
 
+  // def get(key: Any): V = {
+  //   throw new UnsupportedOperationException()
+  // }
   /**
    * Returns the value to which the specified key is mapped,
    * or {@code null} if this map contains no mapping for the key.
@@ -4230,7 +4285,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *
    * @throws NullPointerException if the specified key is null
    */
-  override def get(key: Any): V = {
+  def get(key: Any)(implicit xact:Transaction): V = {
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -4250,23 +4305,23 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
       })) == h) {
         if (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek))) return e.value
+        })), key) || (ek != null && (key == ek))) return e.getValueImage
       }
       else if (eh < 0) return if ((({
         p = e.find(h, key); p
-      })) != null) p.value
+      })) != null) p.getValueImage
       else null.asInstanceOf[V]
       while ((({
         e = e.next; e
       })) != null) {
         if (e.hash == h && (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek)))) return e.value
+        })), key) || (ek != null && (key == ek)))) return e.getValueImage
       }
     }
     null.asInstanceOf[V]
   }
-  def apply(key: Any): V = {
+  def apply(key: Any)(implicit xact:Transaction): V = {
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -4286,23 +4341,23 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
       })) == h) {
         if (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek))) return e.value
+        })), key) || (ek != null && (key == ek))) return e.getValueImage
       }
       else if (eh < 0) return if ((({
         p = e.find(h, key); p
-      })) != null) p.value
+      })) != null) p.getValueImage
       else null.asInstanceOf[V]
       while ((({
         e = e.next; e
       })) != null) {
         if (e.hash == h && (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek)))) return e.value
+        })), key) || (ek != null && (key == ek)))) return e.getValueImage
       }
     }
     null.asInstanceOf[V]
   }
-  def getEntry(key: Any): SEntry[K,V] = {
+  def getEntry(key: Any)(implicit xact:Transaction): DeltaVersion[K,V] = {
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -4322,18 +4377,18 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
       })) == h) {
         if (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek))) return e
+        })), key) || (ek != null && (key == ek))) return e.getValue
       }
       else if (eh < 0) return if ((({
         p = e.find(h, key); p
-      })) != null) p
+      })) != null) p.getValue
       else null
       while ((({
         e = e.next; e
       })) != null) {
         if (e.hash == h && (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek)))) return e
+        })), key) || (ek != null && (key == ek)))) return e.getValue
       }
     }
     null
@@ -4348,8 +4403,9 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *                 { @code equals} method; { @code false} otherwise
    * @throws NullPointerException if the specified key is null
    */
-  override def containsKey(key: Any): Boolean = {
-    get(key) != null
+  def containsKey(key: Any): Boolean = {
+    throw new UnsupportedOperationException()
+    // get(key) != null
   }
 
   /**
@@ -4362,7 +4418,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *                 specified value
    * @throws NullPointerException if the specified value is null
    */
-  override def containsValue(value: Any): Boolean = {
+  def containsValue(value: Any): Boolean = {
     if (value == null) throw new NullPointerException
     val t = table
     if (t != null) {
@@ -4372,7 +4428,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
       while ((({
         p = it.advance; p
       })) != null) {
-        val v: V = p.value
+        val v: V = p.getValue
         if (refEquals(v, value) || ((v != null) && (value == v))) {
           return true
         }
@@ -4394,24 +4450,24 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *                                                    { @code null} if there was no mapping for { @code key}
    * @throws NullPointerException if the specified key or value is null
    */
-  override def put(key: K, value: V): V = {
+  def put(key: K, value: V)(implicit xact:Transaction): V = {
     putVal(key, value, false)
   }
-  def +=(key: K, value: V): V = {
+  def +=(key: K, value: V)(implicit xact:Transaction): V = {
     putVal(key, value, true)
   }
 
-  def update(key: K, value: V): V = {
+  def update(key: K, value: V)(implicit xact:Transaction): V = {
     putVal(key, value, false)
   }
 
-  def update(key: K, updateFunc:V=>V): V = {
+  def update(key: K, updateFunc:V=>V)(implicit xact:Transaction): V = {
     //TODO: FIX IT
     putVal(key, updateFunc(get(key)), false)
   }
 
   /** Implementation for put and putIfAbsent */
-  final def putVal(key: K, value: V, onlyIfAbsent: Boolean): V = {
+  final def putVal(key: K, value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): V = {
     var oldVal = null.asInstanceOf[V]
     var entry = null.asInstanceOf[Node[K, V]]
 
@@ -4446,10 +4502,10 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
               while (!break) {
                 var ek: K = null.asInstanceOf[K]
                 if (e.hash == hash && (refEquals({ek = e.key; ek}, key) || ((ek != null) && (key == ek)))) {
-                  oldVal = e.value
+                  oldVal = e.getValueImage
                   entry = e
                   if (!onlyIfAbsent) {
-                    e.value = value
+                    e.setTheValue(value)
                   }
                   break = true //todo: break is not supported
                 }
@@ -4468,10 +4524,10 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
               var p: Node[K, V] = null
               binCount = 2
               if ({p = (f.asInstanceOf[TreeBin[K, V]]).putTreeVal(hash, key, value); p} != null) {
-                oldVal = p.value
+                oldVal = p.getValueImage
                 entry = p
                 if (!onlyIfAbsent) {
-                  p.value = value
+                  p.setTheValue(value)
                 }
               }
             }
@@ -4513,10 +4569,11 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *
    * @param m mappings to be stored in this map
    */
-  override def putAll(m: Map[_ <: K, _ <: V]) {
-    tryPresize(m.size)
-    import scala.collection.JavaConversions._
-    for (e <- m.entrySet) putVal(e.getKey, e.getValue, false)
+  def putAll(m: Map[_ <: K, _ <: V]) {
+    throw new UnsupportedOperationException()
+    // tryPresize(m.size)
+    // import scala.collection.JavaConversions._
+    // for (e <- m.entrySet) putVal(e.getKey, e.getValue, false)
   }
 
   /**
@@ -4528,10 +4585,10 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *                                                    { @code null} if there was no mapping for { @code key}
    * @throws NullPointerException if the specified key is null
    */
-  override def remove(key: Any): V = {
+  def remove(key: Any)(implicit xact:Transaction): V = {
     replaceNode(key, null.asInstanceOf[V], null)
   }
-  def -=(key: Any): V = {
+  def -=(key: Any)(implicit xact:Transaction): V = {
     replaceNode(key, null.asInstanceOf[V], null)
   }
 
@@ -4540,7 +4597,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    * Replaces node value with v, conditional upon match of cv if
    * non-null.  If resulting value is null, delete.
    */
-  final def replaceNode(key: Any, value: V, cv: Any): V = {
+  final def replaceNode(key: Any, value: V, cv: Any)(implicit xact:Transaction): V = {
     val hash: Int = spread(key.hashCode)
 
     {
@@ -4576,10 +4633,10 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
                     if (e.hash == hash && (refEquals((({
                       ek = e.key; ek
                     })), key) || (ek != null && (key == ek)))) {
-                      val ev: V = e.value
+                      val ev: V = e.getValueImage
                       if ((cv == null) || refEquals(cv, ev) || (ev != null && (cv == ev))) {
                         oldVal = ev
-                        if (value != null) e.value = value
+                        if (value != null) e.setTheValue(value)
                         else if (pred != null) pred.next = e.next
                         else setTabAt(tab, i, e.next)
 
@@ -4608,10 +4665,10 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
                 })) != null && (({
                   p = r.findTreeNode(hash, key, null); p
                 })) != null) {
-                  val pv: V = p.value
+                  val pv: V = p.getValueImage
                   if ((cv == null) || refEquals(cv, pv) || ((pv != null) && (cv == pv))) {
                     oldVal = pv
-                    if (value != null) p.value = value
+                    if (value != null) p.setTheValue(value)
                     else if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
 
                     if (idxs!=Nil) idxs.foreach(_.del(p))
@@ -4636,7 +4693,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
   /**
    * Removes all of the mappings from this map.
    */
-  override def clear {
+  def clear(implicit xact:Transaction) {
     var delta: Long = 0L
     var i: Int = 0
     var tab: Array[Node[K, V]] = table
@@ -4689,7 +4746,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *
    * @return the set view
    */
-  override def keySet: KeySetView[K, V] = {
+  def keySet: KeySetView[K, V] = {
     var ks: KeySetView[K, V] = null
     if ((({
       ks = keySetVar; ks
@@ -4717,7 +4774,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *
    * @return the collection view
    */
-  override def values: Collection[V] = {
+  def values: Collection[V] = {
     var vs: ValuesView[K, V] = null
     if ((({
       vs = valuesVar; vs
@@ -4773,7 +4830,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
         var p: Node[K, V] = null
         while ((({
           p = it.advance; p
-        })) != null) h += p.key.hashCode ^ p.value.hashCode
+        })) != null) h += p.key.hashCode// ^ p.value.hashCode
       }
     }
     h
@@ -4791,32 +4848,33 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    * @return a string representation of this map
    */
   override def toString: String = {
-    var t: Array[Node[K, V]] = null
-    val f: Int = if ((({
-      t = table; t
-    })) == null) 0
-    else t.length
-    val it: Traverser[K, V] = new Traverser[K, V](t, f, 0, f)
-    val sb: StringBuilder = new StringBuilder
-    sb.append('{')
-    var p: Node[K, V] = null
-    if ((({
-      p = it.advance; p
-    })) != null) {
-      var break = false
-      while (!break) {
-        val k: K = p.key
-        val v: V = p.value
-        sb.append(if (refEquals(k, this)) "(this Map)" else k)
-        sb.append('=')
-        sb.append(if (refEquals(v, this)) "(this Map)" else v)
-        if ((({
-          p = it.advance; p
-        })) == null) break = true //todo: break is not supported
-        if(!break) sb.append(',').append(' ')
-      }
-    }
-    sb.append('}').toString
+    throw new UnsupportedOperationException()
+    // var t: Array[Node[K, V]] = null
+    // val f: Int = if ((({
+    //   t = table; t
+    // })) == null) 0
+    // else t.length
+    // val it: Traverser[K, V] = new Traverser[K, V](t, f, 0, f)
+    // val sb: StringBuilder = new StringBuilder
+    // sb.append('{')
+    // var p: Node[K, V] = null
+    // if ((({
+    //   p = it.advance; p
+    // })) != null) {
+    //   var break = false
+    //   while (!break) {
+    //     val k: K = p.key
+    //     val v: V = p.getValueImage
+    //     sb.append(if (refEquals(k, this)) "(this Map)" else k)
+    //     sb.append('=')
+    //     sb.append(if (refEquals(v, this)) "(this Map)" else v)
+    //     if ((({
+    //       p = it.advance; p
+    //     })) == null) break = true //todo: break is not supported
+    //     if(!break) sb.append(',').append(' ')
+    //   }
+    // }
+    // sb.append('}').toString
   }
 
   /**
@@ -4830,45 +4888,46 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    * @return { @code true} if the specified object is equal to this map
    */
   override def equals(o: Any): Boolean = {
-    if (!refEquals(o.asInstanceOf[AnyRef], this)) {
-      if (!(o.isInstanceOf[Map[_, _]])) return false
-      val m = o.asInstanceOf[Map[K,V]]
-      var t: Array[Node[K, V]] = null
-      val f: Int = if ((({
-        t = table; t
-      })) == null) 0
-      else t.length
-      val it: Traverser[K, V] = new Traverser[K, V](t, f, 0, f)
+    throw new UnsupportedOperationException()
+    // if (!refEquals(o.asInstanceOf[AnyRef], this)) {
+    //   if (!(o.isInstanceOf[Map[_, _]])) return false
+    //   val m = o.asInstanceOf[Map[K,V]]
+    //   var t: Array[Node[K, V]] = null
+    //   val f: Int = if ((({
+    //     t = table; t
+    //   })) == null) 0
+    //   else t.length
+    //   val it: Traverser[K, V] = new Traverser[K, V](t, f, 0, f)
 
-      {
-        var p: Node[K, V] = null
-        while ((({
-          p = it.advance; p
-        })) != null) {
-          val value: V = p.value
-          val v = m.get(p.key)
-          if ((v == null) || (refEquals(v, value) && !(v == value))) return false
-        }
-      }
-      import scala.collection.JavaConversions._
-      for (e <- m.entrySet) {
-        var mk: K = null.asInstanceOf[K]
-        var mv: V = null.asInstanceOf[V]
-        var v: V = null.asInstanceOf[V]
-        if ((({
-          mk = e.getKey; mk
-        })) == null || (({
-          mv = e.getValue; mv
-        })) == null || (({
-          v = get(mk); v
-        })) == null || (!refEquals(mv, v) && !(mv == v))) return false
-      }
-    }
-    true
+    //   {
+    //     var p: Node[K, V] = null
+    //     while ((({
+    //       p = it.advance; p
+    //     })) != null) {
+    //       val value: V = p.getValue
+    //       val v = m.get(p.key)
+    //       if ((v == null) || (refEquals(v, value) && !(v == value))) return false
+    //     }
+    //   }
+    //   import scala.collection.JavaConversions._
+    //   for (e <- m.entrySet) {
+    //     var mk: K = null.asInstanceOf[K]
+    //     var mv: V = null.asInstanceOf[V]
+    //     var v: V = null.asInstanceOf[V]
+    //     if ((({
+    //       mk = e.getKey; mk
+    //     })) == null || (({
+    //       mv = e.getValue; mv
+    //     })) == null || (({
+    //       v = get(mk); v
+    //     })) == null || (!refEquals(mv, v) && !(mv == v))) return false
+    //   }
+    // }
+    // true
   }
 
   /**
-   * Saves the state of the {@code ConcurrentSHMap} instance to a
+   * Saves the state of the {@code ConcurrentSHMapMVCC} instance to a
    * stream (i.e., serializes it).
    * @param s the stream
    * @throws java.io.IOException if an I/O error occurs
@@ -4879,48 +4938,49 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    */
   @throws(classOf[java.io.IOException])
   private def writeObject(s: ObjectOutputStream) {
-    var sshift: Int = 0
-    var ssize: Int = 1
-    while (ssize < DEFAULT_CONCURRENCY_LEVEL) {
-      sshift += 1
-      ssize <<= 1
-    }
-    val segmentShift: Int = 32 - sshift
-    val segmentMask: Int = ssize - 1
-    @SuppressWarnings(Array("unchecked")) var segments: Array[Segment[K, V]] = new Array[Segment[_, _]](DEFAULT_CONCURRENCY_LEVEL).asInstanceOf[Array[Segment[K, V]]]
+    throw new UnsupportedOperationException()
+    // var sshift: Int = 0
+    // var ssize: Int = 1
+    // while (ssize < DEFAULT_CONCURRENCY_LEVEL) {
+    //   sshift += 1
+    //   ssize <<= 1
+    // }
+    // val segmentShift: Int = 32 - sshift
+    // val segmentMask: Int = ssize - 1
+    // @SuppressWarnings(Array("unchecked")) var segments: Array[Segment[K, V]] = new Array[Segment[_, _]](DEFAULT_CONCURRENCY_LEVEL).asInstanceOf[Array[Segment[K, V]]]
 
-    {
-      var i: Int = 0
-      while (i < segments.length) {
-        segments(i) = new Segment[K, V](LOAD_FACTOR)
-        ({
-          i += 1; i
-        })
-      }
-    }
-    s.putFields.put("segments", segments)
-    s.putFields.put("segmentShift", segmentShift)
-    s.putFields.put("segmentMask", segmentMask)
-    s.writeFields
-    var t: Array[Node[K, V]] = null
-    if ((({
-      t = table; t
-    })) != null) {
-      val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
+    // {
+    //   var i: Int = 0
+    //   while (i < segments.length) {
+    //     segments(i) = new Segment[K, V](LOAD_FACTOR)
+    //     ({
+    //       i += 1; i
+    //     })
+    //   }
+    // }
+    // s.putFields.put("segments", segments)
+    // s.putFields.put("segmentShift", segmentShift)
+    // s.putFields.put("segmentMask", segmentMask)
+    // s.writeFields
+    // var t: Array[Node[K, V]] = null
+    // if ((({
+    //   t = table; t
+    // })) != null) {
+    //   val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
-      {
-        var p: Node[K, V] = null
-        while ((({
-          p = it.advance; p
-        })) != null) {
-          s.writeObject(p.key)
-          s.writeObject(p.value)
-        }
-      }
-    }
-    s.writeObject(null)
-    s.writeObject(null)
-    segments = null
+    //   {
+    //     var p: Node[K, V] = null
+    //     while ((({
+    //       p = it.advance; p
+    //     })) != null) {
+    //       s.writeObject(p.key)
+    //       s.writeObject(p.getValue)
+    //     }
+    //   }
+    // }
+    // s.writeObject(null)
+    // s.writeObject(null)
+    // segments = null
   }
 
   /**
@@ -4933,107 +4993,108 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
   @throws(classOf[java.io.IOException])
   @throws(classOf[ClassNotFoundException])
   private def readObject(s: ObjectInputStream) {
-    sizeCtl = -1
-    s.defaultReadObject
-    var size: Long = 0L
-    var p: Node[K, V] = null
-    var break = false
-    while (!break) {
-      @SuppressWarnings(Array("unchecked")) val k: K = s.readObject.asInstanceOf[K]
-      @SuppressWarnings(Array("unchecked")) val v: V = s.readObject.asInstanceOf[V]
-      if (k != null && v != null) {
-        p = new Node[K, V](spread(k.hashCode), k, v, p)
-        size += 1
-      }
-      else break = true //todo: break is not supported
-    }
-    if (size == 0L) sizeCtl = 0
-    else {
-      var n: Int = 0
-      if (size >= (MAXIMUM_CAPACITY >>> 1).toLong) n = MAXIMUM_CAPACITY
-      else {
-        val sz: Int = size.toInt
-        n = tableSizeFor(sz + (sz >>> 1) + 1)
-      }
-      @SuppressWarnings(Array("unchecked")) val tab: Array[Node[K, V]] = new Array[Node[_, _]](n).asInstanceOf[Array[Node[K, V]]]
-      val mask: Int = n - 1
-      var added: Long = 0L
-      while (p != null) {
-        var insertAtFront: Boolean = false
-        val next: Node[K, V] = p.next
-        var first: Node[K, V] = null
-        val h: Int = p.hash
-        val j: Int = h & mask
-        if ((({
-          first = tabAt(tab, j); first
-        })) == null) insertAtFront = true
-        else {
-          val k: K = p.key
-          if (first.hash < 0) {
-            val t: TreeBin[K, V] = first.asInstanceOf[TreeBin[K, V]]
-            if (t.putTreeVal(h, k, p.value) == null) ({
-              added += 1; added
-            })
-            insertAtFront = false
-          }
-          else {
-            var binCount: Int = 0
-            insertAtFront = true
-            var q: Node[K, V] = null
-            var qk: K = null.asInstanceOf[K]
+    throw new UnsupportedOperationException()
+    // sizeCtl = -1
+    // s.defaultReadObject
+    // var size: Long = 0L
+    // var p: Node[K, V] = null
+    // var break = false
+    // while (!break) {
+    //   @SuppressWarnings(Array("unchecked")) val k: K = s.readObject.asInstanceOf[K]
+    //   @SuppressWarnings(Array("unchecked")) val v: V = s.readObject.asInstanceOf[V]
+    //   if (k != null && v != null) {
+    //     p = new Node[K, V](spread(k.hashCode), k, v, p)
+    //     size += 1
+    //   }
+    //   else break = true //todo: break is not supported
+    // }
+    // if (size == 0L) sizeCtl = 0
+    // else {
+    //   var n: Int = 0
+    //   if (size >= (MAXIMUM_CAPACITY >>> 1).toLong) n = MAXIMUM_CAPACITY
+    //   else {
+    //     val sz: Int = size.toInt
+    //     n = tableSizeFor(sz + (sz >>> 1) + 1)
+    //   }
+    //   @SuppressWarnings(Array("unchecked")) val tab: Array[Node[K, V]] = new Array[Node[_, _]](n).asInstanceOf[Array[Node[K, V]]]
+    //   val mask: Int = n - 1
+    //   var added: Long = 0L
+    //   while (p != null) {
+    //     var insertAtFront: Boolean = false
+    //     val next: Node[K, V] = p.next
+    //     var first: Node[K, V] = null
+    //     val h: Int = p.hash
+    //     val j: Int = h & mask
+    //     if ((({
+    //       first = tabAt(tab, j); first
+    //     })) == null) insertAtFront = true
+    //     else {
+    //       val k: K = p.key
+    //       if (first.hash < 0) {
+    //         val t: TreeBin[K, V] = first.asInstanceOf[TreeBin[K, V]]
+    //         if (t.putTreeVal(h, k, p.getValue) == null) ({
+    //           added += 1; added
+    //         })
+    //         insertAtFront = false
+    //       }
+    //       else {
+    //         var binCount: Int = 0
+    //         insertAtFront = true
+    //         var q: Node[K, V] = null
+    //         var qk: K = null.asInstanceOf[K]
 
-            {
-              q = first
-              var break = false
-              while (!break && (q != null)) {
-                if (q.hash == h && (refEquals((({
-                  qk = q.key; qk
-                })), k) || (qk != null && (k == qk)))) {
-                  insertAtFront = false
-                  break = true //todo: break is not supported
-                }
-                if(!break) {
-                  binCount += 1
-                  q = q.next
-                }
-              }
-            }
-            if (insertAtFront && binCount >= TREEIFY_THRESHOLD) {
-              insertAtFront = false
-              added += 1
-              p.next = first
-              var hd: TreeNode[K, V] = null
-              var tl: TreeNode[K, V] = null
+    //         {
+    //           q = first
+    //           var break = false
+    //           while (!break && (q != null)) {
+    //             if (q.hash == h && (refEquals((({
+    //               qk = q.key; qk
+    //             })), k) || (qk != null && (k == qk)))) {
+    //               insertAtFront = false
+    //               break = true //todo: break is not supported
+    //             }
+    //             if(!break) {
+    //               binCount += 1
+    //               q = q.next
+    //             }
+    //           }
+    //         }
+    //         if (insertAtFront && binCount >= TREEIFY_THRESHOLD) {
+    //           insertAtFront = false
+    //           added += 1
+    //           p.next = first
+    //           var hd: TreeNode[K, V] = null
+    //           var tl: TreeNode[K, V] = null
 
-              {
-                q = p
-                while (q != null) {
-                  {
-                    val t: TreeNode[K, V] = new TreeNode[K, V](q.hash, q.key, q.value, null, null)
-                    if ((({
-                      t.prev = tl; t.prev
-                    })) == null) hd = t
-                    else tl.next = t
-                    tl = t
-                  }
-                  q = q.next
-                }
-              }
-              setTabAt(tab, j, new TreeBin[K, V](hd))
-            }
-          }
-        }
-        if (insertAtFront) {
-          added += 1
-          p.next = first
-          setTabAt(tab, j, p)
-        }
-        p = next
-      }
-      table = tab
-      sizeCtl = n - (n >>> 2)
-      baseCount = added
-    }
+    //           {
+    //             q = p
+    //             while (q != null) {
+    //               {
+    //                 val t: TreeNode[K, V] = new TreeNode[K, V](q.hash, q.key, q.value, null, null)
+    //                 if ((({
+    //                   t.prev = tl; t.prev
+    //                 })) == null) hd = t
+    //                 else tl.next = t
+    //                 tl = t
+    //               }
+    //               q = q.next
+    //             }
+    //           }
+    //           setTabAt(tab, j, new TreeBin[K, V](hd))
+    //         }
+    //       }
+    //     }
+    //     if (insertAtFront) {
+    //       added += 1
+    //       p.next = first
+    //       setTabAt(tab, j, p)
+    //     }
+    //     p = next
+    //   }
+    //   table = tab
+    //   sizeCtl = n - (n >>> 2)
+    //   baseCount = added
+    // }
   }
 
   /**
@@ -5043,8 +5104,9 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *         or { @code null} if there was no mapping for the key
    * @throws NullPointerException if the specified key or value is null
    */
-  override def putIfAbsent(key: K, value: V): V = {
-    putVal(key, value, true)
+  def putIfAbsent(key: K, value: V): V = {
+    throw new UnsupportedOperationException()
+    // putVal(key, value, true)
   }
 
   /**
@@ -5052,9 +5114,10 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *
    * @throws NullPointerException if the specified key is null
    */
-  override def remove(key: Any, value: Any): Boolean = {
-    if (key == null) throw new NullPointerException
-    value != null && replaceNode(key, null.asInstanceOf[V], value) != null
+  def remove(key: Any, value: Any): Boolean = {
+    throw new UnsupportedOperationException()
+    // if (key == null) throw new NullPointerException
+    // value != null && replaceNode(key, null.asInstanceOf[V], value) != null
   }
 
   /**
@@ -5062,9 +5125,10 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *
    * @throws NullPointerException if any of the arguments are null
    */
-  override def replace(key: K, oldValue: V, newValue: V): Boolean = {
-    if (key == null || oldValue == null || newValue == null) throw new NullPointerException
-    replaceNode(key, newValue, oldValue) != null
+  def replace(key: K, oldValue: V, newValue: V): Boolean = {
+    throw new UnsupportedOperationException()
+    // if (key == null || oldValue == null || newValue == null) throw new NullPointerException
+    // replaceNode(key, newValue, oldValue) != null
   }
 
   /**
@@ -5074,9 +5138,10 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    *         or { @code null} if there was no mapping for the key
    * @throws NullPointerException if the specified key or value is null
    */
-  override def replace(key: K, value: V): V = {
-    if (key == null || value == null) throw new NullPointerException
-    replaceNode(key, value, null)
+  def replace(key: K, value: V): V = {
+    throw new UnsupportedOperationException()
+    // if (key == null || value == null) throw new NullPointerException
+    // replaceNode(key, value, null)
   }
 
   /**
@@ -5090,15 +5155,16 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    * @return the mapping for the key, if present; else the default value
    * @throws NullPointerException if the specified key is null
    */
-  override def getOrDefault(key: Any, defaultValue: V): V = {
-    var v: V = null.asInstanceOf[V]
-    if ((({
-      v = get(key); v
-    })) == null) defaultValue
-    else v
+  def getOrDefault(key: Any, defaultValue: V): V = {
+    throw new UnsupportedOperationException()
+    // var v: V = null.asInstanceOf[V]
+    // if ((({
+    //   v = get(key); v
+    // })) == null) defaultValue
+    // else v
   }
 
-  override def forEach(action: BiConsumer[_ >: K, _ >: V]) {
+  def forEach(action: BiConsumer[_ >: K, _ >: V]) {
     if (action == null) throw new NullPointerException
     var t: Array[Node[K, V]] = null
     if ((({
@@ -5111,41 +5177,42 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
         while ((({
           p = it.advance; p
         })) != null) {
-          action.accept(p.key, p.value)
+          action.accept(p.key, p.getValue)
         }
       }
     }
   }
 
-  override def replaceAll(function: BiFunction[_ >: K, _ >: V, _ <: V]) {
-    if (function == null) throw new NullPointerException
-    var t: Array[Node[K, V]] = null
-    if ((({
-      t = table; t
-    })) != null) {
-      val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
+  def replaceAll(function: BiFunction[_ >: K, _ >: V, _ <: V]) {
+    throw new UnsupportedOperationException()
+    // if (function == null) throw new NullPointerException
+    // var t: Array[Node[K, V]] = null
+    // if ((({
+    //   t = table; t
+    // })) != null) {
+    //   val it: Traverser[K, V] = new Traverser[K, V](t, t.length, 0, t.length)
 
-      {
-        var p: Node[K, V] = null
-        while ((({
-          p = it.advance; p
-        })) != null) {
-          var oldValue: V = p.value
+    //   {
+    //     var p: Node[K, V] = null
+    //     while ((({
+    //       p = it.advance; p
+    //     })) != null) {
+    //       var oldValue: V = p.getValue
 
-          {
-            val key: K = p.key
-            var break = false
-            while (!break) {
-              val newValue: V = function.apply(key, oldValue)
-              if (newValue == null) throw new NullPointerException
-              if (replaceNode(key, newValue, oldValue) != null || (({
-                oldValue = get(key); oldValue
-              })) == null) break = true //todo: break is not supported
-            }
-          }
-        }
-      }
-    }
+    //       {
+    //         val key: K = p.key
+    //         var break = false
+    //         while (!break) {
+    //           val newValue: V = function.apply(key, oldValue)
+    //           if (newValue == null) throw new NullPointerException
+    //           if (replaceNode(key, newValue, oldValue) != null || (({
+    //             oldValue = get(key); oldValue
+    //           })) == null) break = true //todo: break is not supported
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
   }
 
   /**
@@ -5170,116 +5237,117 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    * @throws RuntimeException or Error if the mappingFunction does so,
    *                          in which case the mapping is left unestablished
    */
-  override def computeIfAbsent(key: K, mappingFunction: Function[_ >: K, _ <: V]): V = {
-    if (key == null || mappingFunction == null) throw new NullPointerException
-    val h: Int = spread(key.hashCode)
-    var value: V = null.asInstanceOf[V]
-    var binCount: Int = 0
+  def computeIfAbsent(key: K, mappingFunction: Function[_ >: K, _ <: V]): V = {
+    throw new UnsupportedOperationException()
+    // if (key == null || mappingFunction == null) throw new NullPointerException
+    // val h: Int = spread(key.hashCode)
+    // var value: V = null.asInstanceOf[V]
+    // var binCount: Int = 0
 
-    {
-      var tab: Array[Node[K, V]] = table
-      var break = false
-      while (!break) {
-        var f: Node[K, V] = null
-        var n: Int = 0
-        var i: Int = 0
-        var fh: Int = 0
-        if (tab == null || (({
-          n = tab.length; n
-        })) == 0) tab = initTable
-        else if ((({
-          f = tabAt(tab, {i = (n - 1) & h; i}); f
-        })) == null) {
-          val r: Node[K, V] = new ReservationNode[K, V]
-          r synchronized {
-            if (casTabAt(tab, i, null, r)) {
-              binCount = 1
-              var node: Node[K, V] = null
-              try {
-                if ((({
-                  value = mappingFunction.apply(key); value
-                })) != null) node = new Node[K, V](h, key, value, null)
-              } finally {
-                setTabAt(tab, i, node)
-              }
-            }
-          }
-          if (binCount != 0) break = true //todo: break is not supported
-        }
-        else if ((({
-          fh = f.hash; fh
-        })) == MOVED) tab = helpTransfer(tab, f)
-        else {
-          var added: Boolean = false
-          f synchronized {
-            if (tabAt(tab, i) eq f) {
-              if (fh >= 0) {
-                binCount = 1
+    // {
+    //   var tab: Array[Node[K, V]] = table
+    //   var break = false
+    //   while (!break) {
+    //     var f: Node[K, V] = null
+    //     var n: Int = 0
+    //     var i: Int = 0
+    //     var fh: Int = 0
+    //     if (tab == null || (({
+    //       n = tab.length; n
+    //     })) == 0) tab = initTable
+    //     else if ((({
+    //       f = tabAt(tab, {i = (n - 1) & h; i}); f
+    //     })) == null) {
+    //       val r: Node[K, V] = new ReservationNode[K, V]
+    //       r synchronized {
+    //         if (casTabAt(tab, i, null, r)) {
+    //           binCount = 1
+    //           var node: Node[K, V] = null
+    //           try {
+    //             if ((({
+    //               value = mappingFunction.apply(key); value
+    //             })) != null) node = new Node[K, V](h, key, value, null)
+    //           } finally {
+    //             setTabAt(tab, i, node)
+    //           }
+    //         }
+    //       }
+    //       if (binCount != 0) break = true //todo: break is not supported
+    //     }
+    //     else if ((({
+    //       fh = f.hash; fh
+    //     })) == MOVED) tab = helpTransfer(tab, f)
+    //     else {
+    //       var added: Boolean = false
+    //       f synchronized {
+    //         if (tabAt(tab, i) eq f) {
+    //           if (fh >= 0) {
+    //             binCount = 1
 
-                {
-                  var e: Node[K, V] = f
-                  break = false
-                  while (!break) {
-                    {
-                      var ek: K = null.asInstanceOf[K]
-                      val ev: V = null.asInstanceOf[V]
-                      if (e.hash == h && (refEquals((({
-                        ek = e.key; ek
-                      })), key) || ((ek != null) && (key == ek)))) {
-                        value = e.value
-                        break = true //todo: break is not supported
-                      }
-                      if(!break) {
-                        val pred: Node[K, V] = e
-                        if ((({
-                          e = e.next;
-                          e
-                        })) == null) {
-                          if ((({
-                            value = mappingFunction.apply(key);
-                            value
-                          })) != null) {
-                            added = true
-                            pred.next = new Node[K, V](h, key, value, null)
-                          }
-                          break = true //todo: break is not supported
-                        }
-                      }
-                    }
-                    if(!break) binCount += 1
-                  }
-                  break = false
-                }
-              }
-              else if (f.isInstanceOf[TreeBin[_, _]]) {
-                binCount = 2
-                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
-                var r: TreeNode[K, V] = null
-                var p: TreeNode[K, V] = null
-                if ((({
-                  r = t.root; r
-                })) != null && (({
-                  p = r.findTreeNode(h, key, null); p
-                })) != null) value = p.value
-                else if ((({
-                  value = mappingFunction.apply(key); value
-                })) != null) {
-                  added = true
-                  t.putTreeVal(h, key, value)
-                }
-              }
-            }
-          }
-          if (binCount != 0) {
-            if (binCount >= TREEIFY_THRESHOLD) treeifyBin(tab, i)
-            if (!added) return value
-            break = true //todo: break is not supported
-          }
-        }
-      }
-    }
-    if (value != null) addCount(1L, binCount)
-    value
+    //             {
+    //               var e: Node[K, V] = f
+    //               break = false
+    //               while (!break) {
+    //                 {
+    //                   var ek: K = null.asInstanceOf[K]
+    //                   val ev: V = null.asInstanceOf[V]
+    //                   if (e.hash == h && (refEquals((({
+    //                     ek = e.key; ek
+    //                   })), key) || ((ek != null) && (key == ek)))) {
+    //                     value = e.getValue
+    //                     break = true //todo: break is not supported
+    //                   }
+    //                   if(!break) {
+    //                     val pred: Node[K, V] = e
+    //                     if ((({
+    //                       e = e.next;
+    //                       e
+    //                     })) == null) {
+    //                       if ((({
+    //                         value = mappingFunction.apply(key);
+    //                         value
+    //                       })) != null) {
+    //                         added = true
+    //                         pred.next = new Node[K, V](h, key, value, null)
+    //                       }
+    //                       break = true //todo: break is not supported
+    //                     }
+    //                   }
+    //                 }
+    //                 if(!break) binCount += 1
+    //               }
+    //               break = false
+    //             }
+    //           }
+    //           else if (f.isInstanceOf[TreeBin[_, _]]) {
+    //             binCount = 2
+    //             val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+    //             var r: TreeNode[K, V] = null
+    //             var p: TreeNode[K, V] = null
+    //             if ((({
+    //               r = t.root; r
+    //             })) != null && (({
+    //               p = r.findTreeNode(h, key, null); p
+    //             })) != null) value = p.getValue
+    //             else if ((({
+    //               value = mappingFunction.apply(key); value
+    //             })) != null) {
+    //               added = true
+    //               t.putTreeVal(h, key, value)
+    //             }
+    //           }
+    //         }
+    //       }
+    //       if (binCount != 0) {
+    //         if (binCount >= TREEIFY_THRESHOLD) treeifyBin(tab, i)
+    //         if (!added) return value
+    //         break = true //todo: break is not supported
+    //       }
+    //     }
+    //   }
+    // }
+    // if (value != null) addCount(1L, binCount)
+    // value
   }
 
   /**
@@ -5302,95 +5370,96 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    * @throws RuntimeException or Error if the remappingFunction does so,
    *                          in which case the mapping is unchanged
    */
-  override def computeIfPresent(key: K, remappingFunction: BiFunction[_ >: K, _ >: V, _ <: V]): V = {
-    if (key == null || remappingFunction == null) throw new NullPointerException
-    val h: Int = spread(key.hashCode)
-    var value: V = null.asInstanceOf[V]
-    var delta: Int = 0
-    var binCount: Int = 0
+  def computeIfPresent(key: K, remappingFunction: BiFunction[_ >: K, _ >: V, _ <: V]): V = {
+    throw new UnsupportedOperationException()
+    // if (key == null || remappingFunction == null) throw new NullPointerException
+    // val h: Int = spread(key.hashCode)
+    // var value: V = null.asInstanceOf[V]
+    // var delta: Int = 0
+    // var binCount: Int = 0
 
-    {
-      var tab: Array[Node[K, V]] = table
-      var break = false
-      while (!break) {
-        var f: Node[K, V] = null
-        var n: Int = 0
-        var i: Int = 0
-        var fh: Int = 0
-        if (tab == null || (({
-          n = tab.length; n
-        })) == 0) tab = initTable
-        else if ((({
-          f = tabAt(tab, {i = (n - 1) & h; i}); f
-        })) == null) break = true //todo: break is not supported
-        else if ((({
-          fh = f.hash; fh
-        })) == MOVED) tab = helpTransfer(tab, f)
-        else {
-          f synchronized {
-            if (tabAt(tab, i) eq f) {
-              if (fh >= 0) {
-                binCount = 1
+    // {
+    //   var tab: Array[Node[K, V]] = table
+    //   var break = false
+    //   while (!break) {
+    //     var f: Node[K, V] = null
+    //     var n: Int = 0
+    //     var i: Int = 0
+    //     var fh: Int = 0
+    //     if (tab == null || (({
+    //       n = tab.length; n
+    //     })) == 0) tab = initTable
+    //     else if ((({
+    //       f = tabAt(tab, {i = (n - 1) & h; i}); f
+    //     })) == null) break = true //todo: break is not supported
+    //     else if ((({
+    //       fh = f.hash; fh
+    //     })) == MOVED) tab = helpTransfer(tab, f)
+    //     else {
+    //       f synchronized {
+    //         if (tabAt(tab, i) eq f) {
+    //           if (fh >= 0) {
+    //             binCount = 1
 
-                {
-                  var e: Node[K, V] = f
-                  var pred: Node[K, V] = null
-                  break = false
-                  while (!break) {
-                    {
-                      var ek: K = null.asInstanceOf[K]
-                      if (e.hash == h && (refEquals((({
-                        ek = e.key; ek
-                      })), key) || ((ek != null) && (key == ek)))) {
-                        value = remappingFunction.apply(key, e.value)
-                        if (value != null) e.value = value
-                        else {
-                          delta = -1
-                          val en: Node[K, V] = e.next
-                          if (pred != null) pred.next = en
-                          else setTabAt(tab, i, en)
-                        }
-                        break = true //todo: break is not supported
-                      }
-                      if(!break) {
-                        pred = e
-                        if ((({
-                          e = e.next;
-                          e
-                        })) == null) break = true //todo: break is not supported
-                      }
-                    }
-                    if(!break) binCount += 1
-                  }
-                  break = false
-                }
-              }
-              else if (f.isInstanceOf[TreeBin[_, _]]) {
-                binCount = 2
-                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
-                var r: TreeNode[K, V] = null
-                var p: TreeNode[K, V] = null
-                if ((({
-                  r = t.root; r
-                })) != null && (({
-                  p = r.findTreeNode(h, key, null); p
-                })) != null) {
-                  value = remappingFunction.apply(key, p.value)
-                  if (value != null) p.value = value
-                  else {
-                    delta = -1
-                    if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
-                  }
-                }
-              }
-            }
-          }
-          if (binCount != 0) break = true //todo: break is not supported
-        }
-      }
-    }
-    if (delta != 0) addCount(delta.toLong, binCount)
-    value
+    //             {
+    //               var e: Node[K, V] = f
+    //               var pred: Node[K, V] = null
+    //               break = false
+    //               while (!break) {
+    //                 {
+    //                   var ek: K = null.asInstanceOf[K]
+    //                   if (e.hash == h && (refEquals((({
+    //                     ek = e.key; ek
+    //                   })), key) || ((ek != null) && (key == ek)))) {
+    //                     value = remappingFunction.apply(key, e.getValue)
+    //                     if (value != null) e.getValue = value
+    //                     else {
+    //                       delta = -1
+    //                       val en: Node[K, V] = e.next
+    //                       if (pred != null) pred.next = en
+    //                       else setTabAt(tab, i, en)
+    //                     }
+    //                     break = true //todo: break is not supported
+    //                   }
+    //                   if(!break) {
+    //                     pred = e
+    //                     if ((({
+    //                       e = e.next;
+    //                       e
+    //                     })) == null) break = true //todo: break is not supported
+    //                   }
+    //                 }
+    //                 if(!break) binCount += 1
+    //               }
+    //               break = false
+    //             }
+    //           }
+    //           else if (f.isInstanceOf[TreeBin[_, _]]) {
+    //             binCount = 2
+    //             val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+    //             var r: TreeNode[K, V] = null
+    //             var p: TreeNode[K, V] = null
+    //             if ((({
+    //               r = t.root; r
+    //             })) != null && (({
+    //               p = r.findTreeNode(h, key, null); p
+    //             })) != null) {
+    //               value = remappingFunction.apply(key, p.getValue)
+    //               if (value != null) p.getValue = value
+    //               else {
+    //                 delta = -1
+    //                 if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
+    //               }
+    //             }
+    //           }
+    //         }
+    //       }
+    //       if (binCount != 0) break = true //todo: break is not supported
+    //     }
+    //   }
+    // }
+    // if (delta != 0) addCount(delta.toLong, binCount)
+    // value
   }
 
   /**
@@ -5413,129 +5482,130 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    * @throws RuntimeException or Error if the remappingFunction does so,
    *                          in which case the mapping is unchanged
    */
-  override def compute(key: K, remappingFunction: BiFunction[_ >: K, _ >: V, _ <: V]): V = {
-    if (key == null || remappingFunction == null) throw new NullPointerException
-    val h: Int = spread(key.hashCode)
-    var value: V = null.asInstanceOf[V]
-    var delta: Int = 0
-    var binCount: Int = 0
+  def compute(key: K, remappingFunction: BiFunction[_ >: K, _ >: V, _ <: V]): V = {
+    throw new UnsupportedOperationException()
+    // if (key == null || remappingFunction == null) throw new NullPointerException
+    // val h: Int = spread(key.hashCode)
+    // var value: V = null.asInstanceOf[V]
+    // var delta: Int = 0
+    // var binCount: Int = 0
 
-    {
-      var tab: Array[Node[K, V]] = table
-      var break = false
-      while (!break) {
-        var f: Node[K, V] = null
-        var n: Int = 0
-        var i: Int = 0
-        var fh: Int = 0
-        if (tab == null || (({
-          n = tab.length; n
-        })) == 0) tab = initTable
-        else if ((({
-          f = tabAt(tab, {i = (n - 1) & h; i}); f
-        })) == null) {
-          val r: Node[K, V] = new ReservationNode[K, V]
-          r synchronized {
-            if (casTabAt(tab, i, null, r)) {
-              binCount = 1
-              var node: Node[K, V] = null
-              try {
-                if ((({
-                  value = remappingFunction.apply(key, null.asInstanceOf[V]); value
-                })) != null) {
-                  delta = 1
-                  node = new Node[K, V](h, key, value, null)
-                }
-              } finally {
-                setTabAt(tab, i, node)
-              }
-            }
-          }
-          if (binCount != 0) break = true //todo: break is not supported
-        }
-        else if ((({
-          fh = f.hash; fh
-        })) == MOVED) tab = helpTransfer(tab, f)
-        else {
-          f synchronized {
-            if (tabAt(tab, i) eq f) {
-              if (fh >= 0) {
-                binCount = 1
+    // {
+    //   var tab: Array[Node[K, V]] = table
+    //   var break = false
+    //   while (!break) {
+    //     var f: Node[K, V] = null
+    //     var n: Int = 0
+    //     var i: Int = 0
+    //     var fh: Int = 0
+    //     if (tab == null || (({
+    //       n = tab.length; n
+    //     })) == 0) tab = initTable
+    //     else if ((({
+    //       f = tabAt(tab, {i = (n - 1) & h; i}); f
+    //     })) == null) {
+    //       val r: Node[K, V] = new ReservationNode[K, V]
+    //       r synchronized {
+    //         if (casTabAt(tab, i, null, r)) {
+    //           binCount = 1
+    //           var node: Node[K, V] = null
+    //           try {
+    //             if ((({
+    //               value = remappingFunction.apply(key, null.asInstanceOf[V]); value
+    //             })) != null) {
+    //               delta = 1
+    //               node = new Node[K, V](h, key, value, null)
+    //             }
+    //           } finally {
+    //             setTabAt(tab, i, node)
+    //           }
+    //         }
+    //       }
+    //       if (binCount != 0) break = true //todo: break is not supported
+    //     }
+    //     else if ((({
+    //       fh = f.hash; fh
+    //     })) == MOVED) tab = helpTransfer(tab, f)
+    //     else {
+    //       f synchronized {
+    //         if (tabAt(tab, i) eq f) {
+    //           if (fh >= 0) {
+    //             binCount = 1
 
-                {
-                  var e: Node[K, V] = f
-                  var pred: Node[K, V] = null
-                  break = false
-                  while (!break) {
-                    {
-                      var ek: K = null.asInstanceOf[K]
-                      if (e.hash == h && (refEquals((({
-                        ek = e.key; ek
-                      })), key) || (ek != null && (key == ek)))) {
-                        value = remappingFunction.apply(key, e.value)
-                        if (value != null) e.value = value
-                        else {
-                          delta = -1
-                          val en: Node[K, V] = e.next
-                          if (pred != null) pred.next = en
-                          else setTabAt(tab, i, en)
-                        }
-                        break = true //todo: break is not supported
-                      }
-                      if(!break) {
-                        pred = e
-                        if ((({
-                          e = e.next;
-                          e
-                        })) == null) {
-                          value = remappingFunction.apply(key, null.asInstanceOf[V])
-                          if (value != null) {
-                            delta = 1
-                            pred.next = new Node[K, V](h, key, value, null)
-                          }
-                          break = true //todo: break is not supported
-                        }
-                      }
-                    }
-                    if(!break) binCount += 1
-                  }
-                  break = false
-                }
-              }
-              else if (f.isInstanceOf[TreeBin[_, _]]) {
-                binCount = 1
-                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
-                var r: TreeNode[K, V] = null
-                var p: TreeNode[K, V] = null
-                if ((({
-                  r = t.root; r
-                })) != null) p = r.findTreeNode(h, key, null)
-                else p = null
-                val pv: V = if ((p == null)) null.asInstanceOf[V] else p.value
-                value = remappingFunction.apply(key, pv)
-                if (value != null) {
-                  if (p != null) p.value = value
-                  else {
-                    delta = 1
-                    t.putTreeVal(h, key, value)
-                  }
-                }
-                else if (p != null) {
-                  delta = -1
-                  if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
-                }
-              }
-            }
-          }
-          if (binCount != 0) {
-            if (binCount >= TREEIFY_THRESHOLD) treeifyBin(tab, i)
-            break = true //todo: break is not supported
-          }
-        }
-      }
-    }
-    if (delta != 0) addCount(delta.toLong, binCount)
-    value
+    //             {
+    //               var e: Node[K, V] = f
+    //               var pred: Node[K, V] = null
+    //               break = false
+    //               while (!break) {
+    //                 {
+    //                   var ek: K = null.asInstanceOf[K]
+    //                   if (e.hash == h && (refEquals((({
+    //                     ek = e.key; ek
+    //                   })), key) || (ek != null && (key == ek)))) {
+    //                     value = remappingFunction.apply(key, e.getValue)
+    //                     if (value != null) e.setValue(value)
+    //                     else {
+    //                       delta = -1
+    //                       val en: Node[K, V] = e.next
+    //                       if (pred != null) pred.next = en
+    //                       else setTabAt(tab, i, en)
+    //                     }
+    //                     break = true //todo: break is not supported
+    //                   }
+    //                   if(!break) {
+    //                     pred = e
+    //                     if ((({
+    //                       e = e.next;
+    //                       e
+    //                     })) == null) {
+    //                       value = remappingFunction.apply(key, null.asInstanceOf[V])
+    //                       if (value != null) {
+    //                         delta = 1
+    //                         pred.next = new Node[K, V](h, key, value, null)
+    //                       }
+    //                       break = true //todo: break is not supported
+    //                     }
+    //                   }
+    //                 }
+    //                 if(!break) binCount += 1
+    //               }
+    //               break = false
+    //             }
+    //           }
+    //           else if (f.isInstanceOf[TreeBin[_, _]]) {
+    //             binCount = 1
+    //             val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+    //             var r: TreeNode[K, V] = null
+    //             var p: TreeNode[K, V] = null
+    //             if ((({
+    //               r = t.root; r
+    //             })) != null) p = r.findTreeNode(h, key, null)
+    //             else p = null
+    //             val pv: V = if ((p == null)) null.asInstanceOf[V] else p.getValue
+    //             value = remappingFunction.apply(key, pv)
+    //             if (value != null) {
+    //               if (p != null) p.setValue(value)
+    //               else {
+    //                 delta = 1
+    //                 t.putTreeVal(h, key, value)
+    //               }
+    //             }
+    //             else if (p != null) {
+    //               delta = -1
+    //               if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
+    //             }
+    //           }
+    //         }
+    //       }
+    //       if (binCount != 0) {
+    //         if (binCount >= TREEIFY_THRESHOLD) treeifyBin(tab, i)
+    //         break = true //todo: break is not supported
+    //       }
+    //     }
+    //   }
+    // }
+    // if (delta != 0) addCount(delta.toLong, binCount)
+    // value
   }
 
   /**
@@ -5558,109 +5628,110 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    * @throws RuntimeException or Error if the remappingFunction does so,
    *                          in which case the mapping is unchanged
    */
-  override def merge(key: K, value: V, remappingFunction: BiFunction[_ >: V, _ >: V, _ <: V]): V = {
-    if (key == null || value == null || remappingFunction == null) throw new NullPointerException
-    val h: Int = spread(key.hashCode)
-    var theVal: V = null.asInstanceOf[V]
-    var delta: Int = 0
-    var binCount: Int = 0
+  def merge(key: K, value: V, remappingFunction: BiFunction[_ >: V, _ >: V, _ <: V]): V = {
+    throw new UnsupportedOperationException()
+    // if (key == null || value == null || remappingFunction == null) throw new NullPointerException
+    // val h: Int = spread(key.hashCode)
+    // var theVal: V = null.asInstanceOf[V]
+    // var delta: Int = 0
+    // var binCount: Int = 0
 
-    {
-      var tab: Array[Node[K, V]] = table
-      var break = false
-      while (!break) {
-        var f: Node[K, V] = null
-        var n: Int = 0
-        var i: Int = 0
-        var fh: Int = 0
-        if (tab == null || (({
-          n = tab.length; n
-        })) == 0) tab = initTable
-        else if ((({
-          f = tabAt(tab, {i = (n - 1) & h; i}); f
-        })) == null) {
-          if (casTabAt(tab, i, null, new Node[K, V](h, key, value, null))) {
-            delta = 1
-            theVal = value
-            break = true //todo: break is not supported
-          }
-        }
-        else if ((({
-          fh = f.hash; fh
-        })) == MOVED) tab = helpTransfer(tab, f)
-        else {
-          f synchronized {
-            if (tabAt(tab, i) eq f) {
-              if (fh >= 0) {
-                binCount = 1
+    // {
+    //   var tab: Array[Node[K, V]] = table
+    //   var break = false
+    //   while (!break) {
+    //     var f: Node[K, V] = null
+    //     var n: Int = 0
+    //     var i: Int = 0
+    //     var fh: Int = 0
+    //     if (tab == null || (({
+    //       n = tab.length; n
+    //     })) == 0) tab = initTable
+    //     else if ((({
+    //       f = tabAt(tab, {i = (n - 1) & h; i}); f
+    //     })) == null) {
+    //       if (casTabAt(tab, i, null, new Node[K, V](h, key, value, null))) {
+    //         delta = 1
+    //         theVal = value
+    //         break = true //todo: break is not supported
+    //       }
+    //     }
+    //     else if ((({
+    //       fh = f.hash; fh
+    //     })) == MOVED) tab = helpTransfer(tab, f)
+    //     else {
+    //       f synchronized {
+    //         if (tabAt(tab, i) eq f) {
+    //           if (fh >= 0) {
+    //             binCount = 1
 
-                {
-                  var e: Node[K, V] = f
-                  var pred: Node[K, V] = null
-                  break = false
-                  while (!break) {
-                    {
-                      var ek: K = null.asInstanceOf[K]
-                      if (e.hash == h && (refEquals((({
-                        ek = e.key; ek
-                      })), key) || ((ek != null) && (key == ek)))) {
-                        theVal = remappingFunction.apply(e.value, value)
-                        if (theVal != null) e.value = theVal
-                        else {
-                          delta = -1
-                          val en: Node[K, V] = e.next
-                          if (pred != null) pred.next = en
-                          else setTabAt(tab, i, en)
-                        }
-                        break = true //todo: break is not supported
-                      }
-                      if(!break) {
-                        pred = e
-                        if ((({
-                          e = e.next;
-                          e
-                        })) == null) {
-                          delta = 1
-                          theVal = value
-                          pred.next = new Node[K, V](h, key, theVal, null)
-                          break = true //todo: break is not supported
-                        }
-                      }
-                    }
-                    if(!break) binCount += 1
-                  }
-                  break = false
-                }
-              }
-              else if (f.isInstanceOf[TreeBin[_, _]]) {
-                binCount = 2
-                val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
-                val r: TreeNode[K, V] = t.root
-                val p: TreeNode[K, V] = if ((r == null)) null else r.findTreeNode(h, key, null)
-                theVal = if ((p == null)) value else remappingFunction.apply(p.value, value)
-                if (theVal != null) {
-                  if (p != null) p.value = theVal
-                  else {
-                    delta = 1
-                    t.putTreeVal(h, key, theVal)
-                  }
-                }
-                else if (p != null) {
-                  delta = -1
-                  if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
-                }
-              }
-            }
-          }
-          if (binCount != 0) {
-            if (binCount >= TREEIFY_THRESHOLD) treeifyBin(tab, i)
-            break = true //todo: break is not supported
-          }
-        }
-      }
-    }
-    if (delta != 0) addCount(delta.toLong, binCount)
-    theVal
+    //             {
+    //               var e: Node[K, V] = f
+    //               var pred: Node[K, V] = null
+    //               break = false
+    //               while (!break) {
+    //                 {
+    //                   var ek: K = null.asInstanceOf[K]
+    //                   if (e.hash == h && (refEquals((({
+    //                     ek = e.key; ek
+    //                   })), key) || ((ek != null) && (key == ek)))) {
+    //                     theVal = remappingFunction.apply(e.getValueImage, value)
+    //                     if (theVal != null) e.setValue(theVal)
+    //                     else {
+    //                       delta = -1
+    //                       val en: Node[K, V] = e.next
+    //                       if (pred != null) pred.next = en
+    //                       else setTabAt(tab, i, en)
+    //                     }
+    //                     break = true //todo: break is not supported
+    //                   }
+    //                   if(!break) {
+    //                     pred = e
+    //                     if ((({
+    //                       e = e.next;
+    //                       e
+    //                     })) == null) {
+    //                       delta = 1
+    //                       theVal = value
+    //                       pred.next = new Node[K, V](h, key, theVal, null)
+    //                       break = true //todo: break is not supported
+    //                     }
+    //                   }
+    //                 }
+    //                 if(!break) binCount += 1
+    //               }
+    //               break = false
+    //             }
+    //           }
+    //           else if (f.isInstanceOf[TreeBin[_, _]]) {
+    //             binCount = 2
+    //             val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
+    //             val r: TreeNode[K, V] = t.root
+    //             val p: TreeNode[K, V] = if ((r == null)) null else r.findTreeNode(h, key, null)
+    //             theVal = if ((p == null)) value else remappingFunction.apply(p.getValueImage, value)
+    //             if (theVal != null) {
+    //               if (p != null) p.setValue(theVal)
+    //               else {
+    //                 delta = 1
+    //                 t.putTreeVal(h, key, theVal)
+    //               }
+    //             }
+    //             else if (p != null) {
+    //               delta = -1
+    //               if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
+    //             }
+    //           }
+    //         }
+    //       }
+    //       if (binCount != 0) {
+    //         if (binCount >= TREEIFY_THRESHOLD) treeifyBin(tab, i)
+    //         break = true //todo: break is not supported
+    //       }
+    //     }
+    //   }
+    // }
+    // if (delta != 0) addCount(delta.toLong, binCount)
+    // theVal
   }
 
   /**
@@ -5714,7 +5785,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
 
   /**
    * Returns the number of mappings. This method should be used
-   * instead of {@link #size} because a ConcurrentSHMap may
+   * instead of {@link #size} because a ConcurrentSHMapMVCC may
    * contain more mappings than can be represented as an int. The
    * value returned is an estimate; the actual count may differ if
    * there are concurrent insertions or removals.
@@ -6019,7 +6090,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
                     {
                       val ph: Int = p.hash
                       val pk: K = p.key
-                      val pv: V = p.value
+                      val pv: DeltaVersion[K,V] = p.value
                       if ((ph & n) == 0) ln = new Node[K, V](ph, pk, pv, ln)
                       else hn = new Node[K, V](ph, pk, pv, hn)
                     }
@@ -6270,11 +6341,11 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
    * @param action the action
    * @since 1.8
    */
-  def forEach(parallelismThreshold: Long, action: (K,V) => Unit) {
+  def forEach(parallelismThreshold: Long, action: (K,V) => Unit)(implicit xact:Transaction) {
     if (action == null) throw new NullPointerException
     new ForEachMappingTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
   }
-  def foreach(action: (K,V) => Unit) {
+  def foreach(action: (K,V) => Unit)(implicit xact:Transaction) {
     if (action == null) throw new NullPointerException
     new ForEachMappingTask[K, V](null, batchFor(ONE_THREAD_NO_PARALLELISM), 0, 0, table, action).invoke
   }
@@ -6853,15 +6924,15 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
     new MapReduceEntriesToIntTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, null, transformer, basis, reducer).invoke
   }
 
-  val idxs:List[ConcurrentSHIndex[_,K,V]] = {
-    def idx[P](f:(K,V)=>P, lf:Float, initC:Int) = new ConcurrentSHIndex[P,K,V](f,lf,initC)
+  val idxs:List[ConcurrentSHIndexMVCC[_,K,V]] = {
+    def idx[P](f:(K,V)=>P, lf:Float, initC:Int) = new ConcurrentSHIndexMVCC[P,K,V](f,lf,initC)
     //TODO: pass the correct capacity and load factor if necessary
     // projs.zip(lfInitIndex).toList.map{case (p, (lf, initC)) => idx(p , lf, initC)}
     projs.toList.map{ p => idx(p , LOAD_FACTOR, DEFAULT_CAPACITY)}
   }
 
-  def slice[P](part:Int, partKey:P):ConcurrentSHIndexEntry[K,V] = {
+  def slice[P](part:Int, partKey:P)(implicit xact:Transaction):ConcurrentSHIndexMVCCEntry[K,V] = {
     val ix=idxs(part)
-    ix.asInstanceOf[ConcurrentSHIndex[P,K,V]].slice(partKey) // type information P is erased anyway
+    ix.asInstanceOf[ConcurrentSHIndexMVCC[P,K,V]].slice(partKey) // type information P is erased anyway
   }
 }

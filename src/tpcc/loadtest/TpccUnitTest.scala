@@ -300,7 +300,13 @@ class TpccUnitTest {
     var delivery: IDeliveryInMem = null
     var slev: IStockLevelInMem = null
 
-    if(implVersionUnderTest == 9) {
+    if(implVersionUnderTest == 10) {
+      newOrder = new ddbt.tpcc.tx10.NewOrder
+      payment = new ddbt.tpcc.tx10.Payment
+      orderStat = new ddbt.tpcc.tx10.OrderStatus
+      delivery = new ddbt.tpcc.tx10.Delivery
+      slev = new ddbt.tpcc.tx10.StockLevel
+    } else if(implVersionUnderTest == 9) {
       newOrder = new ddbt.tpcc.tx9.NewOrder
       payment = new ddbt.tpcc.tx9.Payment
       orderStat = new ddbt.tpcc.tx9.OrderStatus
@@ -397,6 +403,8 @@ class TpccUnitTest {
         SharedDataScala = SharedDataScala.toMVCCTpccTableV1
       } else if(implVersionUnderTest == 9) {
         SharedDataScala = SharedDataScala.toMVCCTpccTableV2
+      } else if(implVersionUnderTest == 10) {
+        SharedDataScala = SharedDataScala.toMVCCTpccTableV3
       }
       newOrder.setSharedData(SharedDataScala)
       payment.setSharedData(SharedDataScala)

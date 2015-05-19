@@ -7,3 +7,4 @@ ddbt.tpcc.tx6: using SharedData only through its interface
 ddbt.tpcc.tx7: again, using generic data structures for implementing MVCC. This version only contains the stubs for implementing MVCC.
 ddbt.tpcc.tx8: tx7 with MVCC implementation 
 ddbt.tpcc.tx9: tx7 with the initial version of ConcurrentSHMap implementation 
+ddbt.tpcc.tx10: tx9 with MVCC implementation 

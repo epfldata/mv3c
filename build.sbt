@@ -50,27 +50,29 @@ Seq(
 // --------- Custom tasks
 addCommandAlias("bench", ";run-main ddbt.tpcc.tx.TpccInMem ") ++
 addCommandAlias("bench-1", ";bench -w 1 -i -1 -t 60") ++
-addCommandAlias("bench1", ";bench -w 1 -i 1 -t 60 ") ++
-addCommandAlias("bench2", ";bench -w 1 -i 2 -t 60 ") ++
-addCommandAlias("bench3", ";bench -w 1 -i 3 -t 60 ") ++
-addCommandAlias("bench4", ";bench -w 1 -i 4 -t 60 ") ++
-addCommandAlias("bench5", ";bench -w 1 -i 5 -t 60 ") ++
-addCommandAlias("bench6", ";bench -w 1 -i 6 -t 60 ") ++
-addCommandAlias("bench7", ";bench -w 1 -i 7 -t 60 ") ++
-addCommandAlias("bench8", ";bench -w 1 -i 8 -t 60 ") ++
-addCommandAlias("bench9", ";bench -w 1 -i 9 -t 60 ")
+addCommandAlias("bench1",  ";bench -w 1 -i 1 -t 60 ") ++
+addCommandAlias("bench2",  ";bench -w 1 -i 2 -t 60 ") ++
+addCommandAlias("bench3",  ";bench -w 1 -i 3 -t 60 ") ++
+addCommandAlias("bench4",  ";bench -w 1 -i 4 -t 60 ") ++
+addCommandAlias("bench5",  ";bench -w 1 -i 5 -t 60 ") ++
+addCommandAlias("bench6",  ";bench -w 1 -i 6 -t 60 ") ++
+addCommandAlias("bench7",  ";bench -w 1 -i 7 -t 60 ") ++
+addCommandAlias("bench8",  ";bench -w 1 -i 8 -t 60 ") ++
+addCommandAlias("bench9",  ";bench -w 1 -i 9 -t 60 ") ++
+addCommandAlias("bench10", ";bench -w 1 -i 10 -t 60 ")
 
 addCommandAlias("unit", ";run-main ddbt.tpcc.loadtest.TpccUnitTest -i ") ++
 addCommandAlias("unit-1", ";unit -1") ++
-addCommandAlias("unit1", ";unit 1") ++
-addCommandAlias("unit2", ";unit 2") ++
-addCommandAlias("unit3", ";unit 3") ++
-addCommandAlias("unit4", ";unit 4") ++
-addCommandAlias("unit5", ";unit 5") ++
-addCommandAlias("unit6", ";unit 6") ++
-addCommandAlias("unit7", ";unit 7") ++
-addCommandAlias("unit8", ";unit 8") ++
-addCommandAlias("unit9", ";unit 9")
+addCommandAlias("unit1",  ";unit 1") ++
+addCommandAlias("unit2",  ";unit 2") ++
+addCommandAlias("unit3",  ";unit 3") ++
+addCommandAlias("unit4",  ";unit 4") ++
+addCommandAlias("unit5",  ";unit 5") ++
+addCommandAlias("unit6",  ";unit 6") ++
+addCommandAlias("unit7",  ";unit 7") ++
+addCommandAlias("unit8",  ";unit 8") ++
+addCommandAlias("unit9",  ";unit 9") ++
+addCommandAlias("unit10", ";unit 10")
 
 addCommandAlias("testmap1", ";test:run-main ddbt.tpcc.lib.concurrent.DistinctEntrySetElements") ++
 addCommandAlias("testmap2", ";test:run-main ddbt.tpcc.lib.concurrent.DistinctEntrySetElements2") ++

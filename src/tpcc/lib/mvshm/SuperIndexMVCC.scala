@@ -13,7 +13,7 @@ object SIndexMVCC {
 class SIndexMVCCEntry[K,V <: Product] {
   val s:SHSet[SEntryMVCC[K,V]] = new SHSet[SEntryMVCC[K,V]]
 
-  def foreach(f: ((K, V)) => Unit)(implicit xact:Transaction): Unit = s.foreach(e => f(e.key, e.getValueImage))
+  def foreach(f: (K, V) => Unit)(implicit xact:Transaction): Unit = s.foreach(e => f(e.key, e.getValueImage))
 
   def foreachEntry(f: java.util.Map.Entry[SEntryMVCC[K,V], Boolean] => Unit)(implicit xact:Transaction): Unit = s.foreachEntry(e => f(e))
 }

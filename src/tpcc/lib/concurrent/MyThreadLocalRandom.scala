@@ -61,7 +61,7 @@ object MyThreadLocalRandom {
    * initialization. Note that invoking ThreadLocalRandom.current()
    * can be used to force initialization on zero return.
    */
-  private[concurrent] def getProbe: Int = {
+  def getProbe: Int = {
     return UNSAFE.getInt(Thread.currentThread, PROBE)
   }
 
@@ -69,7 +69,7 @@ object MyThreadLocalRandom {
    * Pseudo-randomly advances and records the given probe value for the
    * given thread.
    */
-  private[concurrent] def advanceProbe(probeIn: Int): Int = {
+  def advanceProbe(probeIn: Int): Int = {
     var probe = probeIn ^ (probeIn << 13)
     probe ^= probe >>> 17
     probe ^= probe << 5
@@ -84,7 +84,7 @@ object MyThreadLocalRandom {
    * though the initialization is purely thread-local, we need to
    * rely on (static) atomic generators to initialize the values.
    */
-  private[concurrent] def localInit {
+  def localInit {
     val p: Int = probeGenerator.addAndGet(PROBE_INCREMENT)
     val probe: Int = if ((p == 0)) 1 else p
     val seed: Long = mix64(seeder.getAndAdd(SEEDER_INCREMENT))
