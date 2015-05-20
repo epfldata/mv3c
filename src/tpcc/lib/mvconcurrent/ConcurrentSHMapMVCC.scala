@@ -309,7 +309,9 @@ object ConcurrentSHMapMVCC {
 
     @inline
     final def setEntryValue(newValue: V)(implicit xact:Transaction): V = {
-      entry.setTheValue(newValue)
+      val oldVal = img
+      img = newValue
+      oldVal
     }
   }
 

@@ -127,9 +127,7 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV3 with IDeliveryInMem {
         val v = k.getValue
         val vi = v.getImage
         ol_total += vi._5
-        //TODO why it does not work?
-        // v.setEntryValue(vi.copy(_3 = Some(ol_delivery_d_input)))
-        ISharedData.tm.orderLineTbl(k.getKey) = vi.copy(_3 = Some(ol_delivery_d_input))
+        v.setEntryValue(vi.copy(_3 = Some(ol_delivery_d_input)))
       })
       ol_total
     }
