@@ -303,7 +303,7 @@ object ConcurrentSHMapMVCC {
   /** Number of CPUS, to place bounds on some sizings */
   private val NCPU: Int = Runtime.getRuntime.availableProcessors
 
-  final case class DeltaVersion[K,V <: Product](val xact:Transaction, val entry:SEntryMVCC[K,V], var img:V, var colIds:List[Int]=Nil /*all columns*/, var op: Operation=INSERT_OP, var next: DeltaVersion[K,V]=null, var prev: DeltaVersion[K,V]=null) {
+  final class DeltaVersion[K,V <: Product](val xact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var colIds:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
     @inline
     final def getImage: V = img
 
@@ -321,11 +321,15 @@ object ConcurrentSHMapMVCC {
    * are special, and contain null keys and values (but are never
    * exported).  Otherwise, keys and vals are never null.
    */
-  class Node[K, V <: Product](val hash: Int, val key: K, @volatile var value: DeltaVersion[K,V], @volatile var next: Node[K, V]) extends Map.Entry[K, V] {
-
+  class Node[K, V <: Product](val key: K, val hash: Int, @volatile var value: DeltaVersion[K,V], @volatile var next: Node[K, V]) extends Map.Entry[K, V] {
+    
     def this(h: Int, k: K, v: V=null, n: Node[K, V]=null)(implicit xact:Transaction) {
-      this(h,k,null,n)
+      this(k,h,null,n)
       setTheValue(v)(xact)
+    }
+    def this(h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V]) {
+      this(k,h,v,n)
+      value.entry = this
     }
 
     final def getKey: K = {
@@ -344,7 +348,7 @@ object ConcurrentSHMapMVCC {
     @inline
     final def setTheValue(newValue: V)(implicit xact:Transaction): V = {
       val oldValue: V = if(value == null) null.asInstanceOf[V] else value.img
-      value = DeltaVersion(xact,this,newValue)
+      value = new DeltaVersion(xact,this,newValue)
       oldValue
     }
 
@@ -355,29 +359,29 @@ object ConcurrentSHMapMVCC {
     final override def toString: String = {
     throw new UnsupportedOperationException("The toString method is not supported in SEntryMVCC. You should use the overloaded method accepting the Transaction as an extra parameter.")
     }
-    final def toString(implicit xact:Transaction): String = {
-      key + "=" + getValueImage
-    }
+    // final def toString(implicit xact:Transaction): String = {
+    //   key + "=" + getValueImage
+    // }
 
     final override def equals(o: Any): Boolean = {
       throw new UnsupportedOperationException("The equals method is not supported in SEntryMVCC. You should use the overloaded method accepting the Transaction as an extra parameter.")
     }
 
-    final def equals(o: Any)(implicit xact:Transaction): Boolean = {
-      var k: K = null.asInstanceOf[K]
-      var v: V = null.asInstanceOf[V]
-      var u: V = null.asInstanceOf[V]
-      var e: SEntryMVCC[K, V] = null
-      (o.isInstanceOf[SEntryMVCC[_, _]] && {
-        k = {
-          e = o.asInstanceOf[SEntryMVCC[K, V]]; e
-        }.getKey; k
-      } != null && (({
-        v = e.getValueImage; v
-      })) != null && (refEquals(k, key) || (k == key)) && (refEquals(v, ({
-        u = getValueImage; u
-      })) || (v == u)))
-    }
+    // final def equals(o: Any)(implicit xact:Transaction): Boolean = {
+    //   var k: K = null.asInstanceOf[K]
+    //   var v: V = null.asInstanceOf[V]
+    //   var u: V = null.asInstanceOf[V]
+    //   var e: SEntryMVCC[K, V] = null
+    //   (o.isInstanceOf[SEntryMVCC[_, _]] && {
+    //     k = {
+    //       e = o.asInstanceOf[SEntryMVCC[K, V]]; e
+    //     }.getKey; k
+    //   } != null && (({
+    //     v = e.getValueImage; v
+    //   })) != null && (refEquals(k, key) || (k == key)) && (refEquals(v, ({
+    //     u = getValueImage; u
+    //   })) || (v == u)))
+    // }
 
     /**
      * Virtualized support for map.get(); overridden in subclasses.
@@ -459,7 +463,7 @@ object ConcurrentSHMapMVCC {
   /**
    * A node inserted at head of bins during transfer operations.
    */
-  final class ForwardingNode[K, V <: Product](val nextTable: Array[Node[K, V]]) extends Node[K, V](MOVED, null.asInstanceOf[K], null, null) {
+  final class ForwardingNode[K, V <: Product](val nextTable: Array[Node[K, V]]) extends Node[K, V](null.asInstanceOf[K],MOVED, null, null) {
 
     override def find(h: Int, k: K)(implicit ord: math.Ordering[K]): Node[K, V] = {
       {
@@ -504,7 +508,7 @@ object ConcurrentSHMapMVCC {
   /**
    * A place-holder node used in computeIfAbsent and compute
    */
-  final class ReservationNode[K, V <: Product] extends Node[K, V](RESERVED, null.asInstanceOf[K], null, null) {
+  final class ReservationNode[K, V <: Product] extends Node[K, V](null.asInstanceOf[K], RESERVED, null, null) {
     override def find(h: Int, k: K)(implicit ord: math.Ordering[K]): Node[K, V] = null
   }
 
