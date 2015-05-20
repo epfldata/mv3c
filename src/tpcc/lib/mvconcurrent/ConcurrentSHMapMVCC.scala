@@ -382,7 +382,7 @@ object ConcurrentSHMapMVCC {
     /**
      * Virtualized support for map.get(); overridden in subclasses.
      */
-    def find(h: Int, k: K): Node[K, V] = {
+    def find(h: Int, k: K)(implicit ord: math.Ordering[K]): Node[K, V] = {
       var e: Node[K, V] = this
       if (k != null) {
         do {
@@ -433,52 +433,12 @@ object ConcurrentSHMapMVCC {
   }
 
   /**
-   * Returns x's Class if it is of the form "class C implements
-   * Comparable<C>", else null.
-   */
-  @inline
-  final def comparableClassFor(x: Any): Class[_] = {
-    if (x.isInstanceOf[Comparable[_]]) {
-      var c: Class[_] = null
-      var ts: Array[Type] = null
-      var as: Array[Type] = null
-      var t: Type = null
-      var p: ParameterizedType = null
-      if ((({
-        c = x.getClass; c
-      })) eq classOf[String]) return c
-      if ((({
-        ts = c.getGenericInterfaces; ts
-      })) != null) {
-        {
-          var i: Int = 0
-          while (i < ts.length) {
-            {
-              if (((({
-                t = ts(i); t
-              })).isInstanceOf[ParameterizedType]) && ((({
-                p = t.asInstanceOf[ParameterizedType]; p
-              })).getRawType eq classOf[Comparable[_]]) && ((({
-                as = p.getActualTypeArguments; as
-              })) != null) && (as.length == 1) && (as(0) eq c)) return c
-            }
-            ({
-              i += 1; i
-            })
-          }
-        }
-      }
-    }
-    null
-  }
-
-  /**
    * Returns k.compareTo(x) if x matches kc (k's screened comparable
    * class), else 0.
    */
   @SuppressWarnings(Array("rawtypes", "unchecked")) @inline
-  final def compareComparables(kc: Class[_], k: Any, x: Any): Int = {
-    (if ((x == null) || (x.getClass ne kc)) 0 else (k.asInstanceOf[Comparable[Any]]).compareTo(x))
+  final def compareComparables[K](k: K, x: K)(implicit ord: math.Ordering[K]): Int = {
+    if (x == null) 0 else ord.compare(k, x)
   }
 
   @SuppressWarnings(Array("unchecked")) @inline
@@ -501,7 +461,7 @@ object ConcurrentSHMapMVCC {
    */
   final class ForwardingNode[K, V <: Product](val nextTable: Array[Node[K, V]]) extends Node[K, V](MOVED, null.asInstanceOf[K], null, null) {
 
-    override def find(h: Int, k: K): Node[K, V] = {
+    override def find(h: Int, k: K)(implicit ord: math.Ordering[K]): Node[K, V] = {
       {
         var tab: Array[Node[K, V]] = nextTable
         while (true) {
@@ -545,7 +505,7 @@ object ConcurrentSHMapMVCC {
    * A place-holder node used in computeIfAbsent and compute
    */
   final class ReservationNode[K, V <: Product] extends Node[K, V](RESERVED, null.asInstanceOf[K], null, null) {
-    override def find(h: Int, k: K): Node[K, V] = null
+    override def find(h: Int, k: K)(implicit ord: math.Ordering[K]): Node[K, V] = null
   }
 
   /**
@@ -607,16 +567,15 @@ object ConcurrentSHMapMVCC {
     var prev: TreeNode[K, V] = null
     var red: Boolean = false
 
-    override def find(h: Int, k: K): Node[K, V] = {
-      findTreeNode(h, k, null)
+    override def find(h: Int, k: K)(implicit ord: math.Ordering[K]): Node[K, V] = {
+      findTreeNode(h, k)
     }
 
     /**
      * Returns the TreeNode (or null if not found) for the given key
      * starting at given root.
      */
-    final def findTreeNode(h: Int, k: K, kcIn: Class[_]): TreeNode[K, V] = {
-      var kc: Class[_] = kcIn
+    final def findTreeNode(h: Int, k: K)(implicit ord: math.Ordering[K]): TreeNode[K, V] = {
       if (k != null) {
         var p: TreeNode[K, V] = this
         do {
@@ -635,13 +594,11 @@ object ConcurrentSHMapMVCC {
           })), k) || (pk != null && (k == pk))) return p
           else if (pl == null) p = pr
           else if (pr == null) p = pl
-          else if ((kc != null || (({
-            kc = comparableClassFor(k); kc
-          })) != null) && (({
-            dir = compareComparables(kc, k, pk); dir
-          })) != 0) p = if ((dir < 0)) pl else pr
+          else if ({
+            dir = compareComparables(k, pk); dir
+          } != 0) p = if ((dir < 0)) pl else pr
           else if ((({
-            q = pr.findTreeNode(h, k, kc); q
+            q = pr.findTreeNode(h, k); q
           })) != null) return q
           else p = pl
         } while (p != null)
@@ -958,7 +915,7 @@ object ConcurrentSHMapMVCC {
     /**
      * Creates bin with initial set of nodes headed by b.
      */
-    def this(b: TreeNode[K, V]) {
+    def this(b: TreeNode[K, V])(implicit ord: math.Ordering[K]) {
       this()
       this.first = b
       var r: TreeNode[K, V] = null
@@ -980,7 +937,6 @@ object ConcurrentSHMapMVCC {
             else {
               val k: K = x.key
               val h: Int = x.hash
-              var kc: Class[_] = null
 
               {
                 var p: TreeNode[K, V] = r
@@ -993,11 +949,9 @@ object ConcurrentSHMapMVCC {
                     ph = p.hash; ph
                   })) > h) dir = -1
                   else if (ph < h) dir = 1
-                  else if ((kc == null && (({
-                    kc = comparableClassFor(k); kc
-                  })) == null) || (({
-                    dir = compareComparables(kc, k, pk); dir
-                  })) == 0) dir = TreeBin.tieBreakOrder(k, pk)
+                  else if ({
+                    dir = compareComparables(k, pk)(ord); dir
+                  } == 0) dir = TreeBin.tieBreakOrder(k, pk)
                   val xp: TreeNode[K, V] = p
                   if ((({
                     p = if ((dir <= 0)) p.left else p.right; p
@@ -1066,7 +1020,7 @@ object ConcurrentSHMapMVCC {
      * using tree comparisons from root, but continues linear
      * search when lock not available.
      */
-    final override def find(h: Int, k: K): Node[K, V] = {
+    final override def find(h: Int, k: K)(implicit ord: math.Ordering[K]): Node[K, V] = {
       if (k != null) {
         {
           var e: Node[K, V] = first
@@ -1088,7 +1042,7 @@ object ConcurrentSHMapMVCC {
                 p = (if ((({
                   r = root; r
                 })) == null) null
-                else r.findTreeNode(h, k, null))
+                else r.findTreeNode(h, k))
               } finally {
                 var w: Thread = null
                 if (TreeBin.U.getAndAddInt(this, TreeBin.LOCKSTATE, -TreeBin.READER) == (TreeBin.READER | TreeBin.WAITER) && (({
@@ -1107,8 +1061,7 @@ object ConcurrentSHMapMVCC {
      * Finds or adds a node.
      * @return null if added
      */
-    final def putTreeVal(h: Int, k: K, v: V)(implicit xact:Transaction): TreeNode[K, V] = {
-      var kc: Class[_] = null
+    final def putTreeVal(h: Int, k: K, v: V)(implicit xact:Transaction, ord: math.Ordering[K]): TreeNode[K, V] = {
       var searched: Boolean = false
 
       {
@@ -1131,11 +1084,9 @@ object ConcurrentSHMapMVCC {
           else if (refEquals((({
             pk = p.key; pk
           })), k) || (pk != null && (k == pk))) return p
-          else if ((kc == null && (({
-            kc = comparableClassFor(k); kc
-          })) == null) || (({
-            dir = compareComparables(kc, k, pk); dir
-          })) == 0) {
+          else if ({
+            dir = compareComparables(k, pk); dir
+          } == 0) {
             if (!searched) {
               var q: TreeNode[K, V] = null
               var ch: TreeNode[K, V] = null
@@ -1143,11 +1094,11 @@ object ConcurrentSHMapMVCC {
               if (((({
                 ch = p.left; ch
               })) != null && (({
-                q = ch.findTreeNode(h, k, kc); q
+                q = ch.findTreeNode(h, k); q
               })) != null) || ((({
                 ch = p.right; ch
               })) != null && (({
-                q = ch.findTreeNode(h, k, kc); q
+                q = ch.findTreeNode(h, k); q
               })) != null)) return q
             }
             dir = TreeBin.tieBreakOrder(k, pk)
@@ -1452,7 +1403,7 @@ object ConcurrentSHMapMVCC {
 /**
  * Creates a new, empty map with the default initial table size (16).
  */
-class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable*/ {
+class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.Ordering[K]) /*extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable*/ {
   /**
    * The array of bins. Lazily initialized upon first insertion.
    * Size is always a power of two. Accessed directly by iterators.
@@ -1504,7 +1455,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractM
   @transient
   private var counterCells: Array[CounterCell] = null
 
-  def this() {
+  def this()(implicit ord: math.Ordering[K]) {
     this(List():_*)
     this.sizeCtl = DEFAULT_CAPACITY
   }
@@ -1518,7 +1469,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractM
    * @throws IllegalArgumentException if the initial capacity of
    *                                  elements is negative
    */
-  def this(initialCapacity: Int) {
+  def this(initialCapacity: Int)(implicit ord: math.Ordering[K]) {
     this()
     if (initialCapacity < 0) throw new IllegalArgumentException
     val cap: Int = (if ((initialCapacity >= (MAXIMUM_CAPACITY >>> 1))) MAXIMUM_CAPACITY else tableSizeFor(initialCapacity + (initialCapacity >>> 1) + 1))
@@ -1530,7 +1481,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractM
    *
    * @param m the map
    */
-  def this(m: Map[_ <: K, _ <: V]) {
+  def this(m: Map[_ <: K, _ <: V])(implicit ord: math.Ordering[K]) {
     this()
     this.sizeCtl = DEFAULT_CAPACITY
     putAll(m)
@@ -1554,7 +1505,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractM
    *                                  negative or the load factor or concurrencyLevel are
    *                                  nonpositive
    */
-  def this(inInitialCapacity: Int, loadFactor: Float, concurrencyLevel: Int = 1) {
+  def this(inInitialCapacity: Int, loadFactor: Float, concurrencyLevel: Int = 1)(implicit ord: math.Ordering[K]) {
     this()
     var initialCapacity: Int = inInitialCapacity
     if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
@@ -1564,7 +1515,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractM
     this.sizeCtl = cap
   }
 
-  def this(loadFactor: Float, inInitialCapacity: Int, projs:(K,V)=>_ *) {
+  def this(loadFactor: Float, inInitialCapacity: Int, projs:(K,V)=>_ *)(implicit ord: math.Ordering[K]) {
     this(projs:_*)
     val concurrencyLevel = 1
     var initialCapacity: Int = inInitialCapacity
@@ -1939,7 +1890,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *) /*extends AbstractM
                 if ((({
                   r = t.root; r
                 })) != null && (({
-                  p = r.findTreeNode(hash, key, null); p
+                  p = r.findTreeNode(hash, key); p
                 })) != null) {
                   val pv: V = p.getValueImage
                   // if ((cv == null) || refEquals(cv, pv) || ((pv != null) && (cv == pv))) {
