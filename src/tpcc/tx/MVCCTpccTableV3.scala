@@ -32,6 +32,8 @@ object MVCCTpccTableV3 {
 
 		def commitTS = xactId
 
+		def isCommitted = (xactId < TransactionManager.TRANSACTION_ID_GEN_START)
+
 		def addPredicate(p:Predicate) = {
 			predicates = p :: predicates
 		}
@@ -39,10 +41,13 @@ object MVCCTpccTableV3 {
 		def rollback = tm.rollback(this)
 	}
 
+	object TransactionManager {
+		val TRANSACTION_ID_GEN_START = (1L << 32)
+	}
+
 	class TransactionManager {
 
-		val TRANSACTION_ID_GEN_START = (1L << 32)
-		var transactionIdGen = new AtomicLong(TRANSACTION_ID_GEN_START)
+		var transactionIdGen = new AtomicLong(TransactionManager.TRANSACTION_ID_GEN_START)
 		var startAndCommitTimestampGen = new AtomicLong(1L)
 
 		val activeXacts = new ConcurrentSHMap[Long,Transaction]
@@ -51,7 +56,7 @@ object MVCCTpccTableV3 {
 		def begin(name: String) = {
 			val xactId = transactionIdGen.getAndIncrement()
 			val startTS = startAndCommitTimestampGen.getAndIncrement()
-			debug("T%d (%s) started at %d".format(xactId - TRANSACTION_ID_GEN_START + 1, name, startTS))
+			debug("T%d (%s) started at %d".format(xactId - TransactionManager.TRANSACTION_ID_GEN_START + 1, name, startTS))
 			new Transaction(this, name, startTS, xactId)
 		}
 		def commit(implicit xact:Transaction) = {
@@ -60,7 +65,7 @@ object MVCCTpccTableV3 {
 				activeXacts -= xactId
 				xact.xactId = startAndCommitTimestampGen.getAndIncrement()
 				recentlyCommittedXacts = xact :: recentlyCommittedXacts
-				debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xactId - TRANSACTION_ID_GEN_START + 1, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
+				debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xactId - TransactionManager.TRANSACTION_ID_GEN_START + 1, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 			}
 		}
 		def rollback(implicit xact:Transaction) = {
@@ -90,6 +95,8 @@ object MVCCTpccTableV3 {
 
 		val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVCC[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
 	}
+
+	class MVCCConcurrentWriteException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
 
 	// this should not be modified
 	// it is set to false in order to make the inheritance

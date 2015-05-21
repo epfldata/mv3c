@@ -343,13 +343,13 @@ object ConcurrentSHMapMVCC {
     }
 
     @inline
-    final def getValueImage(implicit xact:Transaction) = getValue.getImage
+    final def getValueImage(implicit xact:Transaction) = getTheValue.getImage
 
     // final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
     // final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
     
     @inline
-    final def getValue(implicit xact:Transaction) = value
+    final def getTheValue(implicit xact:Transaction) = value
 
     // @inline
     // final def setTheValue(newValue: V)(implicit xact:Transaction): Unit = {
@@ -368,8 +368,8 @@ object ConcurrentSHMapMVCC {
       if(value == null) {
         value = new DeltaVersion(xact,this,newValue,colIds,op)
       } else {
-        val oldValue = value
-        value = new DeltaVersion(xact,this,newValue,colIds,op,oldValue)
+        if(!(value.xact eq xact) && !value.xact.isCommitted) throw new MVCCConcurrentWriteException("T%d has already written on this object (%s), so T%s should get aborted.".format(value.xact.xactId, key, xact.xactId))
+        value = new DeltaVersion(xact,this,newValue,colIds,op,value)
       }
       // oldValue
     }
@@ -1673,18 +1673,18 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       })) == h) {
         if (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek))) return e.getValue
+        })), key) || (ek != null && (key == ek))) return e.getTheValue
       }
       else if (eh < 0) return if ((({
         p = e.find(h, key); p
-      })) != null) p.getValue
+      })) != null) p.getTheValue
       else null
       while ((({
         e = e.next; e
       })) != null) {
         if (e.hash == h && (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek)))) return e.getValue
+        })), key) || (ek != null && (key == ek)))) return e.getTheValue
       }
     }
     null
@@ -1852,7 +1852,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * Replaces node value with v, conditional upon match of cv if
    * non-null.  If resulting value is null, delete.
    */
-  final def replaceNode(key: K/*, value: V, cv: V*/)(implicit xact:Transaction): Unit = {
+  final def replaceNode(key: K)(implicit xact:Transaction): Unit = {
     val hash: Int = spread(key.hashCode)
 
     {
@@ -1872,12 +1872,11 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
           fh = f.hash; fh
         })) == MOVED) tab = helpTransfer(tab, f)
         else {
-          //var oldVal: V = null.asInstanceOf[V]
-          // var validated: Boolean = false
+          var validated: Boolean = false
           f synchronized {
             if (tabAt(tab, i) eq f) {
               if (fh >= 0) {
-                break = true
+                validated = true
 
                 {
                   var e: Node[K, V] = f
@@ -1888,6 +1887,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                     if (e.hash == hash && (refEquals((({
                       ek = e.key; ek
                     })), key) || (ek != null && (key == ek)))) {
+                      val dv = e.getTheValue
                       /*val ev: V = e.getValueImage
                       // if ((cv == null) || refEquals(cv, ev) || (ev != null && (cv == ev))) {
                         oldVal = ev
@@ -1911,7 +1911,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                 }
               }
               else if (f.isInstanceOf[TreeBin[_, _]]) {
-                break = true
+                validated = true
                 val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
                 var r: TreeNode[K, V] = null
                 var p: TreeNode[K, V] = null
@@ -1932,13 +1932,13 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
               }
             }
           }
-          // if (validated) {
+          if (validated) {
             // if (oldVal != null) {
             //   if (value == null) addCount(-1L, -1)
             //   return oldVal
             // }
-            // break = true //todo: break is not supported
-          // }
+            break = true //todo: break is not supported
+          }
         }
       }
     }
