@@ -303,6 +303,8 @@ object ConcurrentSHMapMVCC {
 
   final class DeltaVersion[K,V <: Product](val xact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var colIds:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
     xact.undoBuffer.put(entry.key, this)
+    if(next != null) next.prev = this
+    if(prev != null) prev.next = this
 
     @inline
     final def getImage: V = img
@@ -327,9 +329,9 @@ object ConcurrentSHMapMVCC {
    */
   class Node[K, V <: Product](val key: K, val hash: Int, @volatile var value: DeltaVersion[K,V], @volatile var next: Node[K, V]) /*extends Map.Entry[K, V]*/ {
     
-    def this(h: Int, k: K, v: V=null, n: Node[K, V]=null)(implicit xact:Transaction) {
+    def this(h: Int, k: K, v: V, n: Node[K, V]=null)(implicit xact:Transaction) {
       this(k,h,null,n)
-      setTheValue(v)(xact)
+      setTheValue(v, INSERT_OP)(xact)
     }
     def this(h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V]) {
       this(k,h,v,n)
@@ -349,14 +351,25 @@ object ConcurrentSHMapMVCC {
     @inline
     final def getValue(implicit xact:Transaction) = value
 
+    // @inline
+    // final def setTheValue(newValue: V)(implicit xact:Transaction): Unit = {
+    //   // val oldValue: V = null.asInstanceOf[V]
+    //   if(value == null) {
+    //     value = new DeltaVersion(xact,this,newValue)
+    //   } else {
+    //     val oldValue = value
+    //     value = new DeltaVersion(xact,this,newValue)
+    //   }
+    //   // oldValue
+    // }
     @inline
-    final def setTheValue(newValue: V)(implicit xact:Transaction): Unit = {
+    final def setTheValue(newValue: V, op: Operation, colIds:List[Int]=Nil)(implicit xact:Transaction): Unit = {
       // val oldValue: V = null.asInstanceOf[V]
       if(value == null) {
-        value = new DeltaVersion(xact,this,newValue)
+        value = new DeltaVersion(xact,this,newValue,colIds,op)
       } else {
-        // oldValue = value.img
-        value = new DeltaVersion(xact,this,newValue)
+        val oldValue = value
+        value = new DeltaVersion(xact,this,newValue,colIds,op,oldValue)
       }
       // oldValue
     }
@@ -572,7 +585,7 @@ object ConcurrentSHMapMVCC {
 
     def this(h: Int, k: K, v: V, n: Node[K, V], p: TreeNode[K, V])(implicit xact:Transaction) {
       this(h,k,null,n,p)
-      setTheValue(v)(xact)
+      setTheValue(v,INSERT_OP)(xact)
     }
 
     var left: TreeNode[K, V] = null
@@ -1745,7 +1758,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                   oldVal = e.getValueImage
                   entry = e
                   if (!onlyIfAbsent) {
-                    e.setTheValue(value)
+                    e.setTheValue(value, UPDATE_OP)
                   }
                   break = true //todo: break is not supported
                 }
@@ -1767,7 +1780,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                 oldVal = p.getValueImage
                 entry = p
                 if (!onlyIfAbsent) {
-                  p.setTheValue(value)
+                  p.setTheValue(value, UPDATE_OP)
                 }
               }
             }
@@ -1876,7 +1889,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                       val ev: V = e.getValueImage
                       // if ((cv == null) || refEquals(cv, ev) || (ev != null && (cv == ev))) {
                         oldVal = ev
-                        if (value != null) e.setTheValue(value)
+                        if (value != null) e.setTheValue(value, DELETE_OP)
                         else if (pred != null) pred.next = e.next
                         else setTabAt(tab, i, e.next)
 
@@ -1908,7 +1921,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                   val pv: V = p.getValueImage
                   // if ((cv == null) || refEquals(cv, pv) || ((pv != null) && (cv == pv))) {
                     oldVal = pv
-                    if (value != null) p.setTheValue(value)
+                    if (value != null) p.setTheValue(value, DELETE_OP)
                     else if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
 
                     if (idxs!=Nil) idxs.foreach(_.del(p))

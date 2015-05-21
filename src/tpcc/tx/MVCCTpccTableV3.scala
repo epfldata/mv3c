@@ -117,7 +117,7 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 
 	val tm = new TransactionManager
 
-	def begin = tm.begin("Adhoc")
+	def begin = tm.begin("adhoc")
 	def begin(name: String) = tm.begin(name)
 	def commit(implicit xact:Transaction) = tm.commit
 	def rollback(implicit xact:Transaction) = tm.rollback
