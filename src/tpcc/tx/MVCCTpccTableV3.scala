@@ -60,6 +60,9 @@ object MVCCTpccTableV3 {
 			new Transaction(this, name, startTS, xactId)
 		}
 		def commit(implicit xact:Transaction) = {
+			//TODO: should be implemented completely
+			// missing:
+			//  - validation phase
 			this.synchronized {
 				val xactId = xact.xactId
 				activeXacts -= xactId
@@ -69,8 +72,13 @@ object MVCCTpccTableV3 {
 			}
 		}
 		def rollback(implicit xact:Transaction) = {
+			//TODO: should be implemented completely
+			// missing:
+			//  - removing the undo buffer
 			this.synchronized {
-				activeXacts -= xact.xactId
+				val xactId = xact.xactId
+				activeXacts -= xactId
+				debug("T%d (%s) rolled back at %d\n\twith undo buffer(%d) = %%s".format(xactId - TransactionManager.TRANSACTION_ID_GEN_START + 1, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 			}
 		}
 
@@ -96,7 +104,11 @@ object MVCCTpccTableV3 {
 		val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVCC[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
 	}
 
-	class MVCCConcurrentWriteException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
+	class MVCCException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends RuntimeException(message, cause) {
+		xact.rollback //rollback the transaction upon any exception
+	}
+	class MVCCConcurrentWriteException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause)
+	class MVCCRecordAlreayExistsException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause)
 
 	// this should not be modified
 	// it is set to false in order to make the inheritance

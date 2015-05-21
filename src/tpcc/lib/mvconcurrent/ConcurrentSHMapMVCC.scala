@@ -1712,25 +1712,25 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    *                                                    { @code null} if there was no mapping for { @code key}
    * @throws NullPointerException if the specified key or value is null
    */
-  def put(key: K, value: V)(implicit xact:Transaction): V = {
+  def put(key: K, value: V)(implicit xact:Transaction): Unit = {
     putVal(key, value, false)
   }
-  def +=(key: K, value: V)(implicit xact:Transaction): V = {
+  def +=(key: K, value: V)(implicit xact:Transaction): Unit = {
     putVal(key, value, true)
   }
 
-  def update(key: K, value: V)(implicit xact:Transaction): V = {
+  def update(key: K, value: V)(implicit xact:Transaction): Unit = {
     putVal(key, value, false)
   }
 
-  def update(key: K, updateFunc:V=>V)(implicit xact:Transaction): V = {
+  def update(key: K, updateFunc:V=>V)(implicit xact:Transaction): Unit = {
     //TODO: FIX IT
     putVal(key, updateFunc(get(key)), false)
   }
 
   /** Implementation for put and putIfAbsent */
-  final def putVal(key: K, value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): V = {
-    var oldVal = null.asInstanceOf[V]
+  final def putVal(key: K, value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): Unit = {
+    var oldVal: DeltaVersion[K,V] = null
     var entry = null.asInstanceOf[Node[K, V]]
 
     if (key == null || value == null) throw new NullPointerException
@@ -1764,7 +1764,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
               while (!break) {
                 var ek: K = null.asInstanceOf[K]
                 if (e.hash == hash && (refEquals({ek = e.key; ek}, key) || ((ek != null) && (key == ek)))) {
-                  oldVal = e.getValueImage
+                  oldVal = e.getTheValue
                   entry = e
                   if (!onlyIfAbsent) {
                     e.setTheValue(value, UPDATE_OP)
@@ -1786,7 +1786,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
               var p: Node[K, V] = null
               binCount = 2
               if ({p = (f.asInstanceOf[TreeBin[K, V]]).putTreeVal(hash, key, value); p} != null) {
-                oldVal = p.getValueImage
+                oldVal = p.getTheValue
                 entry = p
                 if (!onlyIfAbsent) {
                   p.setTheValue(value, UPDATE_OP)
@@ -1799,29 +1799,43 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
           if (binCount >= TREEIFY_THRESHOLD) {
             treeifyBin(tab, i)
           }
+          // if (oldVal != null)
+          //   return oldVal;
           break = true //todo: break is not supported
         }
       }
     }
-    
-    addCount(1L, binCount)
 
-    if (idxs != Nil) {
-      idxs.foreach{ idx => 
-        if(oldVal == null){
+    if(oldVal == null){
+      addCount(1L, binCount)
+      if (idxs != Nil) {
+        idxs.foreach{ idx => 
           idx.set(entry)
-        } else {
-          val pOld = idx.proj(key,oldVal)
+        }
+      }
+    } else {
+      if(onlyIfAbsent) {
+        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists. Could not insert the new value (%s)".format(oldVal.entry.key, oldVal.getImage, value))
+      }
+
+      if (idxs != Nil) {
+        idxs.foreach{ idx => 
+          val oldValImg = oldVal.getImage
+          val pOld = idx.proj(key,oldValImg)
           val pNew = idx.proj(key,value)
           if(pNew != pOld) {
-            idx.del(entry, oldVal)
+            idx.del(entry, oldValImg)
             idx.set(entry)
           }
         }
       }
     }
+    
+    
 
-    oldVal
+    
+
+    // oldVal
   }
 
   /**
