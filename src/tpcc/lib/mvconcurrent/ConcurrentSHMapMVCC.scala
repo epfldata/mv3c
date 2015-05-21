@@ -310,7 +310,7 @@ object ConcurrentSHMapMVCC {
   /** Number of CPUS, to place bounds on some sizings */
   private val NCPU: Int = Runtime.getRuntime.availableProcessors
 
-  final class DeltaVersion[K,V <: Product](val xact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var colIds:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
+  final class DeltaVersion[K,V <: Product](val xact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
     xact.undoBuffer.put(entry.key, this)
     if(next != null) next.prev = this
     if(prev != null) prev.next = this
@@ -325,7 +325,14 @@ object ConcurrentSHMapMVCC {
       // oldVal
     }
 
-    final override def toString = img.toString
+    def opStr = op match {
+      case INSERT_OP => "INSERT"
+      case DELETE_OP => "DELETE"
+      case UPDATE_OP => "UPDATE"
+      case _ => "UNKNOWN"
+    }
+
+    final override def toString = "<"+img.toString+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "")+">"
   }
 
   /**
@@ -372,13 +379,13 @@ object ConcurrentSHMapMVCC {
     //   // oldValue
     // }
     @inline
-    final def setTheValue(newValue: V, op: Operation, colIds:List[Int]=Nil)(implicit xact:Transaction): Unit = {
+    final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): Unit = {
       // val oldValue: V = null.asInstanceOf[V]
       if(value == null) {
-        value = new DeltaVersion(xact,this,newValue,colIds,op)
+        value = new DeltaVersion(xact,this,newValue,cols,op)
       } else {
         if(!(value.xact eq xact) && !value.xact.isCommitted) throw new MVCCConcurrentWriteException("T%d has already written on this object (%s), so T%s should get aborted.".format(value.xact.transactionId, key, xact.transactionId))
-        value = new DeltaVersion(xact,this,newValue,colIds,op,value)
+        value = new DeltaVersion(xact,this,newValue,cols,op,value)
       }
       // oldValue
     }
@@ -388,14 +395,15 @@ object ConcurrentSHMapMVCC {
     }
 
     final override def toString: String = {
-    throw new UnsupportedOperationException("The toString method is not supported in SEntryMVCC. You should use the overloaded method accepting the Transaction as an extra parameter.")
+      throw new UnsupportedOperationException("The toString method is not supported in SEntryMVCC. You should use the overloaded method accepting the Transaction as an extra parameter.")
     }
     // final def toString(implicit xact:Transaction): String = {
     //   key + "=" + getValueImage
     // }
 
     final override def equals(o: Any): Boolean = {
-      var k: K = o.asInstanceOf[SEntryMVCC[K, V]].key
+      //TODO add safety checks (checking for null or isInstanceOf)?
+      val k: K = o.asInstanceOf[SEntryMVCC[K, V]].key
       (k != null) && (refEquals(k, key) || (k == key))
     }
 
@@ -1717,10 +1725,24 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
     putVal(key, updateFunc(get(key)), false)
   }
 
+  @inline
+  final private def getModifiedColIds(v1: V, v2: V) = {
+    var cols:List[Int]=Nil
+    var i = v1.productArity - 1
+    while(i >= 0) {
+      if(v1.productElement(i) != v2.productElement(i)) {
+        cols = i :: cols
+      }
+      i -= 1
+    }
+    cols
+  }
+
   /** Implementation for put and putIfAbsent */
   final def putVal(key: K, value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): Unit = {
     var oldVal: DeltaVersion[K,V] = null
-    var entry = null.asInstanceOf[Node[K, V]]
+    var oldValImg: V = null.asInstanceOf[V]
+    var entry: Node[K, V] = null
 
     if (key == null || value == null) throw new NullPointerException
     val hash: Int = spread(key.hashCode)
@@ -1754,9 +1776,10 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                 var ek: K = null.asInstanceOf[K]
                 if (e.hash == hash && (refEquals({ek = e.key; ek}, key) || ((ek != null) && (key == ek)))) {
                   oldVal = e.getTheValue
+                  oldValImg = oldVal.getImage
                   entry = e
                   if (!onlyIfAbsent) {
-                    e.setTheValue(value, UPDATE_OP)
+                    e.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
                   }
                   break = true //todo: break is not supported
                 }
@@ -1776,9 +1799,10 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
               binCount = 2
               if ({p = (f.asInstanceOf[TreeBin[K, V]]).putTreeVal(hash, key, value); p} != null) {
                 oldVal = p.getTheValue
+                oldValImg = oldVal.getImage
                 entry = p
                 if (!onlyIfAbsent) {
-                  p.setTheValue(value, UPDATE_OP)
+                  p.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
                 }
               }
             }
@@ -1809,7 +1833,6 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
 
       if (idxs != Nil) {
         idxs.foreach{ idx => 
-          val oldValImg = oldVal.getImage
           val pOld = idx.proj(key,oldValImg)
           val pNew = idx.proj(key,value)
           if(pNew != pOld) {
@@ -1825,20 +1848,6 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
     
 
     // oldVal
-  }
-
-  /**
-   * Copies all of the mappings from the specified map to this one.
-   * These mappings replace any mappings that this map had for any of the
-   * keys currently in the specified map.
-   *
-   * @param m mappings to be stored in this map
-   */
-  def putAll(m: Map[_ <: K, _ <: V]) {
-    throw new UnsupportedOperationException()
-    // tryPresize(m.size)
-    // import scala.collection.JavaConversions._
-    // for (e <- m.entrySet) putVal(e.getKey, e.getValue, false)
   }
 
   /**
