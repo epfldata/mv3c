@@ -42,7 +42,7 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTableV3 with IOrderStatusInMe
    */
   override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String):Int = {
     try {
-      implicit val xact = ISharedData.begin
+      implicit val xact = ISharedData.begin("ordstat")
 
       var c: (String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String,Int) = null
       if (c_by_name > 0) {

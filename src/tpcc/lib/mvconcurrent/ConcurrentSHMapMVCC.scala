@@ -1,14 +1,12 @@
 package ddbt.tpcc.lib.mvconcurrent
 
-import java.lang.reflect.ParameterizedType
-import java.lang.reflect.Type
 import java.util.Map
 import java.util.NoSuchElementException
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.locks.ReentrantLock
-import java.util.concurrent.CountedCompleter;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.CountedCompleter
+import java.util.concurrent.ForkJoinPool
 import ddbt.tpcc.lib.util.Comp._
 import sun.misc.Unsafe
 import ddbt.tpcc.lib.concurrent.MyThreadLocalRandom
@@ -304,6 +302,8 @@ object ConcurrentSHMapMVCC {
   private val NCPU: Int = Runtime.getRuntime.availableProcessors
 
   final class DeltaVersion[K,V <: Product](val xact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var colIds:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
+    xact.undoBuffer.put(entry.key, this)
+
     @inline
     final def getImage: V = img
 
@@ -313,6 +313,8 @@ object ConcurrentSHMapMVCC {
       img = newValue
       oldVal
     }
+
+    final override def toString = img.toString
   }
 
   /**
@@ -323,7 +325,7 @@ object ConcurrentSHMapMVCC {
    * are special, and contain null keys and values (but are never
    * exported).  Otherwise, keys and vals are never null.
    */
-  class Node[K, V <: Product](val key: K, val hash: Int, @volatile var value: DeltaVersion[K,V], @volatile var next: Node[K, V]) extends Map.Entry[K, V] {
+  class Node[K, V <: Product](val key: K, val hash: Int, @volatile var value: DeltaVersion[K,V], @volatile var next: Node[K, V]) /*extends Map.Entry[K, V]*/ {
     
     def this(h: Int, k: K, v: V=null, n: Node[K, V]=null)(implicit xact:Transaction) {
       this(k,h,null,n)
@@ -339,10 +341,10 @@ object ConcurrentSHMapMVCC {
     }
 
     @inline
-    final def getValueImage(implicit xact:Transaction) = value.getImage
+    final def getValueImage(implicit xact:Transaction) = getValue.getImage
 
-    final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
-    final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
+    // final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
+    // final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
     
     @inline
     final def getValue(implicit xact:Transaction) = value
@@ -2525,13 +2527,13 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @since 1.8
    */
   @inline
-  final def forEachEntry(parallelismThreshold: Long, action: Map.Entry[K, V] => Unit) {
+  final def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit) {
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
   }
 
   @inline
-  final def foreachEntry(action: Map.Entry[K, V] => Unit) {
+  final def foreachEntry(action: SEntryMVCC[K, V] => Unit) {
     forEachEntry(ONE_THREAD_NO_PARALLELISM, action)
   }
 

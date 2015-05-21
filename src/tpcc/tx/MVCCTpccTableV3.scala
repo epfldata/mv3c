@@ -18,28 +18,41 @@ import MVCCTpccTableV3._
 import java.util.concurrent.atomic.AtomicLong
 
 object MVCCTpccTableV3 {
-	def testSpecialDsUsed = false
+	type MutableMap[K,V] = ddbt.tpcc.lib.shm.SHMap[K,V]
 
-	class Transaction(val tm: TransactionManager, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
+	val DEBUG = true
+	def debug(msg: => String) = if(DEBUG) println(msg)
+
+	class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
+		val DEFAULT_UNDO_BUFFER_SIZE = 64
+
+		type Predicate = String
+		val undoBuffer = new MutableMap[Any, DeltaVersion[_,_]](DEFAULT_UNDO_BUFFER_SIZE)
+		var predicates = List[Predicate]()
+
 		def commitTS = xactId
-		var undoBuffer = List[DeltaVersion[_,_]]()
-		def addPredicate(p:String) = {}
+
+		def addPredicate(p:Predicate) = {
+			predicates = p :: predicates
+		}
 		def commit = tm.commit(this)
 		def rollback = tm.rollback(this)
 	}
 
 	class TransactionManager {
 
-		var transactionIdGen = new AtomicLong(1L << 32)
+		val TRANSACTION_ID_GEN_START = (1L << 32)
+		var transactionIdGen = new AtomicLong(TRANSACTION_ID_GEN_START)
 		var startAndCommitTimestampGen = new AtomicLong(1L)
 
 		val activeXacts = new ConcurrentSHMap[Long,Transaction]
 		var recentlyCommittedXacts = List[Transaction]()
 
-		def begin = {
+		def begin(name: String) = {
 			val xactId = transactionIdGen.getAndIncrement()
 			val startTS = startAndCommitTimestampGen.getAndIncrement()
-			new Transaction(this,startTS, xactId)
+			debug("T%d (%s) started at %d".format(xactId - TRANSACTION_ID_GEN_START + 1, name, startTS))
+			new Transaction(this, name, startTS, xactId)
 		}
 		def commit(implicit xact:Transaction) = {
 			this.synchronized {
@@ -47,6 +60,7 @@ object MVCCTpccTableV3 {
 				activeXacts -= xactId
 				xact.xactId = startAndCommitTimestampGen.getAndIncrement()
 				recentlyCommittedXacts = xact :: recentlyCommittedXacts
+				debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xactId - TRANSACTION_ID_GEN_START + 1, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 			}
 		}
 		def rollback(implicit xact:Transaction) = {
@@ -76,6 +90,11 @@ object MVCCTpccTableV3 {
 
 		val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVCC[(Int,Int,Int),(Float,String,String,Float)]/*(1f, 65536)*/
 	}
+
+	// this should not be modified
+	// it is set to false in order to make the inheritance
+	// from 
+	def testSpecialDsUsed = false
 }
 /**
  * Tables for TPC-C Benchmark (with all operations reflected through its API
@@ -98,7 +117,8 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 
 	val tm = new TransactionManager
 
-	def begin = tm.begin
+	def begin = tm.begin("Adhoc")
+	def begin(name: String) = tm.begin(name)
 	def commit(implicit xact:Transaction) = tm.commit
 	def rollback(implicit xact:Transaction) = tm.rollback
 

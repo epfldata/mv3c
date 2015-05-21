@@ -46,7 +46,7 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV3 with IDeliveryInMem {
    */
   override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int): Int = {
     try {
-      implicit val xact = ISharedData.begin
+      implicit val xact = ISharedData.begin("delivery")
 
       val DIST_PER_WAREHOUSE = 10
       val orderIDs = new Array[Int](10)

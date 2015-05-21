@@ -43,7 +43,7 @@ class StockLevel extends InMemoryTxImplViaMVCCTpccTableV3 with IStockLevelInMem 
    */
   override def stockLevelTx(t_num: Int, w_id: Int, d_id: Int, threshold: Int):Int= {
     try {
-        implicit val xact = ISharedData.begin
+        implicit val xact = ISharedData.begin("slev")
 
         val o_id = StockLevelTxOps.findDistrictnextOrderId(w_id,d_id)
         val stock_count = StockLevelTxOps.findOrderLineStockRecentItemsUnderThresholds(w_id, d_id, o_id, threshold)
