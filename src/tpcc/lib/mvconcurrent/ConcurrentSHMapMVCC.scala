@@ -201,6 +201,15 @@ import MVCCTpccTableV3._
  * <a href="{@docRoot}/../technotes/guides/collections/index.html">
  * Java Collections Framework</a>.
  *
+ * This implementation differs from MVCC implementation described in
+ * "Fast Serializable Multi-Version Concurrency Control for Main-Memory Database Systems"
+ * by these points:
+ * - detecting conflicts in the level of record (instead of attribute)
+ * - keeping only one image version per transaction (instead of a new 
+ *   version per operation in the transaction)
+ * - keeping the image itself, instead of the before image that needs
+ *   applying recursively to reach to the actual committed value
+ *
  * @since 1.5
  * @author Doug Lea
  * @param <K> the type of keys maintained by this map
