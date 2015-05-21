@@ -377,7 +377,7 @@ object ConcurrentSHMapMVCC {
       if(value == null) {
         value = new DeltaVersion(xact,this,newValue,colIds,op)
       } else {
-        if(!(value.xact eq xact) && !value.xact.isCommitted) throw new MVCCConcurrentWriteException("T%d has already written on this object (%s), so T%s should get aborted.".format(value.xact.xactId, key, xact.xactId))
+        if(!(value.xact eq xact) && !value.xact.isCommitted) throw new MVCCConcurrentWriteException("T%d has already written on this object (%s), so T%s should get aborted.".format(value.xact.transactionId, key, xact.transactionId))
         value = new DeltaVersion(xact,this,newValue,colIds,op,value)
       }
       // oldValue
@@ -395,7 +395,8 @@ object ConcurrentSHMapMVCC {
     // }
 
     final override def equals(o: Any): Boolean = {
-      throw new UnsupportedOperationException("The equals method is not supported in SEntryMVCC. You should use the overloaded method accepting the Transaction as an extra parameter.")
+      var k: K = o.asInstanceOf[SEntryMVCC[K, V]].key
+      (k != null) && (refEquals(k, key) || (k == key))
     }
 
     // final def equals(o: Any)(implicit xact:Transaction): Boolean = {
@@ -1470,7 +1471,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    */
   @volatile
   @transient
-  private var sizeCtl: Int = 0
+  private var sizeCtl: Int = DEFAULT_CAPACITY
   /**
    * The next table index (plus one) to split while resizing.
    */
@@ -1492,7 +1493,6 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
 
   def this()(implicit ord: math.Ordering[K]) {
     this(List():_*)
-    this.sizeCtl = DEFAULT_CAPACITY
   }
   /**
    * Creates a new, empty map with an initial table size
@@ -1509,17 +1509,6 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
     if (initialCapacity < 0) throw new IllegalArgumentException
     val cap: Int = (if ((initialCapacity >= (MAXIMUM_CAPACITY >>> 1))) MAXIMUM_CAPACITY else tableSizeFor(initialCapacity + (initialCapacity >>> 1) + 1))
     this.sizeCtl = cap
-  }
-
-  /**
-   * Creates a new map with the same mappings as the given map.
-   *
-   * @param m the map
-   */
-  def this(m: Map[_ <: K, _ <: V])(implicit ord: math.Ordering[K]) {
-    this()
-    this.sizeCtl = DEFAULT_CAPACITY
-    putAll(m)
   }
 
   /**
@@ -1815,7 +1804,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       }
     } else {
       if(onlyIfAbsent) {
-        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists. Could not insert the new value (%s)".format(oldVal.entry.key, oldVal.getImage, value))
+        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists (written by T%d). Could not insert the new value (%s) from T%d".format(oldVal.entry.key, oldVal.getImage, oldVal.xact.transactionId, value, xact.transactionId))
       }
 
       if (idxs != Nil) {

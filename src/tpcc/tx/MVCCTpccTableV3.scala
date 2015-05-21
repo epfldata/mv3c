@@ -32,6 +32,8 @@ object MVCCTpccTableV3 {
 
 		def commitTS = xactId
 
+		def transactionId = if(xactId < TransactionManager.TRANSACTION_ID_GEN_START) xactId else (xactId - TransactionManager.TRANSACTION_ID_GEN_START + 1)
+
 		def isCommitted = (xactId < TransactionManager.TRANSACTION_ID_GEN_START)
 
 		def addPredicate(p:Predicate) = {
@@ -56,8 +58,9 @@ object MVCCTpccTableV3 {
 		def begin(name: String) = {
 			val xactId = transactionIdGen.getAndIncrement()
 			val startTS = startAndCommitTimestampGen.getAndIncrement()
-			debug("T%d (%s) started at %d".format(xactId - TransactionManager.TRANSACTION_ID_GEN_START + 1, name, startTS))
-			new Transaction(this, name, startTS, xactId)
+			val xact = new Transaction(this, name, startTS, xactId)
+			debug("T%d (%s) started at %d".format(xact.transactionId, name, startTS))
+			xact
 		}
 		def commit(implicit xact:Transaction) = {
 			//TODO: should be implemented completely
@@ -66,9 +69,9 @@ object MVCCTpccTableV3 {
 			this.synchronized {
 				val xactId = xact.xactId
 				activeXacts -= xactId
+				debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 				xact.xactId = startAndCommitTimestampGen.getAndIncrement()
 				recentlyCommittedXacts = xact :: recentlyCommittedXacts
-				debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xactId - TransactionManager.TRANSACTION_ID_GEN_START + 1, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 			}
 		}
 		def rollback(implicit xact:Transaction) = {
@@ -76,14 +79,13 @@ object MVCCTpccTableV3 {
 			// missing:
 			//  - removing the undo buffer
 			this.synchronized {
-				val xactId = xact.xactId
-				activeXacts -= xactId
-				debug("T%d (%s) rolled back at %d\n\twith undo buffer(%d) = %%s".format(xactId - TransactionManager.TRANSACTION_ID_GEN_START + 1, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
+				activeXacts -= xact.xactId
+				debug("T%d (%s) rolled back at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 			}
 		}
 
 		/////// TABLES \\\\\\\
-		val newOrderTbl = new ConcurrentSHMapMVCC[(Int,Int,Int),Tuple1[Boolean]](0.9f, 262144, (k:(Int,Int,Int),v:Tuple1[Boolean]) => ((k._2, k._3)) )
+		val newOrderTbl = new ConcurrentSHMapMVCC[(Int,Int,Int),Tuple1[Boolean]](/*0.9f, 262144,*/ (k:(Int,Int,Int),v:Tuple1[Boolean]) => ((k._2, k._3)) )
 
 		val historyTbl = new ConcurrentSHMapMVCC[(Int,Int,Int,Int,Int,Date,Float,String),Tuple1[Boolean]]/*(0.9f, 4194304)*/
 
