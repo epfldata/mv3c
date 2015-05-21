@@ -1838,11 +1838,13 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    *                                                    { @code null} if there was no mapping for { @code key}
    * @throws NullPointerException if the specified key is null
    */
-  def remove(key: K)(implicit xact:Transaction): V = {
-    replaceNode(key, null.asInstanceOf[V])
+  @inline
+  final def remove(key: K)(implicit xact:Transaction): Unit = {
+    replaceNode(key)
   }
-  def -=(key: K)(implicit xact:Transaction): V = {
-    replaceNode(key, null.asInstanceOf[V])
+  @inline
+  final def -=(key: K)(implicit xact:Transaction): Unit = {
+    replaceNode(key)
   }
 
   /**
@@ -1850,7 +1852,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * Replaces node value with v, conditional upon match of cv if
    * non-null.  If resulting value is null, delete.
    */
-  final def replaceNode(key: K, value: V/*, cv: V*/)(implicit xact:Transaction): V = {
+  final def replaceNode(key: K/*, value: V, cv: V*/)(implicit xact:Transaction): Unit = {
     val hash: Int = spread(key.hashCode)
 
     {
@@ -1870,12 +1872,12 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
           fh = f.hash; fh
         })) == MOVED) tab = helpTransfer(tab, f)
         else {
-          var oldVal: V = null.asInstanceOf[V]
-          var validated: Boolean = false
+          //var oldVal: V = null.asInstanceOf[V]
+          // var validated: Boolean = false
           f synchronized {
             if (tabAt(tab, i) eq f) {
               if (fh >= 0) {
-                validated = true
+                break = true
 
                 {
                   var e: Node[K, V] = f
@@ -1886,11 +1888,11 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                     if (e.hash == hash && (refEquals((({
                       ek = e.key; ek
                     })), key) || (ek != null && (key == ek)))) {
-                      val ev: V = e.getValueImage
+                      /*val ev: V = e.getValueImage
                       // if ((cv == null) || refEquals(cv, ev) || (ev != null && (cv == ev))) {
                         oldVal = ev
                         if (value != null) e.setTheValue(value, DELETE_OP)
-                        else if (pred != null) pred.next = e.next
+                        else*/ if (pred != null) pred.next = e.next
                         else setTabAt(tab, i, e.next)
 
                         if (idxs!=Nil) idxs.foreach(_.del(e))
@@ -1909,7 +1911,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                 }
               }
               else if (f.isInstanceOf[TreeBin[_, _]]) {
-                validated = true
+                break = true
                 val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
                 var r: TreeNode[K, V] = null
                 var p: TreeNode[K, V] = null
@@ -1918,11 +1920,11 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                 })) != null && (({
                   p = r.findTreeNode(hash, key); p
                 })) != null) {
-                  val pv: V = p.getValueImage
+                  /*val pv: V = p.getValueImage
                   // if ((cv == null) || refEquals(cv, pv) || ((pv != null) && (cv == pv))) {
                     oldVal = pv
                     if (value != null) p.setTheValue(value, DELETE_OP)
-                    else if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
+                    else*/ if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
 
                     if (idxs!=Nil) idxs.foreach(_.del(p))
                   // }
@@ -1930,17 +1932,17 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
               }
             }
           }
-          if (validated) {
-            if (oldVal != null) {
-              if (value == null) addCount(-1L, -1)
-              return oldVal
-            }
-            break = true //todo: break is not supported
-          }
+          // if (validated) {
+            // if (oldVal != null) {
+            //   if (value == null) addCount(-1L, -1)
+            //   return oldVal
+            // }
+            // break = true //todo: break is not supported
+          // }
         }
       }
     }
-    null.asInstanceOf[V]
+    // null.asInstanceOf[V]
   }
 
   /**
