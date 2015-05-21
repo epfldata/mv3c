@@ -308,10 +308,10 @@ object ConcurrentSHMapMVCC {
     final def getImage: V = img
 
     @inline
-    final def setEntryValue(newValue: V)(implicit xact:Transaction): V = {
-      val oldVal = img
+    final def setEntryValue(newValue: V)(implicit xact:Transaction): Unit = {
+      // val oldVal = img
       img = newValue
-      oldVal
+      // oldVal
     }
 
     final override def toString = img.toString
@@ -350,10 +350,15 @@ object ConcurrentSHMapMVCC {
     final def getValue(implicit xact:Transaction) = value
 
     @inline
-    final def setTheValue(newValue: V)(implicit xact:Transaction): V = {
-      val oldValue: V = if(value == null) null.asInstanceOf[V] else value.img
-      value = new DeltaVersion(xact,this,newValue)
-      oldValue
+    final def setTheValue(newValue: V)(implicit xact:Transaction): Unit = {
+      // val oldValue: V = null.asInstanceOf[V]
+      if(value == null) {
+        value = new DeltaVersion(xact,this,newValue)
+      } else {
+        // oldValue = value.img
+        value = new DeltaVersion(xact,this,newValue)
+      }
+      // oldValue
     }
 
     final override def hashCode: Int = {
