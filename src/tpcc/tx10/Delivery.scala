@@ -45,9 +45,8 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV3 with IDeliveryInMem {
    *      + updateCustomerBalance
    */
   override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int): Int = {
+    implicit val xact = ISharedData.begin("delivery")
     try {
-      implicit val xact = ISharedData.begin("delivery")
-
       val DIST_PER_WAREHOUSE = 10
       val orderIDs = new Array[Int](10)
       var d_id = 1
@@ -100,6 +99,7 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV3 with IDeliveryInMem {
       1
     } catch {
       case e: Throwable => {
+        ISharedData.rollback
         logger.error("An error occurred in handling Delivery transaction for warehouse=%d, carrier=%d".format(w_id,o_carrier_id))
         e.printStackTrace
         0

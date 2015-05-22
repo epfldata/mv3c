@@ -41,9 +41,8 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTableV3 with IOrderStatusInMe
    *      + findOrderLines
    */
   override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String):Int = {
+    implicit val xact = ISharedData.begin("ordstat")
     try {
-      implicit val xact = ISharedData.begin("ordstat")
-
       var c: (String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String,Int) = null
       if (c_by_name > 0) {
         c = ISharedData.findCustomerByName(w_id, d_id, c_last)
@@ -97,6 +96,7 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTableV3 with IOrderStatusInMe
       1
     } catch {
       case e: Throwable => {
+        ISharedData.rollback
         logger.error("An error occurred in handling OrderStatus transaction for warehouse=%d, district=%d".format(w_id,d_id))
         e.printStackTrace
         0

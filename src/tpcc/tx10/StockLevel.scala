@@ -42,26 +42,27 @@ class StockLevel extends InMemoryTxImplViaMVCCTpccTableV3 with IStockLevelInMem 
    *
    */
   override def stockLevelTx(t_num: Int, w_id: Int, d_id: Int, threshold: Int):Int= {
+    implicit val xact = ISharedData.begin("slev")
     try {
-        implicit val xact = ISharedData.begin("slev")
+      val o_id = StockLevelTxOps.findDistrictnextOrderId(w_id,d_id)
+      val stock_count = StockLevelTxOps.findOrderLineStockRecentItemsUnderThresholds(w_id, d_id, o_id, threshold)
 
-        val o_id = StockLevelTxOps.findDistrictnextOrderId(w_id,d_id)
-        val stock_count = StockLevelTxOps.findOrderLineStockRecentItemsUnderThresholds(w_id, d_id, o_id, threshold)
+      val output: StringBuilder = new StringBuilder
+      output.append("\n+-------------------------- STOCK-LEVEL --------------------------+")
+      output.append("\n Warehouse: ").append(w_id)
+      output.append("\n District:  ").append(d_id)
+      output.append("\n\n Stock Level Threshold: ").append(threshold)
+      output.append("\n Low Stock Count:       ").append(stock_count)
+      output.append("\n+-----------------------------------------------------------------+\n\n")
+      if(SHOW_OUTPUT) logger.info(output.toString)
 
-        val output: StringBuilder = new StringBuilder
-        output.append("\n+-------------------------- STOCK-LEVEL --------------------------+")
-        output.append("\n Warehouse: ").append(w_id)
-        output.append("\n District:  ").append(d_id)
-        output.append("\n\n Stock Level Threshold: ").append(threshold)
-        output.append("\n Low Stock Count:       ").append(stock_count)
-        output.append("\n+-----------------------------------------------------------------+\n\n")
-        if(SHOW_OUTPUT) logger.info(output.toString)
-
-        ISharedData.commit
-        1
+      ISharedData.commit
+      1
     } catch {
       case e: Throwable => {
+        ISharedData.rollback
         logger.error("An error occurred in handling StockLevel transaction for warehouse=%d, district=%d, threshold=%d".format(w_id,d_id,threshold))
+        e.printStackTrace
         0
       }
     }

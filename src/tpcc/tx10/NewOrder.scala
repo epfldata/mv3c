@@ -51,9 +51,8 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV3 with INewOrderInMem {
    *
    */
   override def newOrderTx(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stock:Array[Int], bg:Array[Char], amt:Array[Float]): Int = {
+    implicit val xact = ISharedData.begin("neworder")
     try {
-      implicit val xact = ISharedData.begin("neworder")
-
       if(SHOW_OUTPUT) logger.info("- Started NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
 
       var ol_number = 0
@@ -149,8 +148,9 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV3 with INewOrderInMem {
       1
     } catch {
       case e: Throwable => {
+        ISharedData.rollback
         logger.error("An error occurred in handling NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
-        throw e
+        e.printStackTrace
         0
       }
     }

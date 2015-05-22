@@ -44,9 +44,8 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV3 with IPaymentInMem {
    *
    */
   override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float):Int = {
+    implicit val xact = ISharedData.begin("payment")
     try {
-      implicit val xact = ISharedData.begin("payment")
-
       PaymentTxOps.updateWarehouse(w_id, { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) => {
         PaymentTxOps.updateDistrict(w_id,d_id, { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) => { 
           var c: ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] = null
@@ -132,6 +131,7 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV3 with IPaymentInMem {
       1
     } catch {
       case e: Throwable => {
+        ISharedData.rollback
         logger.error("An error occurred in handling Payment transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
         e.printStackTrace
         0
