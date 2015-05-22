@@ -215,10 +215,14 @@ object Util{
   }
   def doubleEq(d1:Double, d2:Double):Boolean = (Math.abs(d1-d2) < 0.1f)
   def floatEq(d1:Float, d2:Float):Boolean = (Math.abs(d1-d2) < 0.1f)
-  def dateEq(d1:Date, d2:Date):Boolean = (((d1.getTime - d2.getTime) / 1000) == 0)
+  def dateEq(d1:Date, d2:Date):Boolean = (((realRoundDate(d1).getTime - realRoundDate(d2).getTime) / 1000) == 0)
 
 
-  def roundDate(d:Date):Date = {
+  @inline
+  final def roundDate(d:Date):Date = d
+
+
+  def realRoundDate(d:Date):Date = {
     val c = java.util.Calendar.getInstance();
     c.setTime(d);
     val mil = c.get(java.util.Calendar.MILLISECOND);
