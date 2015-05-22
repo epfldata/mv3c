@@ -599,7 +599,7 @@ object ConcurrentSHMapMVCC {
   /**
    * Nodes for use in TreeBins
    */
-  final class TreeNode[K, V <: Product](h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V], var parent: TreeNode[K, V]) extends Node[K, V](h, k, v, n) {
+  final class TreeNode[K, V <: Product](h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V], var parent: TreeNode[K, V]) extends Node[K, V](k, h, v, n) {
 
     def this(h: Int, k: K, v: V, n: Node[K, V], p: TreeNode[K, V])(implicit xact:Transaction) {
       this(h,k,null,n,p)
@@ -947,7 +947,7 @@ object ConcurrentSHMapMVCC {
     private val LOCKSTATE: Long = U.objectFieldOffset(k.getDeclaredField("lockState"))
   }
 
-  final class TreeBin[K, V <: Product] extends Node[K, V](TREEBIN, null.asInstanceOf[K], null, null) {
+  final class TreeBin[K, V <: Product] extends Node[K, V](null.asInstanceOf[K], TREEBIN, null, null) {
     var root: TreeNode[K, V] = null
     @volatile
     var first: TreeNode[K, V] = null
@@ -1105,7 +1105,7 @@ object ConcurrentSHMapMVCC {
      * Finds or adds a node.
      * @return null if added
      */
-    final def putTreeVal(h: Int, k: K, v: V)(implicit xact:Transaction, ord: math.Ordering[K]): TreeNode[K, V] = {
+    final def putTreeVal(h: Int, k: K, v: V, onInsert:TreeNode[K, V] => Unit)(implicit xact:Transaction, ord: math.Ordering[K]): TreeNode[K, V] = {
       var searched: Boolean = false
 
       {
@@ -1119,6 +1119,7 @@ object ConcurrentSHMapMVCC {
             first = ({
               root = new TreeNode[K, V](h, k, v, null, null); root
             })
+            onInsert(first)
             break = true //todo: break is not supported
           }
           else if ((({
@@ -1159,6 +1160,7 @@ object ConcurrentSHMapMVCC {
                 x = new TreeNode[K, V](h, k, v, f, xp);
                 x
               })
+              onInsert(first)
               if (f != null) f.prev = x
               if (dir <= 0) xp.left = x
               else xp.right = x
@@ -1775,11 +1777,15 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
               while (!break) {
                 var ek: K = null.asInstanceOf[K]
                 if (e.hash == hash && (refEquals({ek = e.key; ek}, key) || ((ek != null) && (key == ek)))) {
-                  oldVal = e.getTheValue
-                  oldValImg = oldVal.getImage
                   entry = e
-                  if (!onlyIfAbsent) {
-                    e.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
+                  oldVal = e.getTheValue
+                  if(oldVal == null) {
+                    e.setTheValue(value, INSERT_OP)
+                  } else {
+                    if (!onlyIfAbsent) {
+                      oldValImg = oldVal.getImage
+                      e.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
+                    }
                   }
                   break = true //todo: break is not supported
                 }
@@ -1797,12 +1803,19 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
             } else if (f.isInstanceOf[TreeBin[_, _]]) {
               var p: Node[K, V] = null
               binCount = 2
-              if ({p = (f.asInstanceOf[TreeBin[K, V]]).putTreeVal(hash, key, value); p} != null) {
-                oldVal = p.getTheValue
-                oldValImg = oldVal.getImage
+              p = (f.asInstanceOf[TreeBin[K, V]]).putTreeVal(hash, key, value, { insertedEntry =>
+                entry = insertedEntry
+              })
+              if (p != null) {
                 entry = p
-                if (!onlyIfAbsent) {
-                  p.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
+                oldVal = p.getTheValue
+                if(oldVal == null) {
+                  p.setTheValue(value, INSERT_OP)
+                } else {
+                  if (!onlyIfAbsent) {
+                    oldValImg = oldVal.getImage
+                    p.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
+                  }
                 }
               }
             }
@@ -1819,7 +1832,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       }
     }
 
-    if(oldVal == null){
+    if(oldVal == null) {
       addCount(1L, binCount)
       if (idxs != Nil) {
         idxs.foreach{ idx => 
