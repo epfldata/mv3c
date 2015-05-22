@@ -431,7 +431,7 @@ class TpccInMem() {
       counting_on = false
 
       for (i <- 0 until numConn) {
-        val conn: Connection = connectToDB(javaDriver, jdbcUrl, dbUser, dbPassword)
+        val conn: Connection = null //connectToDB(javaDriver, jdbcUrl, dbUser, dbPassword)
         // val pStmts: TpccStatements = new TpccStatements(conn, fetchSize)
         // val newOrder: NewOrder = new NewOrder(pStmts)
         // val payment: Payment = new Payment(pStmts)
@@ -448,7 +448,7 @@ class TpccInMem() {
           fetchSize, success, late, retry, failure, success2, late2, retry2, failure2, conn, newOrder, payment, orderStat, slev, delivery, activeTransactionChecker)
         executor.execute(worker)
 
-        conn.close
+        // conn.close
       }
       // if (rampupTime > 0) {
       //   System.out.print("\nRAMPUP START.\n\n")

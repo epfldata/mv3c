@@ -115,7 +115,7 @@ class Driver(var conn: java.sql.Connection,
           logger.error("FAILED", th)
           Tpcc.activate_transaction = 0
           try {
-            conn.rollback()
+            if(conn != null) conn.rollback()
           } catch {
             case e: SQLException => logger.error("", e)
           }
