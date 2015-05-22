@@ -72,7 +72,11 @@ class Driver(var conn: java.sql.Connection,
 
   private val exec = Executors.newSingleThreadExecutor()
 
+  private var startTime = 0L
+
   def runTransaction(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: (Int => Boolean)): Int = {
+    startTime = (System.currentTimeMillis() % 1000) * 1000
+
     num_ware = numWare
     num_conn = numConn
     var count = 0
@@ -212,7 +216,7 @@ class Driver(var conn: java.sql.Connection,
         " qty: " + 
         Arrays.toString(qty))
 
-      val time = new java.sql.Timestamp(System.currentTimeMillis())
+      val time = new java.sql.Timestamp({startTime += 1000; startTime})
       ret = newOrder.newOrderTx(time, t_num, w_id, d_id, c_id, ol_cnt, all_local, itemid, supware, qty, price, iname, stock, bg, amt)
       endTime = System.currentTimeMillis()
       if (ret == 1) {
@@ -301,7 +305,7 @@ class Driver(var conn: java.sql.Connection,
     beginTime = System.currentTimeMillis()
     i = 0
     while (i < MAX_RETRY) {
-      val currentTimeStamp = new Timestamp(System.currentTimeMillis())
+      val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
       ret = payment.paymentTx(currentTimeStamp, t_num, w_id, d_id, byname, c_w_id, c_d_id, c_id, c_last, h_amount)
       endTime = System.currentTimeMillis()
       if (ret >= 1) {
@@ -360,7 +364,7 @@ class Driver(var conn: java.sql.Connection,
     beginTime = System.currentTimeMillis()
     i = 0
     while (i < MAX_RETRY) {
-      val datetime = new java.util.Date()
+      val datetime = new java.util.Date({startTime += 1000; startTime})
       ret = orderStat.orderStatusTx(datetime, t_num, w_id, d_id, byname, c_id, c_last)
       endTime = System.currentTimeMillis()
       if (ret >= 1) {
@@ -413,9 +417,7 @@ class Driver(var conn: java.sql.Connection,
     beginTime = System.currentTimeMillis()
     i = 0
     while (i < MAX_RETRY) {
-      val calendar = Calendar.getInstance
-      val now = calendar.getTime
-      val currentTimeStamp = new Timestamp(now.getTime)
+      val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
       ret = delivery.deliveryTx(currentTimeStamp, w_id, o_carrier_id)
       endTime = System.currentTimeMillis()
       if (ret >= 1) {
