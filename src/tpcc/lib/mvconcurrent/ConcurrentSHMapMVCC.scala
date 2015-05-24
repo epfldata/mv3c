@@ -333,6 +333,16 @@ object ConcurrentSHMapMVCC {
     }
 
     final override def toString = "<"+img.toString+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "")+">"
+
+    // final override def hashCode: Int = {
+    //   entry.hashCode ^ img.hashCode
+    // }
+
+    // final override def equals(o: Any): Boolean = {
+    //   val e = o.asInstanceOf[DeltaVersion[K, V]]
+    //   (refEquals(e.entry, entry) || (e.entry == entry)) &&
+    //   (refEquals(e.img, img) || (e.img == img))
+    // }
   }
 
   /**
