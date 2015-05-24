@@ -124,7 +124,7 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV3 with IDeliveryInMem {
       var ol_total = 0f
       ISharedData.orderLineTblSliceEntry(0, (ol_o_id_input, ol_d_id_input, ol_w_id_input), { cv => 
         val k = cv.getKey
-        val v = k.getTheValue
+        val v = k
         val vi = v.getImage
         ol_total += vi._5
         v.setEntryValue(vi.copy(_3 = Some(ol_delivery_d_input)))

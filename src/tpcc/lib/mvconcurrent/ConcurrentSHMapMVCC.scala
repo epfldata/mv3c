@@ -1742,6 +1742,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
 
   /** Implementation for put and putIfAbsent */
   final def putVal(key: K, value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): Unit = {
+    var isAdded = false
     var oldVal: DeltaVersion[K,V] = null
     var oldValImg: V = null.asInstanceOf[V]
     var entry: Node[K, V] = null
@@ -1762,6 +1763,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       } else if ({f = tabAt(tab, {i = ((n - 1) & hash); i}); f} == null) {
         entry = new Node[K, V](hash, key, value, null)
         if (casTabAt(tab, i, null, entry)) {
+          isAdded = true
           break = true //todo: break is not supported
         }
       } else if ({fh = f.hash; fh} == MOVED) {
@@ -1794,6 +1796,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                   if ({e = e.next; e} == null) {
                     entry = new Node[K, V](hash, key, value, null)
                     pred.next = entry
+                    isAdded = true
                     break = true //todo: break is not supported
                   }
                   if(!break) binCount += 1
@@ -1804,6 +1807,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
               var p: Node[K, V] = null
               binCount = 2
               p = (f.asInstanceOf[TreeBin[K, V]]).putTreeVal(hash, key, value, { insertedEntry =>
+                isAdded = true
                 entry = insertedEntry
               })
               if (p != null) {
@@ -1832,11 +1836,12 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       }
     }
 
+    if(isAdded) addCount(1L, binCount)
+
     if(oldVal == null) {
-      addCount(1L, binCount)
       if (idxs != Nil) {
         idxs.foreach{ idx => 
-          idx.set(entry)
+          idx.set(entry.getTheValue)
         }
       }
     } else {
@@ -1849,17 +1854,12 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
           val pOld = idx.proj(key,oldValImg)
           val pNew = idx.proj(key,value)
           if(pNew != pOld) {
-            idx.del(entry, oldValImg)
-            idx.set(entry)
+            idx.del(oldVal, oldValImg)
+            idx.set(entry.getTheValue)
           }
         }
       }
     }
-    
-    
-
-    
-
     // oldVal
   }
 
@@ -1929,7 +1929,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                         else*/ if (pred != null) pred.next = e.next
                         else setTabAt(tab, i, e.next)
 
-                        if (idxs!=Nil) idxs.foreach(_.del(e))
+                        if (idxs!=Nil) idxs.foreach(_.del(e.getTheValue))
                       // }
                       break = true //todo: break is not supported
                     }
@@ -1960,7 +1960,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                     if (value != null) p.setTheValue(value, DELETE_OP)
                     else*/ if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
 
-                    if (idxs!=Nil) idxs.foreach(_.del(p))
+                    if (idxs!=Nil) idxs.foreach(_.del(p.getTheValue))
                   // }
                 }
               }
