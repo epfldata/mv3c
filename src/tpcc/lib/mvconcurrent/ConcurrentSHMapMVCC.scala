@@ -1919,18 +1919,14 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       var break = false
       while (!break) {
         var f: Node[K, V] = null
-        var n: Int = 0
-        var i: Int = 0
-        var fh: Int = 0
-        if (tab == null || (({
-          n = tab.length; n
-        })) == 0 || (({
-          f = tabAt(tab, {i = (n - 1) & hash; i}); f
-        })) == null) break = true //todo: break is not supported
-        else if ((({
-          fh = f.hash; fh
-        })) == MOVED) tab = helpTransfer(tab, f)
-        else {
+        var n, i , fh = 0
+        if ((tab == null) ||
+            ({ n = tab.length; n } == 0) ||
+            ({ f = tabAt(tab, {i = (n - 1) & hash; i}); f } == null)) {
+          break = true //todo: break is not supported
+        } else if ({ fh = f.hash; fh } == MOVED) {
+          tab = helpTransfer(tab, f)
+        } else {
           var validated: Boolean = false
           f synchronized {
             if (tabAt(tab, i) eq f) {
@@ -1943,107 +1939,86 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                   break = false;
                   while (!break) {
                     var ek: K = null.asInstanceOf[K]
-                    if (e.hash == hash && (refEquals((({
-                      ek = e.key; ek
-                    })), key) || (ek != null && (key == ek)))) {
+                    if (e.hash == hash &&
+                        (refEquals({ ek = e.key; ek }, key) ||
+                          (ek != null && (key == ek)))) {
                       e.setTheValue(NULL_VALUE, DELETE_OP)
-                      /*val ev: V = e.getValueImage
-                      // if ((cv == null) || refEquals(cv, ev) || (ev != null && (cv == ev))) {
-                        oldVal = ev
-                        if (value != null) e.setTheValue(value, DELETE_OP)
-                        else*/ if (pred != null) pred.next = e.next
-                        else setTabAt(tab, i, e.next)
+                      if (pred != null) pred.next = e.next
+                      else setTabAt(tab, i, e.next)
 
-                        // if (idxs!=Nil) idxs.foreach(_.del(e.getTheValue)) // Just like undo buffers, indexes are cleaned up
-                                                                             // during garbage collection.
-                      // }
-                      break = true //todo: break is not supported
+                      // if (idxs!=Nil) idxs.foreach(_.del(e.getTheValue)) // Just like undo buffers, indexes are cleaned up
+                                                                           // during garbage collection.
+                      break = true
                     }
                     if(!break) {
                       pred = e
-                      if ((({
-                        e = e.next;
-                        e
-                      })) == null) break = true //todo: break is not supported
+                      if ({ e = e.next; e } == null) break = true
                     }
                   }
                   break = false
                 }
-              }
-              else if (f.isInstanceOf[TreeBin[_, _]]) {
+              } else if (f.isInstanceOf[TreeBin[_, _]]) {
                 validated = true
                 val t: TreeBin[K, V] = f.asInstanceOf[TreeBin[K, V]]
                 var r: TreeNode[K, V] = null
                 var p: TreeNode[K, V] = null
-                if ((({
-                  r = t.root; r
-                })) != null && (({
-                  p = r.findTreeNode(hash, key); p
-                })) != null) {
+                if ({ r = t.root; r } != null && { p = r.findTreeNode(hash, key); p } != null) {
                   p.setTheValue(NULL_VALUE, DELETE_OP)
-                  /*val pv: V = p.getValueImage
-                  // if ((cv == null) || refEquals(cv, pv) || ((pv != null) && (cv == pv))) {
-                    oldVal = pv
-                    if (value != null) p.setTheValue(value, DELETE_OP)
-                    else*/ if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
+                  if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
 
-                    // if (idxs!=Nil) idxs.foreach(_.del(p.getTheValue)) // Just like undo buffers, indexes are cleaned up
-                                                                         // during garbage collection.
-                  // }
+                  // if (idxs!=Nil) idxs.foreach(_.del(p.getTheValue)) // Just like undo buffers, indexes are cleaned up
+                                                                       // during garbage collection.
                 }
               }
             }
           }
           if (validated) {
-            // if (oldVal != null) {
-            //   if (value == null) addCount(-1L, -1)
-            //   return oldVal
-            // }
+            // addCount(-1L, -1) //nothing is removed here, and the removal is postponed to commit time
+                                 // TODO: FIX IT this operation should be done in a later point
             break = true //todo: break is not supported
           }
         }
       }
     }
-    // NULL_VALUE
   }
 
   /**
    * Removes all of the mappings from this map.
    */
-  def clear(implicit xact:Transaction) {
-    var delta: Long = 0L
-    var i: Int = 0
-    var tab: Array[Node[K, V]] = table
-    while (tab != null && i < tab.length) {
-      var fh: Int = 0
-      val f: Node[K, V] = tabAt(tab, i)
-      if (f == null) ({
-        i += 1; i
-      })
-      else if ((({
-        fh = f.hash; fh
-      })) == MOVED) {
-        tab = helpTransfer(tab, f)
-        i = 0
-      }
-      else {
-        f synchronized {
-          if (tabAt(tab, i) eq f) {
-            var p: Node[K, V] = (if (fh >= 0) f else if ((f.isInstanceOf[TreeBin[_, _]])) (f.asInstanceOf[TreeBin[K, V]]).first else null)
-            while (p != null) {
-              delta -= 1
-              p = p.next
-            }
-            setTabAt(tab, ({
-              i += 1; i - 1
-            }), null)
-          }
-        }
-      }
-    }
-    if (delta != 0L) addCount(delta, -1)
-    if (idxs!=Nil) idxs.foreach(_.clear)
-  }
+  // def clear(implicit xact:Transaction) {
+  //   var delta: Long = 0L
+  //   var i: Int = 0
+  //   var tab: Array[Node[K, V]] = table
+  //   while (tab != null && i < tab.length) {
+  //     var fh: Int = 0
+  //     val f: Node[K, V] = tabAt(tab, i)
+  //     if (f == null) ({
+  //       i += 1; i
+  //     })
+  //     else if ((({
+  //       fh = f.hash; fh
+  //     })) == MOVED) {
+  //       tab = helpTransfer(tab, f)
+  //       i = 0
+  //     }
+  //     else {
+  //       f synchronized {
+  //         if (tabAt(tab, i) eq f) {
+  //           var p: Node[K, V] = (if (fh >= 0) f else if ((f.isInstanceOf[TreeBin[_, _]])) (f.asInstanceOf[TreeBin[K, V]]).first else null)
+  //           while (p != null) {
+  //             delta -= 1
+  //             p = p.next
+  //           }
+  //           setTabAt(tab, ({
+  //             i += 1; i - 1
+  //           }), null)
+  //         }
+  //       }
+  //     }
+  //   }
+  //   if (delta != 0L) addCount(delta, -1)
+  //   if (idxs!=Nil) idxs.foreach(_.clear)
+  // }
 
   /**
    * Initializes table, using the size recorded in sizeCtl.
@@ -2573,7 +2548,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @since 1.8
    */
   @inline
-  final def forEach(parallelismThreshold: Long, action: (K,V) => Unit)(implicit xact:Transaction) {
+  final private def forEach(parallelismThreshold: Long, action: (K,V) => Unit)(implicit xact:Transaction) {
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e => action(e.key, e.getValueImage) }).invoke
   }
@@ -2591,7 +2566,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @since 1.8
    */
   @inline
-  final def forEachKey(parallelismThreshold: Long, action: K => Unit) {
+  final private def forEachKey(parallelismThreshold: Long, action: K => Unit) {
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e => action(e.key) }).invoke
   }
@@ -2609,7 +2584,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @since 1.8
    */
   @inline
-  final def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit) {
+  final private def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit) {
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
   }
