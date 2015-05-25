@@ -379,7 +379,7 @@ object ConcurrentSHMapMVCC {
 
     // @inline
     // final def setTheValue(newValue: V)(implicit xact:Transaction): Unit = {
-    //   // val oldValue: V = null.asInstanceOf[V]
+    //   // val oldValue: V = NULL_VALUE
     //   if(value == null) {
     //     value = new DeltaVersion(xact,this,newValue)
     //   } else {
@@ -390,7 +390,7 @@ object ConcurrentSHMapMVCC {
     // }
     @inline
     final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): Unit = {
-      // val oldValue: V = null.asInstanceOf[V]
+      // val oldValue: V = NULL_VALUE
       if(value == null) {
         value = new DeltaVersion(xact,this,newValue,cols,op)
       } else {
@@ -419,8 +419,8 @@ object ConcurrentSHMapMVCC {
 
     // final def equals(o: Any)(implicit xact:Transaction): Boolean = {
     //   var k: K = null.asInstanceOf[K]
-    //   var v: V = null.asInstanceOf[V]
-    //   var u: V = null.asInstanceOf[V]
+    //   var v: V = NULL_VALUE
+    //   var u: V = NULL_VALUE
     //   var e: SEntryMVCC[K, V] = null
     //   (o.isInstanceOf[SEntryMVCC[_, _]] && {
     //     k = {
@@ -1460,6 +1460,7 @@ object ConcurrentSHMapMVCC {
  * Creates a new, empty map with the default initial table size (16).
  */
 class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.Ordering[K]) /*extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable*/ {
+  final val NULL_VALUE = null.asInstanceOf[V]
   /**
    * The array of bins. Lazily initialized upon first insertion.
    * Size is always a power of two. Accessed directly by iterators.
@@ -1624,7 +1625,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       else if (eh < 0) return if ((({
         p = e.find(h, key); p
       })) != null) p.getValueImage
-      else null.asInstanceOf[V]
+      else NULL_VALUE
       while ((({
         e = e.next; e
       })) != null) {
@@ -1633,7 +1634,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
         })), key) || (ek != null && (key == ek)))) return e.getValueImage
       }
     }
-    null.asInstanceOf[V]
+    NULL_VALUE
   }
   def apply(key: K)(implicit xact:Transaction): V = {
     var tab: Array[Node[K, V]] = null
@@ -1660,7 +1661,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       else if (eh < 0) return if ((({
         p = e.find(h, key); p
       })) != null) p.getValueImage
-      else null.asInstanceOf[V]
+      else NULL_VALUE
       while ((({
         e = e.next; e
       })) != null) {
@@ -1669,7 +1670,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
         })), key) || (ek != null && (key == ek)))) return e.getValueImage
       }
     }
-    null.asInstanceOf[V]
+    NULL_VALUE
   }
   def getEntry(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
     var tab: Array[Node[K, V]] = null
@@ -1754,7 +1755,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
   final def putVal(key: K, value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): Unit = {
     var isAdded = false
     var oldVal: DeltaVersion[K,V] = null
-    var oldValImg: V = null.asInstanceOf[V]
+    var oldValImg: V = NULL_VALUE
     var entry: Node[K, V] = null
 
     if (key == null || value == null) throw new NullPointerException
@@ -1856,6 +1857,11 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       }
     } else {
       if(onlyIfAbsent) {
+        //We ensure the uniqueness of primary keys by aborting a
+        //transaction that inserts a primary key that exists either
+        // (i) in the snapshot that is visible to the transaction,
+        // (ii) in the last committed version of the key’s record, or
+        // (iii) uncommitted as an insert in an undo buffer
         throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists (written by T%d). Could not insert the new value (%s) from T%d".format(oldVal.entry.key, oldVal.getImage, oldVal.xact.transactionId, value, xact.transactionId))
       }
 
@@ -1864,7 +1870,16 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
           val pOld = idx.proj(key,oldValImg)
           val pNew = idx.proj(key,value)
           if(pNew != pOld) {
-            idx.del(oldVal, oldValImg)
+            // idx.del(oldVal, oldValImg) // no value image gets deleted from the indices,
+                                          // before it becomes invisible to all the transactions
+                                          // If an update up- dates only non-indexed attributes,
+                                          // updates are performed as usual. If an update updates
+                                          // an indexed attribute, the record is deleted and re-inserted
+                                          // into the relation and both, the deleted and the re-inserted
+                                          // record, are stored in the in- dex. Thus, indexes retain
+                                          // references to all records that are visible by any active
+                                          // transaction. Just like undo buffers, indexes are cleaned up
+                                          // during garbage collection.
             idx.set(entry.getTheValue)
           }
         }
@@ -1931,7 +1946,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                     if (e.hash == hash && (refEquals((({
                       ek = e.key; ek
                     })), key) || (ek != null && (key == ek)))) {
-                      val dv = e.getTheValue
+                      e.setTheValue(NULL_VALUE, DELETE_OP)
                       /*val ev: V = e.getValueImage
                       // if ((cv == null) || refEquals(cv, ev) || (ev != null && (cv == ev))) {
                         oldVal = ev
@@ -1939,7 +1954,8 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                         else*/ if (pred != null) pred.next = e.next
                         else setTabAt(tab, i, e.next)
 
-                        if (idxs!=Nil) idxs.foreach(_.del(e.getTheValue))
+                        // if (idxs!=Nil) idxs.foreach(_.del(e.getTheValue)) // Just like undo buffers, indexes are cleaned up
+                                                                             // during garbage collection.
                       // }
                       break = true //todo: break is not supported
                     }
@@ -1964,13 +1980,15 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                 })) != null && (({
                   p = r.findTreeNode(hash, key); p
                 })) != null) {
+                  p.setTheValue(NULL_VALUE, DELETE_OP)
                   /*val pv: V = p.getValueImage
                   // if ((cv == null) || refEquals(cv, pv) || ((pv != null) && (cv == pv))) {
                     oldVal = pv
                     if (value != null) p.setTheValue(value, DELETE_OP)
                     else*/ if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
 
-                    if (idxs!=Nil) idxs.foreach(_.del(p.getTheValue))
+                    // if (idxs!=Nil) idxs.foreach(_.del(p.getTheValue)) // Just like undo buffers, indexes are cleaned up
+                                                                         // during garbage collection.
                   // }
                 }
               }
@@ -1986,7 +2004,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
         }
       }
     }
-    // null.asInstanceOf[V]
+    // NULL_VALUE
   }
 
   /**
