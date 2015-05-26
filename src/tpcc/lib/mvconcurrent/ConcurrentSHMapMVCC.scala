@@ -1440,6 +1440,19 @@ object ConcurrentSHMapMVCC {
     }
   }
 
+  @inline
+  final def getModifiedColIds[V <: Product](v1: V, v2: V) = {
+    var cols:List[Int]=Nil
+    var i = v1.productArity - 1
+    while(i >= 0) {
+      if(v1.productElement(i) != v2.productElement(i)) {
+        cols = i :: cols
+      }
+      i -= 1
+    }
+    cols
+  }
+
   private val U: Unsafe = MyThreadLocalRandom.getUnsafe
   val k: Class[_] = classOf[ConcurrentSHMapMVCC[_, _]]
   private val SIZECTL: Long = U.objectFieldOffset(k.getDeclaredField("sizeCtl"))
@@ -1736,19 +1749,6 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
   def update(key: K, updateFunc:V=>V)(implicit xact:Transaction): Unit = {
     //TODO: FIX IT
     putVal(key, updateFunc(get(key)), false)
-  }
-
-  @inline
-  final private def getModifiedColIds(v1: V, v2: V) = {
-    var cols:List[Int]=Nil
-    var i = v1.productArity - 1
-    while(i >= 0) {
-      if(v1.productElement(i) != v2.productElement(i)) {
-        cols = i :: cols
-      }
-      i -= 1
-    }
-    cols
   }
 
   /** Implementation for put and putIfAbsent */
