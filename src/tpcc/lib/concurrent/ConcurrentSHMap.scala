@@ -4486,7 +4486,7 @@ class ConcurrentSHMap[K, V](projs:(K,V)=>_ *) extends AbstractMap[K, V] with Con
       }
     }
     
-    addCount(1L, binCount)
+    if(oldVal == null) addCount(1L, binCount)
 
     if (idxs != Nil) {
       idxs.foreach{ idx => 
