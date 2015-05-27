@@ -2550,7 +2550,13 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
   @inline
   final private def forEach(parallelismThreshold: Long, action: (K,V) => Unit)(implicit xact:Transaction) {
     if (action == null) throw new NullPointerException
-    new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e => action(e.key, e.getValueImage) }).invoke
+    new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e => 
+      val dv = e.getTheValue
+      if(dv ne null) {
+        val img = dv.getImage
+        if(img != null) action(e.key, dv.getImage)
+      }
+    }).invoke
   }
   @inline
   final def foreach(action: (K,V) => Unit)(implicit xact:Transaction) {
@@ -2566,12 +2572,15 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @since 1.8
    */
   @inline
-  final private def forEachKey(parallelismThreshold: Long, action: K => Unit) {
+  final private def forEachKey(parallelismThreshold: Long, action: K => Unit)(implicit xact:Transaction)  {
     if (action == null) throw new NullPointerException
-    new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e => action(e.key) }).invoke
+    new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
+      val dv = e.getTheValue
+      if((dv ne null) && (dv.getImage != null)) action(e.key)
+    }).invoke
   }
   @inline
-  final def foreachKey(action: K => Unit) {
+  final def foreachKey(action: K => Unit)(implicit xact:Transaction)  {
     forEachKey(ONE_THREAD_NO_PARALLELISM, action)
   }
 
@@ -2584,13 +2593,16 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @since 1.8
    */
   @inline
-  final private def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit) {
+  final private def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction)  {
     if (action == null) throw new NullPointerException
-    new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, action).invoke
+    new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
+      val dv = e.getTheValue
+      if((dv ne null) && (dv.getImage != null)) action(e)
+    }).invoke
   }
 
   @inline
-  final def foreachEntry(action: SEntryMVCC[K, V] => Unit) {
+  final def foreachEntry(action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction) {
     forEachEntry(ONE_THREAD_NO_PARALLELISM, action)
   }
 
