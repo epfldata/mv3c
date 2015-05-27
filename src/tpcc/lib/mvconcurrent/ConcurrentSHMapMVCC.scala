@@ -609,7 +609,7 @@ object ConcurrentSHMapMVCC {
   /**
    * Nodes for use in TreeBins
    */
-  final class TreeNode[K, V <: Product](h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V], var parent: TreeNode[K, V]) extends Node[K, V](k, h, v, n) {
+  final class TreeNode[K, V <: Product](h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V], var parent: TreeNode[K, V]) extends Node[K, V](h, k, v, n) {
 
     def this(h: Int, k: K, v: V, n: Node[K, V], p: TreeNode[K, V])(implicit xact:Transaction) {
       this(h,k,null,n,p)
