@@ -1899,11 +1899,17 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    */
   @inline
   final def remove(key: K)(implicit xact:Transaction): Unit = {
-    replaceNode(key)
+    -=(key)
   }
   @inline
   final def -=(key: K)(implicit xact:Transaction): Unit = {
-    replaceNode(key)
+    // debug("- started deleting " + key)
+    val dv = getEntry(key)
+    if(dv ne null) {
+      dv.setEntryValue(NULL_VALUE)
+    }
+    // debug("- finished deleting " + key)
+    // replaceNode(key)
   }
 
   /**
@@ -1946,7 +1952,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                       if (pred != null) pred.next = e.next
                       else setTabAt(tab, i, e.next)
 
-                      // if (idxs!=Nil) idxs.foreach(_.del(e.getTheValue)) // Just like undo buffers, indexes are cleaned up
+                      if (idxs!=Nil) idxs.foreach(_.del(e.getTheValue)) // Just like undo buffers, indexes are cleaned up
                                                                            // during garbage collection.
                       break = true
                     }
@@ -1966,15 +1972,15 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                   p.setTheValue(NULL_VALUE, DELETE_OP)
                   if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
 
-                  // if (idxs!=Nil) idxs.foreach(_.del(p.getTheValue)) // Just like undo buffers, indexes are cleaned up
+                  if (idxs!=Nil) idxs.foreach(_.del(p.getTheValue)) // Just like undo buffers, indexes are cleaned up
                                                                        // during garbage collection.
                 }
               }
             }
           }
           if (validated) {
-            // addCount(-1L, -1) //nothing is removed here, and the removal is postponed to commit time
-                                 // TODO: FIX IT this operation should be done in a later point
+            addCount(-1L, -1) //nothing is removed here, and the removal is postponed to commit time
+                                 //TODO: FIX IT this operation should be done in a later point
             break = true //todo: break is not supported
           }
         }
