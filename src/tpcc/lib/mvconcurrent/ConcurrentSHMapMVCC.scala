@@ -265,13 +265,13 @@ object ConcurrentSHMapMVCC {
    * tree removal about conversion back to plain bins upon
    * shrinkage.
    */
-  private val TREEIFY_THRESHOLD: Int = 8
+  val TREEIFY_THRESHOLD: Int = 8
   /**
    * The bin count threshold for untreeifying a (split) bin during a
    * resize operation. Should be less than TREEIFY_THRESHOLD, and at
    * most 6 to mesh with shrinkage detection under removal.
    */
-  private val UNTREEIFY_THRESHOLD: Int = 6
+  val UNTREEIFY_THRESHOLD: Int = 6
   /**
    * The smallest table capacity for which bins may be treeified.
    * (Otherwise the table is resized if too many nodes in a bin.)
@@ -312,6 +312,8 @@ object ConcurrentSHMapMVCC {
 
   final class DeltaVersion[K,V <: Product](val xact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
     xact.undoBuffer.put(entry.key, this)
+  def debug(msg: => String) = MVCCTpccTableV3.debug(msg)
+
     if(next != null) next.prev = this
     if(prev != null) prev.next = this
 
