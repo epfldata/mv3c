@@ -387,33 +387,51 @@ object ConcurrentSHMapMVCC {
     }
 
     @inline
-    final def getValueImage(implicit xact:Transaction) = getTheValue.getImage
+    final def getValueImage(implicit xact:Transaction) = { val v = getTheValue; if(v == null) null.asInstanceOf[V] else v.getImage }
 
     // final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
     // final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
-    
-    @inline
-    final def getTheValue(implicit xact:Transaction) = value
 
-    // @inline
-    // final def setTheValue(newValue: V)(implicit xact:Transaction): Unit = {
-    //   // val oldValue: V = NULL_VALUE
-    //   if(value == null) {
-    //     value = new DeltaVersion(xact,this,newValue)
-    //   } else {
-    //     val oldValue = value
-    //     value = new DeltaVersion(xact,this,newValue)
-    //   }
-    //   // oldValue
-    // }
+    final def getTheValue(implicit xact:Transaction) = {
+      // debug("getting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
+      var res: DeltaVersion[K,V] = value
+      var found = false
+      do {
+        val resXact = res.vXact
+        if((resXact eq xact) || 
+           (resXact.isCommitted && resXact.xactId < xact.startTS)) {
+          found = true
+        }
+        if(!found) {
+          res = res.next
+        }
+      } while(!found && res != null);
+      res
+    }
+
     @inline
     final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): Unit = {
+      // debug("setting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
       // val oldValue: V = NULL_VALUE
       if(value == null) {
+        // debug("\t case 1")
         value = new DeltaVersion(xact,this,newValue,cols,op)
       } else {
-        if(!(value.xact eq xact) && !value.xact.isCommitted) throw new MVCCConcurrentWriteException("T%d has already written on this object (%s), so T%s should get aborted.".format(value.xact.transactionId, key, xact.transactionId))
-        value = new DeltaVersion(xact,this,newValue,cols,op,value)
+        if(value.vXact eq xact) {
+          value.img = newValue
+          if((value.op == UPDATE_OP) && (op == UPDATE_OP)) {
+            // debug("\t case 2")
+            value.cols = value.cols.union(cols).sorted
+          } else {
+            // debug("\t case 3")
+            value.cols = cols
+          }
+          value.op = op
+        } else {
+          // debug("\t case 4")
+          if(!value.vXact.isCommitted) throw new MVCCConcurrentWriteException("T%d has already written on this object (%s), so T%s should get aborted.".format(value.vXact.transactionId, key, xact.transactionId))
+          value = new DeltaVersion(xact,this,newValue,cols,op,value)
+        }
       }
       // oldValue
     }
