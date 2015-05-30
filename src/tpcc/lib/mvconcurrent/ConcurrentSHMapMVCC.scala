@@ -310,23 +310,38 @@ object ConcurrentSHMapMVCC {
   /** Number of CPUS, to place bounds on some sizings */
   private val NCPU: Int = Runtime.getRuntime.availableProcessors
 
-  final class DeltaVersion[K,V <: Product](val xact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
-    xact.undoBuffer.put(entry.key, this)
   def debug(msg: => String) = MVCCTpccTableV3.debug(msg)
 
+  final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
+    vXact.undoBuffer.put(entry.key, this)
     if(next != null) next.prev = this
     if(prev != null) prev.next = this
 
     @inline
-    final def getImage: V = img
+    final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
 
     @inline
     final def setEntryValue(newValue: V)(implicit xact:Transaction): Unit = {
-      // val oldVal = img
-      img = newValue
-      // oldVal
+      if(op == DELETE_OP) entry.setTheValue(newValue, INSERT_OP)
+      else if(newValue == null) entry.setTheValue(newValue, DELETE_OP)
+      else entry.setTheValue(newValue, UPDATE_OP, getModifiedColIds(newValue, img))
     }
 
+    // @inline
+    // final def isNotNullVisible(implicit xact:Transaction): Boolean = {
+    //   /*val res = */(op != DELETE_OP) && ((vXact eq xact)|| 
+    //       (vXact.isCommitted && vXact.xactId < xact.startTS 
+    //           && ((prev == null) || (prev.vXact.isCommitted && prev.vXact.xactId > xact.startTS))
+    //       )
+    //     )
+    //   // val res = entry.getTheValue eq this
+    //   // res
+    // }
+
+    @inline
+    final def isDeleted = (op == DELETE_OP)
+
+    @inline
     def opStr = op match {
       case INSERT_OP => "INSERT"
       case DELETE_OP => "DELETE"
@@ -334,17 +349,18 @@ object ConcurrentSHMapMVCC {
       case _ => "UNKNOWN"
     }
 
-    final override def toString = "<"+img.toString+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "")+">"
+    final override def toString = "<"+img+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "")+">"
 
     // final override def hashCode: Int = {
     //   entry.hashCode ^ img.hashCode
     // }
 
-    // final override def equals(o: Any): Boolean = {
-    //   val e = o.asInstanceOf[DeltaVersion[K, V]]
-    //   (refEquals(e.entry, entry) || (e.entry == entry)) &&
-    //   (refEquals(e.img, img) || (e.img == img))
-    // }
+    final override def equals(o: Any): Boolean = {
+      this eq o.asInstanceOf[AnyRef]
+      // val e = o.asInstanceOf[DeltaVersion[K, V]]
+      // (refEquals(e.entry, entry) || (e.entry == entry)) &&
+      // (refEquals(e.img, img) || (e.img == img))
+    }
   }
 
   /**
