@@ -1649,7 +1649,11 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    *
    * @throws NullPointerException if the specified key is null
    */
-  def get(key: K)(implicit xact:Transaction): V = {
+  @inline
+  final def get(key: K)(implicit xact:Transaction): V = apply(key)
+  @inline
+  final def apply(key: K)(implicit xact:Transaction): V = {
+    // debug("finding " + key)
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -1669,59 +1673,44 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       })) == h) {
         if (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek))) return e.getValueImage
+        })), key) || (ek != null && (key == ek))) {
+          // debug("\t found 1")
+          return e.getValueImage
+        }
       }
       else if (eh < 0) return if ((({
         p = e.find(h, key); p
-      })) != null) p.getValueImage
-      else NULL_VALUE
+      })) != null) {
+        if(p == null) {
+          // debug("\t found 2")
+          NULL_VALUE
+        } else {
+          // debug("\t found 3")
+          p.getValueImage
+        }
+      } else {
+        // debug("\t found 4")
+        NULL_VALUE
+      }
       while ((({
         e = e.next; e
       })) != null) {
         if (e.hash == h && (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek)))) return e.getValueImage
+        })), key) || (ek != null && (key == ek)))) return if(e == null) {
+        // debug("\t found 5")
+          NULL_VALUE
+        } else {
+        // debug("\t found 6")
+          e.getValueImage
+        }
       }
     }
-    NULL_VALUE
-  }
-  def apply(key: K)(implicit xact:Transaction): V = {
-    var tab: Array[Node[K, V]] = null
-    var e: Node[K, V] = null
-    var p: Node[K, V] = null
-    var n: Int = 0
-    var eh: Int = 0
-    var ek: K = null.asInstanceOf[K]
-    val h: Int = spread(key.hashCode)
-    if ((({
-      tab = table; tab
-    })) != null && (({
-      n = tab.length; n
-    })) > 0 && (({
-      e = tabAt(tab, (n - 1) & h); e
-    })) != null) {
-      if ((({
-        eh = e.hash; eh
-      })) == h) {
-        if (refEquals((({
-          ek = e.key; ek
-        })), key) || (ek != null && (key == ek))) return e.getValueImage
-      }
-      else if (eh < 0) return if ((({
-        p = e.find(h, key); p
-      })) != null) p.getValueImage
-      else NULL_VALUE
-      while ((({
-        e = e.next; e
-      })) != null) {
-        if (e.hash == h && (refEquals((({
-          ek = e.key; ek
-        })), key) || (ek != null && (key == ek)))) return e.getValueImage
-      }
-    }
+    // debug("\t not found 7")
     NULL_VALUE
   }
   def getEntry(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
+    // debug("finding entry for " + key)
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -1741,20 +1730,33 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       })) == h) {
         if (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek))) return e.getTheValue
+        })), key) || (ek != null && (key == ek))) {
+          // debug("\t found case 1 => " + Integer.toHexString(System.identityHashCode(e)))
+          return e.getTheValue
+        }
       }
       else if (eh < 0) return if ((({
         p = e.find(h, key); p
-      })) != null) p.getTheValue
-      else null
+      })) != null) {
+        // debug("\t found case 2 => " + Integer.toHexString(System.identityHashCode(p)))
+        p.getTheValue
+      } else {
+        // debug("\t not found case 3 ")
+        null
+      }
+
       while ((({
         e = e.next; e
       })) != null) {
         if (e.hash == h && (refEquals((({
           ek = e.key; ek
-        })), key) || (ek != null && (key == ek)))) return e.getTheValue
+        })), key) || (ek != null && (key == ek)))) {
+          // debug("\t found case 4 => " + Integer.toHexString(System.identityHashCode(e)))
+          return e.getTheValue
+        }
       }
     }
+    // debug("\t not found case 5 ")
     null
   }
 
