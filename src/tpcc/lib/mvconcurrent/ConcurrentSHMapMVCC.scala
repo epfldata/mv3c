@@ -2655,7 +2655,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
     projs.toList.map{ p => idx(p , LOAD_FACTOR, DEFAULT_CAPACITY)}
   }
 
-  def slice[P](part:Int, partKey:P)(implicit xact:Transaction):ConcurrentSHIndexMVCCEntry[K,V] = {
+  def slice[P](part:Int, partKey:P)(implicit xact:Transaction):ConcurrentSHIndexMVCCEntry[P,K,V] = {
     val ix=idxs(part)
     ix.asInstanceOf[ConcurrentSHIndexMVCC[P,K,V]].slice(partKey) // type information P is erased anyway
   }
