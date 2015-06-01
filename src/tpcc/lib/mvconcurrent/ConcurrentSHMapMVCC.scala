@@ -1830,13 +1830,11 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                 if (e.hash == hash && (refEquals({ek = e.key; ek}, key) || ((ek != null) && (key == ek)))) {
                   entry = e
                   oldVal = e.getTheValue
-                  if(oldVal == null) {
+                  if(oldVal == null || oldVal.isDeleted) {
                     e.setTheValue(value, INSERT_OP)
-                  } else {
-                    if (!onlyIfAbsent) {
-                      oldValImg = oldVal.getImage
-                      e.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
-                    }
+                  } else if (!onlyIfAbsent) {
+                    oldValImg = oldVal.getImage
+                    e.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
                   }
                   break = true //todo: break is not supported
                 }
@@ -1862,13 +1860,11 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
               if (p != null) {
                 entry = p
                 oldVal = p.getTheValue
-                if(oldVal == null) {
+                if(oldVal == null || oldVal.isDeleted) {
                   p.setTheValue(value, INSERT_OP)
-                } else {
-                  if (!onlyIfAbsent) {
-                    oldValImg = oldVal.getImage
-                    p.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
-                  }
+                } else if (!onlyIfAbsent) {
+                  oldValImg = oldVal.getImage
+                  p.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
                 }
               }
             }
@@ -1894,13 +1890,13 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
         }
       }
     } else {
-      if(onlyIfAbsent) {
+      if(onlyIfAbsent && !oldVal.isDeleted) {
         //We ensure the uniqueness of primary keys by aborting a
         //transaction that inserts a primary key that exists either
         // (i) in the snapshot that is visible to the transaction,
         // (ii) in the last committed version of the key’s record, or
         // (iii) uncommitted as an insert in an undo buffer
-        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists (written by T%d). Could not insert the new value (%s) from T%d".format(oldVal.entry.key, oldVal.getImage, oldVal.xact.transactionId, value, xact.transactionId))
+        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists (written by T%d). Could not insert the new value (%s) from T%d".format(oldVal.entry.key, oldVal.getImage, oldVal.vXact.transactionId, value, xact.transactionId))
       }
 
       if (idxs != Nil) {
@@ -1918,6 +1914,8 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                                           // references to all records that are visible by any active
                                           // transaction. Just like undo buffers, indexes are cleaned up
                                           // during garbage collection.
+            // we need to always index both the old and new value,
+            // as the old value will become invisible to the future xacts
             idx.set(entry.getTheValue)
           }
         }
