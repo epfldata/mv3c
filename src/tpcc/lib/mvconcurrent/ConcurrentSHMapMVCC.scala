@@ -317,10 +317,10 @@ object ConcurrentSHMapMVCC {
     if(next != null) next.prev = this
     if(prev != null) prev.next = this
 
-    @inline
+    // @inline //inlining is disabled during development
     final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
 
-    @inline
+    // @inline //inlining is disabled during development
     final def setEntryValue(newValue: V)(implicit xact:Transaction): Unit = {
       if(op == DELETE_OP) entry.setTheValue(newValue, INSERT_OP)
       else if(newValue == null) entry.setTheValue(newValue, DELETE_OP)
@@ -338,10 +338,10 @@ object ConcurrentSHMapMVCC {
     //   // res
     // }
 
-    @inline
+    // @inline //inlining is disabled during development
     final def isDeleted = (op == DELETE_OP)
 
-    @inline
+    // @inline //inlining is disabled during development
     def opStr = op match {
       case INSERT_OP => "INSERT"
       case DELETE_OP => "DELETE"
@@ -386,7 +386,7 @@ object ConcurrentSHMapMVCC {
       key
     }
 
-    @inline
+    // @inline //inlining is disabled during development
     final def getValueImage(implicit xact:Transaction) = { val v = getTheValue; if(v == null) null.asInstanceOf[V] else v.getImage }
 
     // final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
@@ -409,7 +409,7 @@ object ConcurrentSHMapMVCC {
       res
     }
 
-    @inline
+    // @inline //inlining is disabled during development
     final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): Unit = {
       // debug("setting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
       // val oldValue: V = NULL_VALUE
@@ -504,14 +504,14 @@ object ConcurrentSHMapMVCC {
    * to incorporate impact of the highest bits that would otherwise
    * never be used in index calculations because of table bounds.
    */
-  @inline
+  // @inline //inlining is disabled during development
   final def spread(h: Int): Int = (h ^ (h >>> 16)) & HASH_BITS
 
   /**
    * Returns a power of two table size for the given desired capacity.
    * See Hackers Delight, sec 3.2
    */
-  @inline
+  // @inline //inlining is disabled during development
   final private def tableSizeFor(c: Int): Int = {
     var n: Int = c - 1
     n |= n >>> 1
@@ -526,22 +526,22 @@ object ConcurrentSHMapMVCC {
    * Returns k.compareTo(x) if x matches kc (k's screened comparable
    * class), else 0.
    */
-  @SuppressWarnings(Array("rawtypes", "unchecked")) @inline
+  @SuppressWarnings(Array("rawtypes", "unchecked")) // @inline //inlining is disabled during development
   final def compareComparables[K](k: K, x: K)(implicit ord: math.Ordering[K]): Int = {
     if (x == null) 0 else ord.compare(k, x)
   }
 
-  @SuppressWarnings(Array("unchecked")) @inline
+  @SuppressWarnings(Array("unchecked")) // @inline //inlining is disabled during development
   final def tabAt[K, V <: Product](tab: Array[Node[K, V]], i: Int): Node[K, V] = {
     U.getObjectVolatile(tab, (i.toLong << ASHIFT) + ABASE).asInstanceOf[Node[K, V]]
   }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def casTabAt[K, V <: Product](tab: Array[Node[K, V]], i: Int, c: Node[K, V], v: Node[K, V]): Boolean = {
     U.compareAndSwapObject(tab, (i.toLong << ASHIFT) + ABASE, c, v)
   }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def setTabAt[K, V <: Product](tab: Array[Node[K, V]], i: Int, v: Node[K, V]) {
     U.putObjectVolatile(tab, (i.toLong << ASHIFT) + ABASE, v)
   }
@@ -1476,7 +1476,7 @@ object ConcurrentSHMapMVCC {
     }
   }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def getModifiedColIds[V <: Product](v1: V, v2: V) = {
     var cols:List[Int]=Nil
     var i = v1.productArity - 1
@@ -1649,9 +1649,9 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    *
    * @throws NullPointerException if the specified key is null
    */
-  @inline
+  // @inline //inlining is disabled during development
   final def get(key: K)(implicit xact:Transaction): V = apply(key)
-  @inline
+  // @inline //inlining is disabled during development
   final def apply(key: K)(implicit xact:Transaction): V = {
     // debug("finding " + key)
     var tab: Array[Node[K, V]] = null
@@ -1933,11 +1933,11 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    *                                                    { @code null} if there was no mapping for { @code key}
    * @throws NullPointerException if the specified key is null
    */
-  @inline
+  // @inline //inlining is disabled during development
   final def remove(key: K)(implicit xact:Transaction): Unit = {
     -=(key)
   }
-  @inline
+  // @inline //inlining is disabled during development
   final def -=(key: K)(implicit xact:Transaction): Unit = {
     // debug("- started deleting " + key)
     val dv = getEntry(key)
@@ -2589,7 +2589,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @param action the action
    * @since 1.8
    */
-  @inline
+  // @inline //inlining is disabled during development
   final private def forEach(parallelismThreshold: Long, action: (K,V) => Unit)(implicit xact:Transaction) {
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e => 
@@ -2600,7 +2600,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       }
     }).invoke
   }
-  @inline
+  // @inline //inlining is disabled during development
   final def foreach(action: (K,V) => Unit)(implicit xact:Transaction) {
     forEach(ONE_THREAD_NO_PARALLELISM, action)
   }
@@ -2613,7 +2613,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @param action the action
    * @since 1.8
    */
-  @inline
+  // @inline //inlining is disabled during development
   final private def forEachKey(parallelismThreshold: Long, action: K => Unit)(implicit xact:Transaction)  {
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
@@ -2621,7 +2621,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       if((dv ne null) && (dv.getImage != null)) action(e.key)
     }).invoke
   }
-  @inline
+  // @inline //inlining is disabled during development
   final def foreachKey(action: K => Unit)(implicit xact:Transaction)  {
     forEachKey(ONE_THREAD_NO_PARALLELISM, action)
   }
@@ -2634,7 +2634,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @param action the action
    * @since 1.8
    */
-  @inline
+  // @inline //inlining is disabled during development
   final private def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction)  {
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
@@ -2643,7 +2643,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
     }).invoke
   }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def foreachEntry(action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction) {
     forEachEntry(ONE_THREAD_NO_PARALLELISM, action)
   }

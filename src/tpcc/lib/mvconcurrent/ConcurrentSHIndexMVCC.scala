@@ -12,9 +12,13 @@ object ConcurrentSHIndexMVCC {
 }
 
 class ConcurrentSHIndexMVCCEntry[P,K,V <: Product](val p: P, val proj:(K,V)=>P) {
+  //Q: Why do we index DeltaVersion and not SEntryMVCC?
+  //A: DeltaVersion is the base data stored in the store, and might migrate between
+  //   different sub-types of SEntryMVCC (e.g. TreeNode). So, a reference to it might
+  //   get changed during the execution.
   val s:ConcurrentSHSet[DeltaVersion[K,V]] = new ConcurrentSHSet[DeltaVersion[K,V]]
 
-  @inline
+  // @inline //inlining is disabled during development
   final def foreach(f: (K,V) => Unit)(implicit xact:Transaction): Unit = s.foreach{ e =>
     val ent = e.entry
     val ev = ent.getTheValue
@@ -27,7 +31,7 @@ class ConcurrentSHIndexMVCCEntry[P,K,V <: Product](val p: P, val proj:(K,V)=>P) 
     // }
   }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def foreachEntry(f: java.util.Map.Entry[DeltaVersion[K,V], Boolean] => Unit)(implicit xact:Transaction): Unit = s.foreachEntry{ e =>
     val ent = e.getKey.entry
     val ev = ent.getTheValue
@@ -45,7 +49,7 @@ class ConcurrentSHIndexMVCC[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Flo
 
   val idx = new ConcurrentSHMap[P,ConcurrentSHIndexMVCCEntry[P,K,V]](loadFactor, initialCapacity)
 
-  @inline
+  // @inline //inlining is disabled during development
   final def set(entry: DeltaVersion[K,V])(implicit xact:Transaction):Unit = {
     val p:P = proj(entry.entry.key, entry.getImage)
     val s = idx.get(p)
@@ -58,10 +62,10 @@ class ConcurrentSHIndexMVCC[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Flo
     }
   }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def del(entry: DeltaVersion[K,V])(implicit xact:Transaction):Unit = del(entry, entry.getImage)
 
-  @inline
+  // @inline //inlining is disabled during development
   final def del(entry: DeltaVersion[K,V], v:V)(implicit xact:Transaction):Unit = {
     val p:P = proj(entry.entry.key, v)
     val s=idx.get(p)
@@ -71,12 +75,12 @@ class ConcurrentSHIndexMVCC[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Flo
     }
   }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def slice(part:P)(implicit xact:Transaction):ConcurrentSHIndexMVCCEntry[P,K,V] = idx.get(part) match { 
     case null => EMPTY_INDEX_ENTRY.asInstanceOf[ConcurrentSHIndexMVCCEntry[P,K,V]]
     case s=>s
   }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def clear(implicit xact:Transaction):Unit = idx.clear
 }
