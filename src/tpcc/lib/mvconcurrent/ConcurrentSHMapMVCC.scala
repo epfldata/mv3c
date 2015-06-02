@@ -371,14 +371,14 @@ object ConcurrentSHMapMVCC {
    * are special, and contain null keys and values (but are never
    * exported).  Otherwise, keys and vals are never null.
    */
-  class Node[K, V <: Product](val key: K, val hash: Int, @volatile var value: DeltaVersion[K,V], @volatile var next: Node[K, V]) /*extends Map.Entry[K, V]*/ {
+  class Node[K, V <: Product](val map:ConcurrentSHMapMVCC[K,V], val key: K, val hash: Int, @volatile var value: DeltaVersion[K,V], @volatile var next: Node[K, V]) /*extends Map.Entry[K, V]*/ {
     
-    def this(h: Int, k: K, v: V, n: Node[K, V]=null)(implicit xact:Transaction) {
-      this(k,h,null,n)
+    def this(m:ConcurrentSHMapMVCC[K,V], h: Int, k: K, v: V, n: Node[K, V]=null)(implicit xact:Transaction) {
+      this(m,k,h,null,n)
       setTheValue(v, INSERT_OP)(xact)
     }
-    def this(h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V]) {
-      this(k,h,v,n)
+    def this(m:ConcurrentSHMapMVCC[K,V], h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V]) {
+      this(m,k,h,v,n)
       value.entry = this
     }
 
@@ -549,7 +549,7 @@ object ConcurrentSHMapMVCC {
   /**
    * A node inserted at head of bins during transfer operations.
    */
-  final class ForwardingNode[K, V <: Product](val nextTable: Array[Node[K, V]]) extends Node[K, V](null.asInstanceOf[K],MOVED, null, null) {
+  final class ForwardingNode[K, V <: Product](val nextTable: Array[Node[K, V]]) extends Node[K, V](null,null.asInstanceOf[K],MOVED, null, null) {
 
     override def find(h: Int, k: K)(implicit ord: math.Ordering[K]): Node[K, V] = {
       {
@@ -594,7 +594,7 @@ object ConcurrentSHMapMVCC {
   /**
    * A place-holder node used in computeIfAbsent and compute
    */
-  final class ReservationNode[K, V <: Product] extends Node[K, V](null.asInstanceOf[K], RESERVED, null, null) {
+  final class ReservationNode[K, V <: Product] extends Node[K, V](null,null.asInstanceOf[K], RESERVED, null, null) {
     override def find(h: Int, k: K)(implicit ord: math.Ordering[K]): Node[K, V] = null
   }
 
@@ -631,7 +631,7 @@ object ConcurrentSHMapMVCC {
       var q: Node[K, V] = b
       while (q != null) {
         {
-          val p: Node[K, V] = new Node[K, V](q.hash, q.key, q.value, null)
+          val p: Node[K, V] = new Node[K, V](b.map, q.hash, q.key, q.value, null)
           if (tl == null) hd = p
           else tl.next = p
           tl = p
@@ -645,10 +645,10 @@ object ConcurrentSHMapMVCC {
   /**
    * Nodes for use in TreeBins
    */
-  final class TreeNode[K, V <: Product](h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V], var parent: TreeNode[K, V]) extends Node[K, V](h, k, v, n) {
+  final class TreeNode[K, V <: Product](m:ConcurrentSHMapMVCC[K,V], h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V], var parent: TreeNode[K, V]) extends Node[K, V](m, h, k, v, n) {
 
-    def this(h: Int, k: K, v: V, n: Node[K, V], p: TreeNode[K, V])(implicit xact:Transaction) {
-      this(h,k,null,n,p)
+    def this(m:ConcurrentSHMapMVCC[K,V], h: Int, k: K, v: V, n: Node[K, V], p: TreeNode[K, V])(implicit xact:Transaction) {
+      this(m,h,k,null,n,p)
       setTheValue(v,INSERT_OP)(xact)
     }
 
@@ -993,7 +993,7 @@ object ConcurrentSHMapMVCC {
     private val LOCKSTATE: Long = U.objectFieldOffset(k.getDeclaredField("lockState"))
   }
 
-  final class TreeBin[K, V <: Product] extends Node[K, V](null.asInstanceOf[K], TREEBIN, null, null) {
+  final class TreeBin[K, V <: Product](m:ConcurrentSHMapMVCC[K,V]) extends Node[K, V](m, null.asInstanceOf[K], TREEBIN, null, null) {
     var root: TreeNode[K, V] = null
     @volatile
     var first: TreeNode[K, V] = null
@@ -1005,8 +1005,8 @@ object ConcurrentSHMapMVCC {
     /**
      * Creates bin with initial set of nodes headed by b.
      */
-    def this(b: TreeNode[K, V])(implicit ord: math.Ordering[K]) {
-      this()
+    def this(b: TreeNode[K, V],m:ConcurrentSHMapMVCC[K,V])(implicit ord: math.Ordering[K]) {
+      this(m)
       this.first = b
       var r: TreeNode[K, V] = null
 
@@ -1163,7 +1163,7 @@ object ConcurrentSHMapMVCC {
           var pk: K = null.asInstanceOf[K]
           if (p == null) {
             first = ({
-              root = new TreeNode[K, V](h, k, v, null, null); root
+              root = new TreeNode[K, V](this.map, h, k, v, null, null); root
             })
             onInsert(first)
             break = true //todo: break is not supported
@@ -1203,7 +1203,7 @@ object ConcurrentSHMapMVCC {
               var x: TreeNode[K, V] = null
               val f: TreeNode[K, V] = first
               first = ({
-                x = new TreeNode[K, V](h, k, v, f, xp);
+                x = new TreeNode[K, V](this.map, h, k, v, f, xp);
                 x
               })
               onInsert(first)
@@ -1810,7 +1810,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
       if ((tab == null) || ({n = tab.length; n } == 0)) {
         tab = initTable
       } else if ({f = tabAt(tab, {i = ((n - 1) & hash); i}); f} == null) {
-        entry = new Node[K, V](hash, key, value, null)
+        entry = new Node[K, V](this, hash, key, value, null)
         if (casTabAt(tab, i, null, entry)) {
           isAdded = true
           break = true //todo: break is not supported
@@ -1841,7 +1841,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                 if(!break) {
                   val pred: Node[K, V] = e
                   if ({e = e.next; e} == null) {
-                    entry = new Node[K, V](hash, key, value, null)
+                    entry = new Node[K, V](this, hash, key, value, null)
                     pred.next = entry
                     isAdded = true
                     break = true //todo: break is not supported
@@ -2339,8 +2339,8 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                       val ph: Int = p.hash
                       val pk: K = p.key
                       val pv: DeltaVersion[K,V] = p.value
-                      if ((ph & n) == 0) ln = new Node[K, V](ph, pk, pv, ln)
-                      else hn = new Node[K, V](ph, pk, pv, hn)
+                      if ((ph & n) == 0) ln = new Node[K, V](this, ph, pk, pv, ln)
+                      else hn = new Node[K, V](this, ph, pk, pv, hn)
                     }
                     p = p.next
                   }
@@ -2364,7 +2364,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                   while (e != null) {
                     {
                       val h: Int = e.hash
-                      val p: TreeNode[K, V] = new TreeNode[K, V](h, e.key, e.value, null, null)
+                      val p: TreeNode[K, V] = new TreeNode[K, V](this, h, e.key, e.value, null, null)
                       if ((h & n) == 0) {
                         if ((({
                           p.prev = loTail; p.prev
@@ -2385,8 +2385,8 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                     e = e.next
                   }
                 }
-                ln = if ((lc <= UNTREEIFY_THRESHOLD)) untreeify(lo) else if ((hc != 0)) new TreeBin[K, V](lo) else t
-                hn = if ((hc <= UNTREEIFY_THRESHOLD)) untreeify(hi) else if ((lc != 0)) new TreeBin[K, V](hi) else t
+                ln = if ((lc <= UNTREEIFY_THRESHOLD)) untreeify(lo) else if ((hc != 0)) new TreeBin[K, V](lo,this) else t
+                hn = if ((hc <= UNTREEIFY_THRESHOLD)) untreeify(hi) else if ((lc != 0)) new TreeBin[K, V](hi,this) else t
                 setTabAt(nextTab, i, ln)
                 setTabAt(nextTab, i + n, hn)
                 setTabAt(tab, i, fwd)
@@ -2544,7 +2544,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
               var e: Node[K, V] = b
               while (e != null) {
                 {
-                  val p: TreeNode[K, V] = new TreeNode[K, V](e.hash, e.key, e.value, null, null)
+                  val p: TreeNode[K, V] = new TreeNode[K, V](this, e.hash, e.key, e.value, null, null)
                   if ((({
                     p.prev = tl; p.prev
                   })) == null) hd = p
@@ -2554,7 +2554,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
                 e = e.next
               }
             }
-            setTabAt(tab, index, new TreeBin[K, V](hd))
+            setTabAt(tab, index, new TreeBin[K, V](hd, this))
           }
         }
       }
