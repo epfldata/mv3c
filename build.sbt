@@ -74,14 +74,6 @@ addCommandAlias("unit8",  ";unit 8") ++
 addCommandAlias("unit9",  ";unit 9") ++
 addCommandAlias("unit10", ";unit 10")
 
-addCommandAlias("testmap1", ";test:run-main ddbt.tpcc.lib.concurrent.DistinctEntrySetElements") ++
-addCommandAlias("testmap2", ";test:run-main ddbt.tpcc.lib.concurrent.DistinctEntrySetElements2") ++
-addCommandAlias("testmap3", ";test:run-main org.testng.TestNG -testclass ddbt.tpcc.lib.concurrent.ConcurrentContainsKeyTest") ++
-addCommandAlias("testmap4", ";test:run-main org.testng.TestNG -testclass ddbt.tpcc.lib.concurrent.ConcurrentAssociateTest") ++
-addCommandAlias("testmap5", ";test:run-main ddbt.tpcc.lib.concurrent.MapCheck") ++
-addCommandAlias("testmap6", ";test:run-main ddbt.tpcc.lib.concurrent.MapLoops") ++
-addCommandAlias("testmap7", ";test:run-main ddbt.tpcc.lib.concurrent.ToArray") ++
-addCommandAlias("testmap", ";testmap1;testmap2;testmap3;testmap4;testmap5;testmap6;testmap7") ++
 addCommandAlias("test-mvconcurrent", ";test-only ddbt.tpcc.lib.mvconcurrent.*")
 
 // --------- LMS codegen, enabled with ddbt.lms = 1 in conf/config.properties

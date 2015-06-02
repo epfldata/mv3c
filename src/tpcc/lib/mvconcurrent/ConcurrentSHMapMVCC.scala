@@ -317,7 +317,7 @@ object ConcurrentSHMapMVCC {
     if(next != null) next.prev = this
     if(prev != null) prev.next = this
 
-    // @inline //inlining is disabled during development
+    @inline
     final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
 
     // @inline //inlining is disabled during development
@@ -338,10 +338,10 @@ object ConcurrentSHMapMVCC {
     //   // res
     // }
 
-    // @inline //inlining is disabled during development
+    @inline
     final def isDeleted = (op == DELETE_OP)
 
-    // @inline //inlining is disabled during development
+    @inline
     def opStr = op match {
       case INSERT_OP => "INSERT"
       case DELETE_OP => "DELETE"
@@ -2569,6 +2569,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * splitting than is the depth, since it is used while dividing by
    * two anyway.
    */
+  // @inline //inlining is disabled during development
   final def batchFor(b: Long): Int = {
     var n: Long = 0L
     if (b == Long.MaxValue || (({
@@ -2649,7 +2650,9 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
   }
 
   val idxs:List[ConcurrentSHIndexMVCC[_,K,V]] = {
-    def idx[P](f:(K,V)=>P, lf:Float, initC:Int) = new ConcurrentSHIndexMVCC[P,K,V](f,lf,initC)
+    def idx[P](f:(K,V)=>P, lf:Float, initC:Int) = new ConcurrentSHIndexMVCC[P,K,V](f,lf,initC)(new Ordering[P] {
+      def compare(x: P, y: P): Int = if(x == y) 0 else x.hashCode compare y.hashCode
+    },ord)
     //TODO: pass the correct capacity and load factor if necessary
     // projs.zip(lfInitIndex).toList.map{case (p, (lf, initC)) => idx(p , lf, initC)}
     projs.toList.map{ p => idx(p , LOAD_FACTOR, DEFAULT_CAPACITY)}

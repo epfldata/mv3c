@@ -10,7 +10,7 @@ object ConcurrentSHSet {
   val DEFAULT_PRESENT_VALUE: Boolean = true
 }
 
-class ConcurrentSHSet[K] {
+class ConcurrentSHSet[K](implicit ord: math.Ordering[K]) {
   var map: ConcurrentSHMap[K,Boolean] = new ConcurrentSHMap[K,Boolean]
 
   // def this(initialCapacity: Int, lf: Float) {
@@ -46,17 +46,6 @@ class ConcurrentSHSet[K] {
    */
   @inline
   final def isEmpty: Boolean = map.isEmpty
-
-  /**
-   * Returns <tt>true</tt> if this map contains a mapping for the
-   * specified key.
-   *
-   * @param   key   The key whose presence in this map is to be tested
-   * @return <tt>true</tt> if this map contains a mapping for the specified
-   *         key.
-   */
-  @inline
-  final def contains(key: K): Boolean = map.contains(key)
 
   /**
    * Associates the specified value with the specified key in this map.
