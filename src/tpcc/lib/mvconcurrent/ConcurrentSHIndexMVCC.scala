@@ -22,27 +22,24 @@ class ConcurrentSHIndexMVCCEntry[P,K,V <: Product](val p: P, val proj:(K,V)=>P)(
 
   // @inline //inlining is disabled during development
   final def foreach(f: (K,V) => Unit)(implicit xact:Transaction): Unit = s.foreach{ e =>
-    val ent = e.entry
-    val ev = ent.getTheValue
-    val img = if(ev ne null) ev.getImage else null.asInstanceOf[V]
-    if((ev ne null) && (null != img) && (p == proj(ent.key, img))) {
-      f(ent.key, img)
+    if(e.isVisible) {
+      f(e.entry.key, e.getImage)
+      // println ((e.entry.map.name, e.entry.key, e.getImage) + " is visible!")
     }
     // else {
-    //   println ((ent.key, ev) + " is not visible!")
+    //   println ((e.entry.map.name, e.entry.key, e) + " is not visible!")
     // }
   }
 
   // @inline //inlining is disabled during development
   final def foreachEntry(f: java.util.Map.Entry[DeltaVersion[K,V], Boolean] => Unit)(implicit xact:Transaction): Unit = s.foreachEntry{ e =>
-    val ent = e.getKey.entry
-    val ev = ent.getTheValue
-    val img = if(ev ne null) ev.getImage else null.asInstanceOf[V]
-    if((ev ne null) && (null != img) && (p == proj(ent.key, img))) {
+    if(e.getKey.isVisible) {
+      if (e.getKey != e.getKey.entry.getTheValue) throw new RuntimeException("Wrong foreacEntry => "+e.getKey.entry.key)
       f(e)
+      // println ((e.getKey.entry.map.name,e.getKey.entry.key, e.getKey.getImage) + " (entry) is visible!")
     }
     // else {
-    //   println ((ent.key, ev) + " is not visible HERE!")
+    //   println ((e.getKey.entry.map.name,e.getKey.entry.key, e.getKey) + " (entry) is not visible!")
     // }
   }
 }
@@ -65,10 +62,10 @@ class ConcurrentSHIndexMVCC[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Flo
   }
 
   // @inline //inlining is disabled during development
-  final def del(entry: DeltaVersion[K,V])(implicit xact:Transaction):Unit = del(entry, entry.getImage)
+  final def del(entry: DeltaVersion[K,V]):Unit = del(entry, entry.getImage)
 
   // @inline //inlining is disabled during development
-  final def del(entry: DeltaVersion[K,V], v:V)(implicit xact:Transaction):Unit = {
+  final def del(entry: DeltaVersion[K,V], v:V):Unit = {
     val p:P = proj(entry.entry.key, v)
     val s=idx.get(p)
     if (s!=null) { 

@@ -322,21 +322,33 @@ object ConcurrentSHMapMVCC {
 
     // @inline //inlining is disabled during development
     final def setEntryValue(newValue: V)(implicit xact:Transaction): Unit = {
-      if(op == DELETE_OP) entry.setTheValue(newValue, INSERT_OP)
-      else if(newValue == null) entry.setTheValue(newValue, DELETE_OP)
-      else entry.setTheValue(newValue, UPDATE_OP, getModifiedColIds(newValue, img))
+      var insertOrUpdate = false
+      if(op == DELETE_OP) {
+        entry.setTheValue(newValue, INSERT_OP)
+        insertOrUpdate = true
+      } else if(newValue == null) {
+        entry.setTheValue(newValue, DELETE_OP)
+      } else {
+        entry.setTheValue(newValue, UPDATE_OP, getModifiedColIds(newValue, img))
+        insertOrUpdate = true
+      }
+
+      if(insertOrUpdate) {
+        val map = entry.map
+        if (map.idxs!=Nil) map.idxs.foreach(_.set(entry.value))
+      }
     }
 
     // @inline
-    // final def isNotNullVisible(implicit xact:Transaction): Boolean = {
-    //   /*val res = */(op != DELETE_OP) && ((vXact eq xact)|| 
-    //       (vXact.isCommitted && vXact.xactId < xact.startTS 
-    //           && ((prev == null) || (prev.vXact.isCommitted && prev.vXact.xactId > xact.startTS))
-    //       )
-    //     )
-    //   // val res = entry.getTheValue eq this
-    //   // res
-    // }
+    final def isVisible(implicit xact:Transaction): Boolean = {
+      /*val res = */(!isDeleted) && ((vXact eq xact)|| 
+          (vXact.isCommitted && vXact.xactId < xact.startTS 
+              && ((prev == null) || prev.vXact.commitTS > xact.startTS)
+          )
+        )
+      // val res = entry.getTheValue eq this
+      // res
+    }
 
     @inline
     final def isDeleted = (op == DELETE_OP)
@@ -347,6 +359,15 @@ object ConcurrentSHMapMVCC {
       case DELETE_OP => "DELETE"
       case UPDATE_OP => "UPDATE"
       case _ => "UNKNOWN"
+    }
+
+    def remove {
+      if(next != null) throw new RuntimeException("There are more than one versions pending for a single garbage collection.")
+      val map = entry.map
+      if(isDeleted && prev == null && next == null) {
+        map.replaceNode(entry.key)
+      }
+      if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
     }
 
     final override def toString = "<"+img+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "")+">"
@@ -419,7 +440,7 @@ object ConcurrentSHMapMVCC {
           res = res.next
         }
       } while(!found && res != null);
-      res
+      if(found) res else null
     }
 
     // @inline //inlining is disabled during development
@@ -1914,9 +1935,9 @@ class ConcurrentSHMapMVCC[K, V <: Product](val name:String, val projs:(K,V)=>_ *
 
       if (idxs != Nil) {
         idxs.foreach{ idx => 
-          val pOld = idx.proj(key,oldValImg)
-          val pNew = idx.proj(key,value)
-          if(pNew != pOld) {
+          // val pOld = idx.proj(key,oldValImg)
+          // val pNew = idx.proj(key,value)
+          // if(pNew != pOld) {
             // idx.del(oldVal, oldValImg) // no value image gets deleted from the indices,
                                           // before it becomes invisible to all the transactions
                                           // If an update up- dates only non-indexed attributes,
@@ -1930,7 +1951,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](val name:String, val projs:(K,V)=>_ *
             // we need to always index both the old and new value,
             // as the old value will become invisible to the future xacts
             idx.set(entry.getTheValue)
-          }
+          // }
         }
       }
     }
@@ -1966,7 +1987,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](val name:String, val projs:(K,V)=>_ *
    * Replaces node value with v, conditional upon match of cv if
    * non-null.  If resulting value is null, delete.
    */
-  final def replaceNode(key: K)(implicit xact:Transaction): Unit = {
+  final def replaceNode(key: K): Unit = {
     val hash: Int = spread(key.hashCode)
 
     {
@@ -1997,11 +2018,10 @@ class ConcurrentSHMapMVCC[K, V <: Product](val name:String, val projs:(K,V)=>_ *
                     if (e.hash == hash &&
                         (refEquals({ ek = e.key; ek }, key) ||
                           (ek != null && (key == ek)))) {
-                      e.setTheValue(NULL_VALUE, DELETE_OP)
                       if (pred != null) pred.next = e.next
                       else setTabAt(tab, i, e.next)
 
-                      if (idxs!=Nil) idxs.foreach(_.del(e.getTheValue)) // Just like undo buffers, indexes are cleaned up
+                      // if (idxs!=Nil) idxs.foreach(_.del(e.getTheValue)) // Just like undo buffers, indexes are cleaned up
                                                                            // during garbage collection.
                       break = true
                     }
@@ -2018,10 +2038,9 @@ class ConcurrentSHMapMVCC[K, V <: Product](val name:String, val projs:(K,V)=>_ *
                 var r: TreeNode[K, V] = null
                 var p: TreeNode[K, V] = null
                 if ({ r = t.root; r } != null && { p = r.findTreeNode(hash, key); p } != null) {
-                  p.setTheValue(NULL_VALUE, DELETE_OP)
                   if (t.removeTreeNode(p)) setTabAt(tab, i, untreeify(t.first))
 
-                  if (idxs!=Nil) idxs.foreach(_.del(p.getTheValue)) // Just like undo buffers, indexes are cleaned up
+                  // if (idxs!=Nil) idxs.foreach(_.del(p.getTheValue)) // Just like undo buffers, indexes are cleaned up
                                                                        // during garbage collection.
                 }
               }
