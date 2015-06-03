@@ -44,7 +44,7 @@ class ConcurrentSHSet[K](implicit ord: math.Ordering[K]) {
    *
    * @return <tt>true</tt> if this map contains no key-value mappings
    */
-  @inline
+  // @inline //inlining is disabled during development
   final def isEmpty: Boolean = map.isEmpty
 
   /**
@@ -59,7 +59,7 @@ class ConcurrentSHSet[K](implicit ord: math.Ordering[K]) {
    *         (A <tt>null</tt> return can also indicate that the map
    *         previously associated <tt>null</tt> with <tt>key</tt>.)
    */
-  @inline
+  // @inline //inlining is disabled during development
   final def add(key: K): Boolean = {
     val e: Boolean = map.put(key,DEFAULT_PRESENT_VALUE)
     (e == DEFAULT_PRESENT_VALUE)
@@ -76,36 +76,36 @@ class ConcurrentSHSet[K](implicit ord: math.Ordering[K]) {
    *         (A <tt>null</tt> return can also indicate that the map
    *         previously associated <tt>null</tt> with <tt>key</tt>.)
    */
-  @inline
+  // @inline //inlining is disabled during development
   final def remove(key: K): Boolean = {
     val e: Boolean = map.remove(key)
     (e == DEFAULT_PRESENT_VALUE)
   }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def -=(key: K): Boolean = remove(key)
 
   /**
    * Removes all of the mappings from this map.
    * The map will be empty after this call returns.
    */
-  @inline
+  // @inline //inlining is disabled during development
   final def clear:Unit = map.clear
 
-  @inline
+  // @inline //inlining is disabled during development
   final def capacity: Int = map.table.length
 
-  @inline
+  // @inline //inlining is disabled during development
   final def size:Int = map.size
 
   // def loadFactor: Float = {
   //   return loadFactor
   // }
 
-  @inline
+  // @inline //inlining is disabled during development
   final def foreach(f: K => Unit): Unit = map.foreachKey(f)
 
-  @inline
+  // @inline //inlining is disabled during development
   final def foreachEntry(f: Map.Entry[K, Boolean] => Unit): Unit = map.foreachEntry(f)
 
   override def toString: String = {
