@@ -346,8 +346,9 @@ object ConcurrentSHMap {
 
     final def setValue(v: V): V = {
       //throw new UnsupportedOperationException
-      val v: V = value
-      v
+      val oldV: V = value
+      value = v
+      oldV
     }
 
     final override def equals(o: Any): Boolean = {
