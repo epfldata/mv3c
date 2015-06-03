@@ -3,7 +3,11 @@ package ddbt.tpcc.lib.mvconcurrent
 import ddbt.tpcc.tx._
 import MVCCTpccTableV3._
 import org.scalatest._
+import MVCCTestParams._
 
+object MVCCTestParams {
+  val disableGC = MVCCTpccTableV3.DISABLE_GC
+}
 class MVCCSpec1 extends FlatSpec with Matchers {
 
   object Key {
@@ -26,6 +30,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   val tm = new TransactionManager
+  tm.isGcActive.set(disableGC)
   val tbl = new ConcurrentSHMapMVCC[Key,(Int,String)]("Test1Map", (k:Key,v:(Int,String)) => k._1 )
 
   "A MVCC table" should "be able to insert an element and store it properly (before reaching threshold" in {
@@ -109,7 +114,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
       sum += v._1
     }
     sum should be (5)
-    tbl.size should be (5)
+    // tbl.size should be (5) or (4) //it might get deleted by gc
     xact.commit
   }
 
@@ -149,13 +154,55 @@ class MVCCSpec1 extends FlatSpec with Matchers {
     xact.commit
   }
 
-  it should "execute the foreach over all visible elements (4)" in {
+  it should "create the correct slices (after update 1)" in {
     implicit val xact = tm.begin("T14")
+    var sum = 0
+    tbl.slice(0,1).foreach { case (k,v) =>
+      sum += v._1
+    }
+    sum should be (227)
+    // tbl.size should be (5) or (4) //it might get deleted by gc
+    xact.commit
+  }
+
+  it should "execute the foreach over all visible elements (4)" in {
+    implicit val xact = tm.begin("T15")
     var sum = 0
     tbl.foreach { case (k,v) =>
       sum += v._1
     }
     sum should be (240)
+    xact.commit
+  }
+
+  it should "be able to update via delta version" in {
+    implicit val xact = tm.begin("T16")
+    val ent = tbl.getEntry(Key(1,"z"))
+    ent.setEntryValue((2222,"aaa"))
+    
+    tbl.get(Key(1,"z")) should be ((2222,"aaa"))
+    // tbl.size should be (5) or (4) //it might get deleted by gc
+    xact.commit
+  }
+
+  it should "create the correct slices (after update 2)" in {
+    implicit val xact = tm.begin("T14")
+    var sum = 0
+    tbl.slice(0,1).foreach { case (k,v) =>
+      sum += v._1
+    }
+    sum should be (2227)
+    // tbl.size should be (5) or (4) //it might get deleted by gc
+    xact.commit
+  }
+
+  it should "execute the foreach over all visible elements (5)" in {
+    implicit val xact = tm.begin("T15")
+    var sum = 0
+    tbl.foreach { case (k,v) =>
+      sum += v._1
+    }
+    sum should be (2240)
     xact.commit
   }
 
