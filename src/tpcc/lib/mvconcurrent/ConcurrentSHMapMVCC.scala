@@ -379,7 +379,20 @@ object ConcurrentSHMapMVCC {
     }
     def this(m:ConcurrentSHMapMVCC[K,V], h: Int, k: K, v: DeltaVersion[K,V], n: Node[K, V]) {
       this(m,k,h,v,n)
-      value.entry = this
+
+      //fixing the changed reference to the entry from delta versions
+      if(value != null) {
+        var dv = value
+        while(dv != null) {
+          dv.entry = this
+          dv = dv.next
+        }
+        dv = value.prev
+        while(dv != null) {
+          dv.entry = this
+          dv = dv.prev
+        }
+      }
     }
 
     final def getKey: K = {
