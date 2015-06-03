@@ -12,15 +12,22 @@ import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC
 import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.SEntryMVCC
 import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion
 import ddbt.tpcc.loadtest.TpccConstants._
+import scala.concurrent._
+import ExecutionContext.Implicits.global
 
 import TpccTable._
 import MVCCTpccTableV3._
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicBoolean
 
 object MVCCTpccTableV3 {
 	type MutableMap[K,V] = ddbt.tpcc.lib.shm.SHMap[K,V]
 
-	val DEBUG = true
+	val DEBUG = false
+	val DISABLE_GC = false
+	val PARALLEL_GC = true
+
+	//@inline //TODO FIX IT: it should be inlined for production use
 	def debug(msg: => String) = if(DEBUG) println(msg)
 
 	class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
@@ -32,7 +39,7 @@ object MVCCTpccTableV3 {
 
 		def commitTS = xactId
 
-		def transactionId = if(xactId < TransactionManager.TRANSACTION_ID_GEN_START) xactId else (xactId - TransactionManager.TRANSACTION_ID_GEN_START + 1)
+		def transactionId = startTS //if(xactId < TransactionManager.TRANSACTION_ID_GEN_START) xactId else (xactId - TransactionManager.TRANSACTION_ID_GEN_START)
 
 		def isCommitted = (xactId < TransactionManager.TRANSACTION_ID_GEN_START)
 
@@ -45,15 +52,18 @@ object MVCCTpccTableV3 {
 
 	object TransactionManager {
 		val TRANSACTION_ID_GEN_START = (1L << 32)
+		val TRANSACTION_STRAT_TS_GEN_START = 1L
 	}
 
 	class TransactionManager {
 
-		var transactionIdGen = new AtomicLong(TransactionManager.TRANSACTION_ID_GEN_START)
-		var startAndCommitTimestampGen = new AtomicLong(1L)
 
-		val activeXacts = new ConcurrentSHMap[Long,Transaction]
-		var recentlyCommittedXacts = List[Transaction]()
+		val transactionIdGen = new AtomicLong(TransactionManager.TRANSACTION_ID_GEN_START)
+		val startAndCommitTimestampGen = new AtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
+		val isGcActive = new AtomicBoolean(DISABLE_GC)
+
+		val activeXacts = new collection.mutable.LinkedHashMap[Long,Transaction]
+		val recentlyCommittedXacts = new collection.mutable.ListBuffer[Transaction]()
 
 		def begin(name: String) = {
 			val xactId = transactionIdGen.getAndIncrement()
@@ -66,22 +76,81 @@ object MVCCTpccTableV3 {
 			//TODO: should be implemented completely
 			// missing:
 			//  - validation phase
-			this.synchronized {
-				val xactId = xact.xactId
+			val xactId = xact.xactId
+			activeXacts.synchronized {
 				activeXacts -= xactId
-				debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
-				xact.xactId = startAndCommitTimestampGen.getAndIncrement()
-				recentlyCommittedXacts = xact :: recentlyCommittedXacts
+			}
+			debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
+			xact.xactId = startAndCommitTimestampGen.getAndIncrement()
+			recentlyCommittedXacts.synchronized {
+				recentlyCommittedXacts += xact
+			}
+			garbageCollect
+		}
+
+		def garbageCollect {
+			if(isGcActive.compareAndSet(false,true)) {
+				if(PARALLEL_GC) {
+					Future {
+						gcInternal
+						isGcActive.set(false)
+					}
+				} else {
+					gcInternal
+					isGcActive.set(false)
+				}
 			}
 		}
+
+		def gcInternal {
+			debug("GC start")
+			if(!recentlyCommittedXacts.isEmpty) {
+				val oldestActiveXactStartTS = activeXacts.synchronized {
+					if(activeXacts.isEmpty) {
+						TransactionManager.TRANSACTION_ID_GEN_START
+					} else {
+						activeXacts.head._2.startTS
+					}
+				}
+
+				var reachedLimit = false
+				while(!reachedLimit && !recentlyCommittedXacts.isEmpty) {
+					val xact = recentlyCommittedXacts.head
+					debug("\tremoving xact = " + xact.transactionId)
+					if(xact.commitTS < oldestActiveXactStartTS) {
+						xact.undoBuffer.foreach{ case (_,dv) =>
+							val nextDV = dv.next
+							dv.next = null
+							if(nextDV != null) {
+								// debug("\t\tremoved version => (" + nextDV.entry.map.name+"," + nextDV.entry.key + ", " + nextDV + ")")
+								nextDV.remove
+							}
+							if(dv.isDeleted) {
+								// debug("\t\tand also removed itself => (" + nextDV.entry.map.name+"," + dv.entry.key + ", " + dv + ")")
+								dv.remove
+							}
+							else if(nextDV != null){
+								// debug("\t\t, and current version is => (" + nextDV.entry.map.name+"," + dv.entry.key + ", " + dv + ")")
+							}
+						}
+						recentlyCommittedXacts.synchronized {
+							recentlyCommittedXacts.remove(0)
+						}
+					}
+				}
+			}
+			debug("GC finish")
+		}
+
 		def rollback(implicit xact:Transaction) = {
 			//TODO: should be implemented completely
 			// missing:
 			//  - removing the undo buffer
-			this.synchronized {
+			activeXacts.synchronized {
 				activeXacts -= xact.xactId
-				debug("T%d (%s) rolled back at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 			}
+			debug("T%d (%s) rolled back at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
+			garbageCollect
 		}
 
 		/////// TABLES \\\\\\\
