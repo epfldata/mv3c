@@ -48,31 +48,39 @@ Seq(
 )
 
 // --------- Custom tasks
-addCommandAlias("bench", ";run-main ddbt.tpcc.tx.TpccInMem ") ++
-addCommandAlias("bench-1", ";bench -w 1 -i -1 -t 60") ++
-addCommandAlias("bench1",  ";bench -w 1 -i 1 -t 60 ") ++
-addCommandAlias("bench2",  ";bench -w 1 -i 2 -t 60 ") ++
-addCommandAlias("bench3",  ";bench -w 1 -i 3 -t 60 ") ++
-addCommandAlias("bench4",  ";bench -w 1 -i 4 -t 60 ") ++
-addCommandAlias("bench5",  ";bench -w 1 -i 5 -t 60 ") ++
-addCommandAlias("bench6",  ";bench -w 1 -i 6 -t 60 ") ++
-addCommandAlias("bench7",  ";bench -w 1 -i 7 -t 60 ") ++
-addCommandAlias("bench8",  ";bench -w 1 -i 8 -t 60 ") ++
-addCommandAlias("bench9",  ";bench -w 1 -i 9 -t 60 ") ++
-addCommandAlias("bench10", ";bench -w 1 -i 10 -t 60 ")
+val numWarehouse = "2"
 
-addCommandAlias("unit", ";run-main ddbt.tpcc.loadtest.TpccUnitTest -i ") ++
-addCommandAlias("unit-1", ";unit -1") ++
-addCommandAlias("unit1",  ";unit 1") ++
-addCommandAlias("unit2",  ";unit 2") ++
-addCommandAlias("unit3",  ";unit 3") ++
-addCommandAlias("unit4",  ";unit 4") ++
-addCommandAlias("unit5",  ";unit 5") ++
-addCommandAlias("unit6",  ";unit 6") ++
-addCommandAlias("unit7",  ";unit 7") ++
-addCommandAlias("unit8",  ";unit 8") ++
-addCommandAlias("unit9",  ";unit 9") ++
-addCommandAlias("unit10", ";unit 10")
+lazy val reloadDB = taskKey[Unit]("Executes the shell script for reloading the database")
+
+reloadDB := {
+  "bench/bench load "+numWarehouse !
+}
+
+addCommandAlias("bench", ";reloadDB ;run-main ddbt.tpcc.tx.TpccInMem -w "+numWarehouse) ++
+addCommandAlias("bench-1", ";bench -i -1 -t 60") ++
+addCommandAlias("bench1",  ";bench -i 1 -t 60 ") ++
+addCommandAlias("bench2",  ";bench -i 2 -t 60 ") ++
+addCommandAlias("bench3",  ";bench -i 3 -t 60 ") ++
+addCommandAlias("bench4",  ";bench -i 4 -t 60 ") ++
+addCommandAlias("bench5",  ";bench -i 5 -t 60 ") ++
+addCommandAlias("bench6",  ";bench -i 6 -t 60 ") ++
+addCommandAlias("bench7",  ";bench -i 7 -t 60 ") ++
+addCommandAlias("bench8",  ";bench -i 8 -t 60 ") ++
+addCommandAlias("bench9",  ";bench -i 9 -t 60 ") ++
+addCommandAlias("bench10", ";bench -i 10 -t 60 ")
+
+addCommandAlias("unit", ";reloadDB ;run-main ddbt.tpcc.loadtest.TpccUnitTest -w "+numWarehouse) ++
+addCommandAlias("unit-1", ";unit -i -1") ++
+addCommandAlias("unit1",  ";unit -i 1") ++
+addCommandAlias("unit2",  ";unit -i 2") ++
+addCommandAlias("unit3",  ";unit -i 3") ++
+addCommandAlias("unit4",  ";unit -i 4") ++
+addCommandAlias("unit5",  ";unit -i 5") ++
+addCommandAlias("unit6",  ";unit -i 6") ++
+addCommandAlias("unit7",  ";unit -i 7") ++
+addCommandAlias("unit8",  ";unit -i 8") ++
+addCommandAlias("unit9",  ";unit -i 9") ++
+addCommandAlias("unit10", ";unit -i 10")
 
 addCommandAlias("test-mvconcurrent", ";test-only ddbt.tpcc.lib.mvconcurrent.*")
 

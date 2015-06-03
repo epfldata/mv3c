@@ -31,11 +31,11 @@ load() { # $1=warehouses, $2=type
  mysql $myargs < $BENCH/systems/tpcc/mysql/tpcc_$2.sql
  mysql $myargs < $BENCH/systems/tpcc/mysql/tpcc_proc.sql
  if [ ! -f "$myf" ]; then
-   echo "Recreating Database..."
+   echo "Recreating Database W=$1 with $2 ..."
    cd $BASE; sbt "test:run-main ddbt.tpcc.loadtest.TpccLoad -w $1 -u $MYUSER -p $MYPASS" || exit 1; cd $BENCH
    mysqldump $myargs | bzip2 > $myf
  else
-   echo "Reusing Database..."
+   echo "Reusing Database W=$1 with $2 ..."
    bzcat $myf | mysql $myargs
  fi
 }
@@ -115,7 +115,8 @@ EOF
   rm -rf $dep
 ;;
 # ------------------------------------------------------------------------------
-load) load $2 innodb;;
+load) load $2 innodb
+;;
 # ------------------------------------------------------------------------------
 -1|1|2|3|4|5|6|7|8)
   for W in $WARES; do
