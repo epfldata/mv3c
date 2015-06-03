@@ -6,6 +6,7 @@ import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import ddbt.tpcc.tx.MVCCTpccTableV3._
+import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion
 import Delivery._
 
 object Delivery {
@@ -121,14 +122,18 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV3 with IDeliveryInMem {
     }
 
     def updateOrderLineDeliveryDateAndFindOrderLineTotalAmount(ol_w_id_input:Int, ol_d_id_input:Int, ol_o_id_input:Int, ol_delivery_d_input:Date)(implicit xact:Transaction):Float = {
+      //Modifying the value of elements during traversal might lead to wrong result (e.g. seeing an entry several times)
+      var entryList = List[DeltaVersion[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)]]()
+      ISharedData.orderLineTblSliceEntry(0, (ol_o_id_input, ol_d_id_input, ol_w_id_input), { v => 
+        entryList = v :: entryList
+      })
+
       var ol_total = 0f
-      ISharedData.orderLineTblSliceEntry(0, (ol_o_id_input, ol_d_id_input, ol_w_id_input), { cv => 
-        val k = cv.getKey
-        val v = k.entry.getTheValue
+      entryList.foreach { v =>
         val vi = v.getImage
         ol_total += vi._5
         v.setEntryValue(vi.copy(_3 = Some(ol_delivery_d_input)))
-      })
+      }
       ol_total
     }
 

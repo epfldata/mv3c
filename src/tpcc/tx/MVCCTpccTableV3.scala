@@ -249,8 +249,8 @@ class MVCCTpccTableV3 extends TpccTable(7) {
     /*Func*/ def orderLineTblSlice[P](part:Int, partKey:P, f: ((Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)) => Unit)(implicit xact:Transaction) = {
 		tm.orderLineTbl.slice(0, partKey).foreach(f)
     }
-    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: java.util.Map.Entry[DeltaVersion[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)], Boolean] => Unit)(implicit xact:Transaction) = {
-		tm.orderLineTbl.slice(0, partKey).foreachEntry(f)
+    /*Func*/ def orderLineTblSliceEntry[P](part:Int, partKey:P, f: DeltaVersion[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)] => Unit)(implicit xact:Transaction) = {
+		tm.orderLineTbl.slice(0, partKey).foreachEntry( e => f(e.getKey) )
     }
 
     def onInsertCustomer(c_id: Int, c_d_id: Int, c_w_id: Int, c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
