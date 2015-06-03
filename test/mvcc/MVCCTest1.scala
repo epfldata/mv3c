@@ -26,7 +26,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   val tm = new TransactionManager
-  val tbl = new ConcurrentSHMapMVCC[Key,(Int,String)]( (k:Key,v:(Int,String)) => k._1 )
+  val tbl = new ConcurrentSHMapMVCC[Key,(Int,String)]("Test1Map", (k:Key,v:(Int,String)) => k._1 )
 
   "A MVCC table" should "be able to insert an element and store it properly (before reaching threshold" in {
     ConcurrentSHMapMVCC.TREEIFY_THRESHOLD should be (8) //we assume that threshold is 8

@@ -1508,7 +1508,7 @@ object ConcurrentSHMapMVCC {
 /**
  * Creates a new, empty map with the default initial table size (16).
  */
-class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.Ordering[K]) /*extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable*/ {
+class ConcurrentSHMapMVCC[K, V <: Product](val name:String, val projs:(K,V)=>_ *)(implicit ord: math.Ordering[K]) /*extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable*/ {
   final val NULL_VALUE = null.asInstanceOf[V]
   /**
    * The array of bins. Lazily initialized upon first insertion.
@@ -1561,8 +1561,8 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
   @transient
   private var counterCells: Array[CounterCell] = null
 
-  def this()(implicit ord: math.Ordering[K]) {
-    this(List():_*)
+  def this(n:String)(implicit ord: math.Ordering[K]) {
+    this(n,List():_*)
   }
   /**
    * Creates a new, empty map with an initial table size
@@ -1574,8 +1574,8 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    * @throws IllegalArgumentException if the initial capacity of
    *                                  elements is negative
    */
-  def this(initialCapacity: Int)(implicit ord: math.Ordering[K]) {
-    this()
+  def this(n:String, initialCapacity: Int)(implicit ord: math.Ordering[K]) {
+    this(n)
     if (initialCapacity < 0) throw new IllegalArgumentException
     val cap: Int = (if ((initialCapacity >= (MAXIMUM_CAPACITY >>> 1))) MAXIMUM_CAPACITY else tableSizeFor(initialCapacity + (initialCapacity >>> 1) + 1))
     this.sizeCtl = cap
@@ -1599,8 +1599,8 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
    *                                  negative or the load factor or concurrencyLevel are
    *                                  nonpositive
    */
-  def this(inInitialCapacity: Int, loadFactor: Float, concurrencyLevel: Int = 1)(implicit ord: math.Ordering[K]) {
-    this()
+  def this(n:String, inInitialCapacity: Int, loadFactor: Float, concurrencyLevel: Int = 1)(implicit ord: math.Ordering[K]) {
+    this(n)
     var initialCapacity: Int = inInitialCapacity
     if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
     if (initialCapacity < concurrencyLevel) initialCapacity = concurrencyLevel
@@ -1609,8 +1609,8 @@ class ConcurrentSHMapMVCC[K, V <: Product](projs:(K,V)=>_ *)(implicit ord: math.
     this.sizeCtl = cap
   }
 
-  def this(loadFactor: Float, inInitialCapacity: Int, projs:(K,V)=>_ *)(implicit ord: math.Ordering[K]) {
-    this(projs:_*)
+  def this(n:String, loadFactor: Float, inInitialCapacity: Int, projs:(K,V)=>_ *)(implicit ord: math.Ordering[K]) {
+    this(n,projs:_*)
     val concurrencyLevel = 1
     var initialCapacity: Int = inInitialCapacity
     if (!(loadFactor > 0.0f) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException
