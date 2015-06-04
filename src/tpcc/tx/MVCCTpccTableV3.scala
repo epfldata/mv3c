@@ -108,6 +108,7 @@ object MVCCTpccTableV3 {
 			activeXacts.synchronized {
 				activeXacts -= xact.xactId
 			}
+			xact.undoBuffer.foreach{ case (_,dv) => dv.remove }
 			debug("T%d (%s) rolled back at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 			garbageCollect
 		}
@@ -147,11 +148,11 @@ object MVCCTpccTableV3 {
 							dv.next = null
 							if(nextDV != null) {
 								// debug("\t\tremoved version => (" + nextDV.entry.map.name+"," + nextDV.entry.key + ", " + nextDV + ")")
-								nextDV.remove
+								nextDV.gcRemove
 							}
 							if(dv.isDeleted) {
 								// debug("\t\tand also removed itself => (" + nextDV.entry.map.name+"," + dv.entry.key + ", " + dv + ")")
-								dv.remove
+								dv.gcRemove
 							}
 							else if(nextDV != null){
 								// debug("\t\t, and current version is => (" + nextDV.entry.map.name+"," + dv.entry.key + ", " + dv + ")")

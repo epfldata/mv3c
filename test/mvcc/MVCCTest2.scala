@@ -49,9 +49,16 @@ class MVCCSpec2 extends FlatSpec with Matchers {
 
   it should "persistent an inserted element after the commit" in {
     implicit val xact = tm.begin("T2")
-    tbl.get(SingleHashKey(1,"z")) should be ((2,"a"))
-    tbl.size should be (9)
-    xact.commit
+    try {
+      tbl.get(SingleHashKey(1,"z")) should be ((2,"a"))
+      tbl.size should be (9)
+      xact.commit
+    } catch {
+      case e:Throwable => {
+        xact.rollback
+        throw e
+      }
+    }
   }
 
   it should "throw an exception on inserting an existing key" in {

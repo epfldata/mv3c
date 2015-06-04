@@ -339,7 +339,7 @@ object ConcurrentSHMapMVCC {
       }
     }
 
-    // @inline
+    // @inline //inlining is disabled during development
     final def isVisible(implicit xact:Transaction): Boolean = {
       /*val res = */(!isDeleted) && ((vXact eq xact)|| 
           (vXact.isCommitted && vXact.xactId < xact.startTS 
@@ -361,10 +361,16 @@ object ConcurrentSHMapMVCC {
       case _ => "UNKNOWN"
     }
 
-    def remove {
+    // @inline //inlining is disabled during development
+    def gcRemove {
       if(next != null) throw new RuntimeException("There are more than one versions pending for a single garbage collection.")
+      remove
+    }
+
+    // @inline //inlining is disabled during development
+    def remove {
       val map = entry.map
-      if(isDeleted && prev == null && next == null) {
+      if(/*isDeleted &&*/ prev == null && next == null) {
         map.replaceNode(entry.key)
       }
       if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
