@@ -469,7 +469,7 @@ object ConcurrentSHMapMVCC {
           value.op = op
         } else {
           // debug("\t case 4")
-          if(!value.vXact.isCommitted) throw new MVCCConcurrentWriteException("T%d has already written on this object (%s), so T%s should get aborted.".format(value.vXact.transactionId, key, xact.transactionId))
+          if(!value.vXact.isCommitted) throw new MVCCConcurrentWriteException("%s has already written on this object (%s), so %s should get aborted.".format(value.vXact, key, xact))
           value = new DeltaVersion(xact,this,newValue,cols,op,value)
         }
       }
@@ -1938,7 +1938,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](val name:String, val projs:(K,V)=>_ *
         // (i) in the snapshot that is visible to the transaction,
         // (ii) in the last committed version of the key’s record, or
         // (iii) uncommitted as an insert in an undo buffer
-        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists (written by T%d). Could not insert the new value (%s) from T%d".format(oldVal.entry.key, oldVal.getImage, oldVal.vXact.transactionId, value, xact.transactionId))
+        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists (written by %s). Could not insert the new value (%s) from %s".format(oldVal.entry.key, oldVal.getImage, oldVal.vXact, value, xact))
       }
 
       if (idxs != Nil) {

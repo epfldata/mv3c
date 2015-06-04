@@ -59,6 +59,8 @@ object MVCCTpccTableV3 {
 		}
 		def commit = tm.commit(this)
 		def rollback = tm.rollback(this)
+
+		override def toString = "T"+transactionId+"("+name+")"
 	}
 
 	object TransactionManager {
@@ -83,7 +85,7 @@ object MVCCTpccTableV3 {
 			activeXacts.synchronized {
 				activeXacts += ((xactId, xact))
 			}
-			debug("T%d (%s) started at %d".format(xact.transactionId, name, startTS))
+			debug("%s started at %d".format(xact, startTS))
 			xact
 		}
 		def commit(implicit xact:Transaction) = {
@@ -96,7 +98,7 @@ object MVCCTpccTableV3 {
 					activeXacts.synchronized {
 						activeXacts -= xactId
 					}
-					debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
+					debug("%s committed at %d\n\twith undo buffer(%d) = %%s".format(xact, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 					xact.xactId = startAndCommitTimestampGen.getAndIncrement()
 					recentlyCommittedXacts.synchronized {
 						recentlyCommittedXacts += xact
@@ -112,6 +114,16 @@ object MVCCTpccTableV3 {
 		// missing:
 		//  - validation phase
 		def validate(implicit xact:Transaction) = {
+			val concurrentXacts = recentlyCommittedXacts.synchronized {
+				recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
+			}
+			debug("concurrentXacts = " + concurrentXacts)
+			concurrentXacts.foreach { t =>
+				t.undoBuffer.foreach { dv =>
+					debug("checking whether " + dv + " (in " + t + ") matches predicates in " + xact)
+					// xact.matchesPredicates()
+				}
+			}
 			true
 		}
 
@@ -120,7 +132,7 @@ object MVCCTpccTableV3 {
 				activeXacts -= xact.xactId
 			}
 			xact.undoBuffer.foreach{ case (_,dv) => dv.remove }
-			debug("T%d (%s) rolled back at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
+			debug("%s rolled back at %d\n\twith undo buffer(%d) = %%s".format(xact, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 			garbageCollect
 		}
 
