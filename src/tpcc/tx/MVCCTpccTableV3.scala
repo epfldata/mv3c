@@ -27,6 +27,17 @@ object MVCCTpccTableV3 {
 	val DISABLE_GC = false
 	val PARALLEL_GC = true
 
+	val NEWORDER_TBL = "newOrderTbl"
+	val HISTORY_TBL = "historyTbl"
+	val WAREHOUSE_TBL = "warehouseTbl"
+	val ITEM_TBL = "itemPartialTbl"
+	val ORDER_TBL = "orderTbl"
+	val DISTRICT_TBL = "districtTbl"
+	val ORDERLINE_TBL = "orderLineTbl"
+	val CUSTOMER_TBL = "customerTbl"
+	val STOCK_TBL = "stockTbl"
+	val CUSTOMERWAREHOUSE_TBL = "customerWarehouseFinancialInfoMap"
+
 	//@inline //TODO FIX IT: it should be inlined for production use
 	def debug(msg: => String) = if(DEBUG) println(msg)
 
@@ -168,25 +179,25 @@ object MVCCTpccTableV3 {
 		}
 
 		/////// TABLES \\\\\\\
-		val newOrderTbl = new ConcurrentSHMapMVCC[(Int,Int,Int),Tuple1[Boolean]]("newOrderTbl",/*0.9f, 262144,*/ (k:(Int,Int,Int),v:Tuple1[Boolean]) => ((k._2, k._3)) )
+		val newOrderTbl = new ConcurrentSHMapMVCC[(Int,Int,Int),Tuple1[Boolean]](NEWORDER_TBL,/*0.9f, 262144,*/ (k:(Int,Int,Int),v:Tuple1[Boolean]) => ((k._2, k._3)) )
 
-		val historyTbl = new ConcurrentSHMapMVCC[(Int,Int,Int,Int,Int,Date,Float,String),Tuple1[Boolean]]("historyTbl"/*0.9f, 4194304)*/)
+		val historyTbl = new ConcurrentSHMapMVCC[(Int,Int,Int,Int,Int,Date,Float,String),Tuple1[Boolean]](HISTORY_TBL/*0.9f, 4194304)*/)
 
-		val warehouseTbl = new ConcurrentSHMapMVCC[Int,(String,String,String,String,String,String,Float,Double)]("warehouseTbl")
+		val warehouseTbl = new ConcurrentSHMapMVCC[Int,(String,String,String,String,String,String,Float,Double)](WAREHOUSE_TBL)
 
-		val itemPartialTbl = new ConcurrentSHMapMVCC[Int,(/*Int,*/String,Float,String)]("itemPartialTbl"/*1f, 262144*/)
+		val itemPartialTbl = new ConcurrentSHMapMVCC[Int,(/*Int,*/String,Float,String)](ITEM_TBL/*1f, 262144*/)
 
-		val orderTbl = new ConcurrentSHMapMVCC[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)]("orderTbl",/*0.9f, 4194304,*/ (k:(Int,Int,Int), v:(Int,Date,Option[Int],Int,Boolean)) => ((k._2, k._3, v._1)) )
+		val orderTbl = new ConcurrentSHMapMVCC[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)](ORDER_TBL,/*0.9f, 4194304,*/ (k:(Int,Int,Int), v:(Int,Date,Option[Int],Int,Boolean)) => ((k._2, k._3, v._1)) )
 
-		val districtTbl = new ConcurrentSHMapMVCC[(Int,Int),(String,String,String,String,String,String,Float,Double,Int)]("districtTbl"/*1f, 32*/)
+		val districtTbl = new ConcurrentSHMapMVCC[(Int,Int),(String,String,String,String,String,String,Float,Double,Int)](DISTRICT_TBL/*1f, 32*/)
 
-		val orderLineTbl = new ConcurrentSHMapMVCC[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)]("orderLineTbl",/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:(Int,Int,Int,Int), v:(Int,Int,Option[Date],Int,Float,String)) => ((k._1, k._2, k._3)) )
+		val orderLineTbl = new ConcurrentSHMapMVCC[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)](ORDERLINE_TBL,/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:(Int,Int,Int,Int), v:(Int,Int,Option[Date],Int,Float,String)) => ((k._1, k._2, k._3)) )
 
-		val customerTbl = new ConcurrentSHMapMVCC[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] ("customerTbl",/*1f, 65536, List((1f, 16384)),*/ (k:(Int,Int,Int), v:(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)) => ((k._2, k._3, v._3)) )
+		val customerTbl = new ConcurrentSHMapMVCC[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] (CUSTOMER_TBL,/*1f, 65536, List((1f, 16384)),*/ (k:(Int,Int,Int), v:(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)) => ((k._2, k._3, v._3)) )
 
-		val stockTbl = new ConcurrentSHMapMVCC[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)]("stockTbl"/*1f, 262144*/)
+		val stockTbl = new ConcurrentSHMapMVCC[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)](STOCK_TBL/*1f, 262144*/)
 
-		val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVCC[(Int,Int,Int),(Float,String,String,Float)]("customerWarehouseFinancialInfoMap"/*1f, 65536*/)
+		val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVCC[(Int,Int,Int),(Float,String,String,Float)](CUSTOMERWAREHOUSE_TBL/*1f, 65536*/)
 	}
 
 	class MVCCException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends RuntimeException(message, cause) {
