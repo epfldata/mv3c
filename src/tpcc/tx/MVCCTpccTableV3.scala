@@ -69,26 +69,50 @@ object MVCCTpccTableV3 {
 			val xactId = transactionIdGen.getAndIncrement()
 			val startTS = startAndCommitTimestampGen.getAndIncrement()
 			val xact = new Transaction(this, name, startTS, xactId)
+			activeXacts.synchronized {
+				activeXacts += ((xactId, xact))
+			}
 			debug("T%d (%s) started at %d".format(xact.transactionId, name, startTS))
 			xact
 		}
 		def commit(implicit xact:Transaction) = {
-			//TODO: should be implemented completely
-			// missing:
-			//  - validation phase
-			val xactId = xact.xactId
+			if(activeXacts.contains(xact.xactId)){
+				if(!validate) {
+					debug("The transaction failed validation! We have to roll it back...")
+					rollback
+				} else {
+					val xactId = xact.xactId
+					activeXacts.synchronized {
+						activeXacts -= xactId
+					}
+					debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
+					xact.xactId = startAndCommitTimestampGen.getAndIncrement()
+					recentlyCommittedXacts.synchronized {
+						recentlyCommittedXacts += xact
+					}
+					garbageCollect
+				}
+			} else {
+				debug("The transaction does not exist! We have to roll it back...")
+				rollback
+			}
+		}
+		//TODO: should be implemented completely
+		// missing:
+		//  - validation phase
+		def validate(implicit xact:Transaction) = {
+			true
+		}
+
+		def rollback(implicit xact:Transaction) = {
 			activeXacts.synchronized {
-				activeXacts -= xactId
+				activeXacts -= xact.xactId
 			}
-			debug("T%d (%s) committed at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
-			xact.xactId = startAndCommitTimestampGen.getAndIncrement()
-			recentlyCommittedXacts.synchronized {
-				recentlyCommittedXacts += xact
-			}
+			debug("T%d (%s) rolled back at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
 			garbageCollect
 		}
 
-		def garbageCollect {
+		private def garbageCollect {
 			if(isGcActive.compareAndSet(false,true)) {
 				if(PARALLEL_GC) {
 					Future {
@@ -102,7 +126,7 @@ object MVCCTpccTableV3 {
 			}
 		}
 
-		def gcInternal {
+		private def gcInternal {
 			debug("GC start")
 			if(!recentlyCommittedXacts.isEmpty) {
 				val oldestActiveXactStartTS = activeXacts.synchronized {
@@ -140,17 +164,6 @@ object MVCCTpccTableV3 {
 				}
 			}
 			debug("GC finish")
-		}
-
-		def rollback(implicit xact:Transaction) = {
-			//TODO: should be implemented completely
-			// missing:
-			//  - removing the undo buffer
-			activeXacts.synchronized {
-				activeXacts -= xact.xactId
-			}
-			debug("T%d (%s) rolled back at %d\n\twith undo buffer(%d) = %%s".format(xact.transactionId, xact.name, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
-			garbageCollect
 		}
 
 		/////// TABLES \\\\\\\
