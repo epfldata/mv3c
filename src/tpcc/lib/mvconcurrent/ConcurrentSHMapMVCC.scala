@@ -483,8 +483,10 @@ object ConcurrentSHMapMVCC {
 
     final override def equals(o: Any): Boolean = {
       //TODO add safety checks (checking for null or isInstanceOf)?
-      val k: K = o.asInstanceOf[SEntryMVCC[K, V]].key
-      (k != null) && (refEquals(k, key) || (k == key))
+      if(o == null) false else {
+        val k: K = o.asInstanceOf[SEntryMVCC[K, V]].key
+        (k != null) && (refEquals(k, key) || (k == key))
+      }
     }
 
     // final def equals(o: Any)(implicit xact:Transaction): Boolean = {
