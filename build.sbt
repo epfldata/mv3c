@@ -48,7 +48,7 @@ Seq(
 )
 
 // --------- Custom tasks
-val numWarehouse = "2"
+val numWarehouse = "1"
 
 lazy val reloadDB = taskKey[Unit]("Executes the shell script for reloading the database")
 
