@@ -74,7 +74,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   it should "remove the stale versions produced by aborted xacts" in {
     implicit val xact = tm.begin("T5")
     tbl.get(Key(1,"y")) should be (null)
-    tbl.size should be (5)
+    tbl.size should be (4)
     xact.commit
   }
 
@@ -85,7 +85,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
       sum += v._1
     }
     sum should be (7)
-    tbl.size should be (5)
+    tbl.size should be (4)
     xact.commit
   }
 
@@ -103,7 +103,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
     implicit val xact = tm.begin("T8")
     tbl -= (Key(1,"z"))
     tbl.get(Key(1,"z")) should be (null)
-    tbl.size should be (5)
+    tbl.size should be (4)
     xact.commit
   }
 
@@ -132,7 +132,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
     implicit val xact = tm.begin("T11")
     tbl += (Key(1,"z"), (22,"aa"))
     tbl.get(Key(1,"z")) should be ((22,"aa"))
-    tbl.size should be (5)
+    tbl.size should be (4)
     xact.commit
   }
 
@@ -150,7 +150,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
     implicit val xact = tm.begin("T13")
     tbl(Key(1,"z")) = (222,"aaa")
     tbl.get(Key(1,"z")) should be ((222,"aaa"))
-    tbl.size should be (5)
+    tbl.size should be (4)
     xact.commit
   }
 
@@ -186,7 +186,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "create the correct slices (after update 2)" in {
-    implicit val xact = tm.begin("T14")
+    implicit val xact = tm.begin("T17")
     var sum = 0
     tbl.slice(0,1).foreach { case (k,v) =>
       sum += v._1
@@ -197,7 +197,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "execute the foreach over all visible elements (5)" in {
-    implicit val xact = tm.begin("T15")
+    implicit val xact = tm.begin("T18")
     var sum = 0
     tbl.foreach { case (k,v) =>
       sum += v._1

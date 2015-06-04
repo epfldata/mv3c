@@ -152,8 +152,8 @@ object MVCCTpccTableV3 {
 				var reachedLimit = false
 				while(!reachedLimit && !recentlyCommittedXacts.isEmpty) {
 					val xact = recentlyCommittedXacts.head
-					debug("\tremoving xact = " + xact.transactionId)
 					if(xact.commitTS < oldestActiveXactStartTS) {
+						debug("\tremoving xact = " + xact.transactionId)
 						xact.undoBuffer.foreach{ case (_,dv) =>
 							val nextDV = dv.next
 							dv.next = null
@@ -163,7 +163,7 @@ object MVCCTpccTableV3 {
 							}
 							if(dv.isDeleted) {
 								// debug("\t\tand also removed itself => (" + nextDV.entry.map.name+"," + dv.entry.key + ", " + dv + ")")
-								dv.gcRemove
+								dv.remove
 							}
 							else if(nextDV != null){
 								// debug("\t\t, and current version is => (" + nextDV.entry.map.name+"," + dv.entry.key + ", " + dv + ")")
@@ -172,9 +172,15 @@ object MVCCTpccTableV3 {
 						recentlyCommittedXacts.synchronized {
 							recentlyCommittedXacts.remove(0)
 						}
+					} else {
+						// debug("\treached gc limit T"+xact.transactionId+" vs. oldestActiveXactStartTS=" + oldestActiveXactStartTS)
+						reachedLimit = true
 					}
 				}
 			}
+			// else {
+			// 	debug("\tnothing to be done!")
+			// }
 			debug("GC finish")
 		}
 

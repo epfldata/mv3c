@@ -83,7 +83,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
   it should "remove the stale versions produced by aborted xacts" in {
     implicit val xact = tm.begin("T5")
     tbl.get(SingleHashKey(1,"y")) should be (null)
-    tbl.size should be (10)
+    tbl.size should be (9)
     xact.commit
   }
 
@@ -94,7 +94,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
       sum += v._1
     }
     sum should be (7)
-    tbl.size should be (10)
+    tbl.size should be (9)
     xact.commit
   }
 
@@ -112,7 +112,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     implicit val xact = tm.begin("T8")
     tbl -= (SingleHashKey(1,"z"))
     tbl.get(SingleHashKey(1,"z")) should be (null)
-    tbl.size should be (10)
+    tbl.size should be (9)
     xact.commit
   }
 
@@ -141,7 +141,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     implicit val xact = tm.begin("T11")
     tbl += (SingleHashKey(1,"z"), (22,"aa"))
     tbl.get(SingleHashKey(1,"z")) should be ((22,"aa"))
-    tbl.size should be (10)
+    tbl.size should be (9)
     xact.commit
   }
 
@@ -159,7 +159,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     implicit val xact = tm.begin("T13")
     tbl(SingleHashKey(1,"z")) = (222,"aaa")
     tbl.get(SingleHashKey(1,"z")) should be ((222,"aaa"))
-    tbl.size should be (10)
+    tbl.size should be (9)
     xact.commit
   }
 
@@ -221,7 +221,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     for( i <- 1 to 4){
       tbl -= (SingleHashKey(i,"z"))
     }
-    tbl.size should be (10)
+    tbl.size should be (9)
     xact.commit
   }
 
