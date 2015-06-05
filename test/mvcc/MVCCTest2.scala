@@ -44,7 +44,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     tbl += (SingleHashKey(4,"x"),(12,"l"))
     tbl.get(SingleHashKey(1,"z")) should be ((2,"a"))
     tbl.size should be (9)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "persistent an inserted element after the commit" in {
@@ -52,7 +52,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     try {
       tbl.get(SingleHashKey(1,"z")) should be ((2,"a"))
       tbl.size should be (9)
-      xact.commit
+      xact.commit should be (true)
     } catch {
       case e:Throwable => {
         xact.rollback
@@ -84,7 +84,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     implicit val xact = tm.begin("T5")
     tbl.get(SingleHashKey(1,"y")) should be (null)
     tbl.size should be (9)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "create the correct slices (after insertions)" in {
@@ -95,7 +95,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     }
     sum should be (7)
     tbl.size should be (9)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "execute the foreach over all visible elements (1)" in {
@@ -105,7 +105,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
       sum += v._1
     }
     sum should be (70)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "be able to delete an element" in {
@@ -113,7 +113,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     tbl -= (SingleHashKey(1,"z"))
     tbl.get(SingleHashKey(1,"z")) should be (null)
     tbl.size should be (9)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "create the correct slices (after deletion)" in {
@@ -124,7 +124,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     }
     sum should be (5)
     // tbl.size should be (10) or (9) //it might get deleted by gc
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "execute the foreach over all visible elements (2)" in {
@@ -134,7 +134,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
       sum += v._1
     }
     sum should be (68)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "be able to re-insert an already deleted element" in {
@@ -142,7 +142,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     tbl += (SingleHashKey(1,"z"), (22,"aa"))
     tbl.get(SingleHashKey(1,"z")) should be ((22,"aa"))
     tbl.size should be (9)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "execute the foreach over all visible elements (3)" in {
@@ -152,7 +152,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
       sum += v._1
     }
     sum should be (90)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "be able to update an already inserted element" in {
@@ -160,7 +160,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     tbl(SingleHashKey(1,"z")) = (222,"aaa")
     tbl.get(SingleHashKey(1,"z")) should be ((222,"aaa"))
     tbl.size should be (9)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "create the correct slices (after update 1)" in {
@@ -171,7 +171,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     }
     sum should be (227)
     // tbl.size should be (10) or (9) //it might get deleted by gc
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "execute the foreach over all visible elements (4)" in {
@@ -181,7 +181,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
       sum += v._1
     }
     sum should be (290)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "be able to update via delta version" in {
@@ -191,7 +191,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     
     tbl.get(SingleHashKey(1,"z")) should be ((2222,"aaa"))
     // tbl.size should be (5) or (4) //it might get deleted by gc
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "create the correct slices (after update 2)" in {
@@ -202,7 +202,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     }
     sum should be (2227)
     // tbl.size should be (5) or (4) //it might get deleted by gc
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "execute the foreach over all visible elements (5)" in {
@@ -212,7 +212,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
       sum += v._1
     }
     sum should be (2290)
-    xact.commit
+    xact.commit should be (true)
   }
 
   it should "be able to unreeify after passing the threshold" in {
@@ -222,7 +222,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
       tbl -= (SingleHashKey(i,"z"))
     }
     tbl.size should be (9)
-    xact.commit
+    xact.commit should be (true)
   }
 
 }

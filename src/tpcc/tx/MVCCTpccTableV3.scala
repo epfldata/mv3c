@@ -89,11 +89,12 @@ object MVCCTpccTableV3 {
 			debug("%s started at %d".format(xact, startTS))
 			xact
 		}
-		def commit(implicit xact:Transaction) = {
+		def commit(implicit xact:Transaction): Boolean = this.synchronized {
 			if(activeXacts.contains(xact.xactId)){
 				if(!validate) {
-					debug("The transaction failed validation! We have to roll it back...")
+					debug("Transaction validation failed! We have to roll it back...")
 					rollback
+					false
 				} else {
 					val xactId = xact.xactId
 					activeXacts.synchronized {
@@ -105,10 +106,12 @@ object MVCCTpccTableV3 {
 						recentlyCommittedXacts += xact
 					}
 					garbageCollect
+					true
 				}
 			} else {
-				debug("The transaction does not exist! We have to roll it back...")
+				debug("Transaction does not exist! We have to roll it back...")
 				rollback
+				false
 			}
 		}
 		//TODO: should be implemented completely
