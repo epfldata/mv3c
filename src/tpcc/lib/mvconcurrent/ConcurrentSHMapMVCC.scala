@@ -319,6 +319,10 @@ object ConcurrentSHMapMVCC {
 
     @inline
     final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
+    @inline
+    final def getMap = entry.map
+    @inline
+    final def getTable = getMap.tbl
 
     // @inline //inlining is disabled during development
     final def setEntryValue(newValue: V)(implicit xact:Transaction): Unit = {
@@ -376,7 +380,7 @@ object ConcurrentSHMapMVCC {
       if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
     }
 
-    final override def toString = "<"+img+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "")+">"
+    final override def toString = "<"+img+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " for " + getTable +">"
 
     // final override def hashCode: Int = {
     //   entry.hashCode ^ img.hashCode
@@ -1550,7 +1554,7 @@ object ConcurrentSHMapMVCC {
 /**
  * Creates a new, empty map with the default initial table size (16).
  */
-class ConcurrentSHMapMVCC[K, V <: Product](val name:String, val projs:(K,V)=>_ *)(implicit ord: math.Ordering[K]) /*extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable*/ {
+class ConcurrentSHMapMVCC[K, V <: Product](val tbl:Table, val projs:(K,V)=>_ *)(implicit ord: math.Ordering[K]) /*extends AbstractMap[K, V] with ConcurrentMap[K, V] with Serializable*/ {
   final val NULL_VALUE = null.asInstanceOf[V]
   /**
    * The array of bins. Lazily initialized upon first insertion.

@@ -41,6 +41,7 @@ object MVCCTpccTableV3 {
 	//@inline //TODO FIX IT: it should be inlined for production use
 	def debug(msg: => String) = if(DEBUG) println(msg)
 
+	type Table = String
 	class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
 		val DEFAULT_UNDO_BUFFER_SIZE = 64
 
@@ -170,15 +171,15 @@ object MVCCTpccTableV3 {
 							val nextDV = dv.next
 							dv.next = null
 							if(nextDV != null) {
-								// debug("\t\tremoved version => (" + nextDV.entry.map.name+"," + nextDV.entry.key + ", " + nextDV + ")")
+								// debug("\t\tremoved version => (" + nextDV.entry.map.tbl+"," + nextDV.entry.key + ", " + nextDV + ")")
 								nextDV.gcRemove
 							}
 							if(dv.isDeleted) {
-								// debug("\t\tand also removed itself => (" + nextDV.entry.map.name+"," + dv.entry.key + ", " + dv + ")")
+								// debug("\t\tand also removed itself => (" + nextDV.entry.map.tbl+"," + dv.entry.key + ", " + dv + ")")
 								dv.remove
 							}
 							else if(nextDV != null){
-								// debug("\t\t, and current version is => (" + nextDV.entry.map.name+"," + dv.entry.key + ", " + dv + ")")
+								// debug("\t\t, and current version is => (" + nextDV.entry.map.tbl+"," + dv.entry.key + ", " + dv + ")")
 							}
 						}
 						recentlyCommittedXacts.synchronized {
