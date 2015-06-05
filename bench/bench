@@ -118,13 +118,13 @@ EOF
 load) load $2 innodb
 ;;
 # ------------------------------------------------------------------------------
--1|1|2|3|4|5|6|7|8)
+-1|1|2|3|4|5|6|7|8|9|10)
   for W in $WARES; do
     load $W innodb
     cd $BASE
     sbt compile
     sbt test:compile
-    CP="$HOME/.sbt/boot/scala-2.10.2/lib/scala-library.jar:target/scala-2.10/classes:target/scala-2.10/test-classes:lib/dbtlib.jar:lib/log4j-api-2.0-beta9.jar:lib/log4j-core-2.0-beta9.jar:lib/log4j-slf4j-impl-2.0-beta9.jar:lib/mysql-connector-java-5.1.26-bin.jar:lib/slf4j-api-1.7.2.jar:lib/slf4j-ext-1.7.2.jar"
+    CP="$HOME/.ivy2/cache/org.scala-lang/scala-library/jars/scala-library-2.11.6.jar:target/scala-2.11/classes:target/scala-2.11/test-classes:lib/dbtlib.jar:lib/log4j-api-2.0-beta9.jar:lib/log4j-core-2.0-beta9.jar:lib/log4j-slf4j-impl-2.0-beta9.jar:lib/mysql-connector-java-5.1.26-bin.jar:lib/slf4j-api-1.7.2.jar:lib/slf4j-ext-1.7.2.jar"
     OUT_FILE="$BENCH/results/tpcc/sstore_"$1"_"$W"_60exec.txt"
     eval "$JAVA_HOME/bin/java -server -Xss512m -Xmx12G -Xms8G -XX:-DontCompileHugeMethods -classpath $CP ddbt.tpcc.tx.TpccInMem -w $W -i $1 -t 60 | tee -a $OUT_FILE"
     eval "$BENCH/tpcc_process.sh"
@@ -132,7 +132,7 @@ load) load $2 innodb
 ;;
 # ------------------------------------------------------------------------------
 *)
-  echo "Usage: `basename $0` hstore|mysql|voltdb|-1|1|2|3|4|5|6|7|8"
+  echo "Usage: `basename $0` hstore|mysql|voltdb|-1|1|2|3|4|5|6|7|8|9|10"
 ;;
 esac
 rm -rf $BENCH/t2
