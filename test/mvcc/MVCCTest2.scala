@@ -215,13 +215,31 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     xact.commit should be (true)
   }
 
-  it should "be able to unreeify after passing the threshold" in {
+  it should "handle the validation failure correctly" in {
+    implicit val xact1 = tm.begin("T19")
+    
+    {
+      implicit val xact2 = tm.begin("T20")
+      tbl.+=(SingleHashKey(1,"y"),(4,"c"))(xact2)
+      xact2.commit should be (true)
+    }
+
+    var sum = 0
+    tbl.slice(0,1).foreach { case (k,v) =>
+      sum += v._1
+    }
+    sum should be (2227)
+
+    xact1.commit should be (false)
+  }
+
+  it should "be able to untreeify after passing the threshold" in {
     ConcurrentSHMapMVCC.UNTREEIFY_THRESHOLD should be (6) //we assume that threshold is 8
-    implicit val xact = tm.begin("T19")
+    implicit val xact = tm.begin("T21")
     for( i <- 1 to 4){
       tbl -= (SingleHashKey(i,"z"))
     }
-    tbl.size should be (9)
+    tbl.size should be (10)
     xact.commit should be (true)
   }
 

@@ -11,6 +11,7 @@ import ddbt.tpcc.lib.concurrent.ConcurrentSHMap
 import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC
 import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.SEntryMVCC
 import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion
+import ConcurrentSHMapMVCC.{INSERT_OP, DELETE_OP, UPDATE_OP}
 import ddbt.tpcc.loadtest.TpccConstants._
 import scala.concurrent._
 import ExecutionContext.Implicits.global
@@ -38,16 +39,34 @@ object MVCCTpccTableV3 {
 	val STOCK_TBL = "stockTbl"
 	val CUSTOMERWAREHOUSE_TBL = "customerWarehouseFinancialInfoMap"
 
+	val TABLES = List(NEWORDER_TBL,HISTORY_TBL,WAREHOUSE_TBL,ITEM_TBL,ORDER_TBL,DISTRICT_TBL,ORDERLINE_TBL,CUSTOMER_TBL,STOCK_TBL,CUSTOMERWAREHOUSE_TBL)
+
 	//@inline //TODO FIX IT: it should be inlined for production use
 	def debug(msg: => String) = if(DEBUG) println(msg)
 
 	type Table = String
+	trait PredicateOp {
+		def matches(dv: DeltaVersion[_,_]): Boolean
+	}
+	case class GetPredicateOp[K](key:K) extends PredicateOp {
+		def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
+	}
+	case class SlicePredicateOp[K](part:Int, partKey:K) extends PredicateOp {
+		def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
+	}
+	case class ForeachPredicateOp() extends PredicateOp {
+		def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
+	}
+	case class Predicate(tbl: Table, op: PredicateOp) {
+		@inline
+		def matches(dv: DeltaVersion[_,_]) = op.matches(dv)
+	}
+
 	class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
 		val DEFAULT_UNDO_BUFFER_SIZE = 64
 
-		type Predicate = String
 		val undoBuffer = new MutableMap[Any, DeltaVersion[_,_]](DEFAULT_UNDO_BUFFER_SIZE)
-		var predicates = List[Predicate]()
+		var predicates = new MutableMap[Table, HashSet[Predicate]](TABLES.size * 2)
 
 		def commitTS = xactId
 
@@ -56,12 +75,42 @@ object MVCCTpccTableV3 {
 		def isCommitted = (xactId < TransactionManager.TRANSACTION_ID_GEN_START)
 
 		def addPredicate(p:Predicate) = {
-			predicates = p :: predicates
+			val pList = predicates.getNullOnNotFound(p.tbl)
+			if(pList != null) pList += p
+			else {
+				val pBuf = new HashSet[Predicate]
+				pBuf += p
+				predicates += (p.tbl, pBuf)
+			}
 		}
 		def commit = tm.commit(this)
 		def rollback = tm.rollback(this)
 
-		override def toString = "T"+transactionId+"("+name+")"
+		override def toString = "T"+transactionId+"<"+name+">"
+
+		def matchesPredicates(dv:DeltaVersion[_,_]): Boolean = {
+			val preds = predicates.getNullOnNotFound(dv.getTable)
+			if(preds != null) dv.op match {
+				case INSERT_OP => if(imageMatchesPredicates(dv, preds)) return true
+				case DELETE_OP => {
+					val nextDv = dv.next
+					if(nextDv == null) throw new RuntimeException("A deleted version should always have the next pointer.")
+					else if(imageMatchesPredicates(nextDv, preds)) return true
+				}
+				case UPDATE_OP => {
+					val nextDv = dv.next
+					if(nextDv == null) throw new RuntimeException("An updated version should always have the next pointer.")
+					else if(imageMatchesPredicates(dv, preds) || imageMatchesPredicates(nextDv, preds)) return true
+				}
+				case x => throw new IllegalStateException("DeltaVersion operation " + x + " does not exist.")
+			}
+			false
+		}
+
+		def imageMatchesPredicates(dv:DeltaVersion[_,_], preds: HashSet[Predicate]): Boolean = {
+			preds.foreach { p => if(p.matches(dv)) return true }
+			false
+		}
 	}
 
 	object TransactionManager {
@@ -117,15 +166,19 @@ object MVCCTpccTableV3 {
 		//TODO: should be implemented completely
 		// missing:
 		//  - validation phase
-		def validate(implicit xact:Transaction) = {
-			val concurrentXacts = recentlyCommittedXacts.synchronized {
-				recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
-			}
+		def validate(implicit xact:Transaction): Boolean = {
+			val concurrentXacts = recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
 			debug("concurrentXacts = " + concurrentXacts)
 			concurrentXacts.foreach { t =>
 				t.undoBuffer.foreach { dv =>
 					debug("checking whether " + dv + " (in " + t + ") matches predicates in " + xact)
-					// xact.matchesPredicates()
+					if(xact.matchesPredicates(dv._2)) {
+						debug("\t matched!")
+						return false
+					}
+					else {
+						debug("\t did not match!")
+					}
 				}
 			}
 			true
@@ -270,7 +323,6 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 	}
 
     /*Func*/ def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int)(implicit xact:Transaction):Option[Int] = {
-      xact.addPredicate("P1_findFirstNewOrder")
       var first_no_o_id:Option[Int] = None
       tm.newOrderTbl.slice(0, (no_d_id_input, no_w_id_input)).foreach { case ((no_o_id,_,_),_) =>
         if(no_o_id <= first_no_o_id.getOrElse(Integer.MAX_VALUE)) {
@@ -289,7 +341,6 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 	}
 
 	/*Func*/ def findItem(item_id:Int)(implicit xact:Transaction) = {
-		xact.addPredicate("P2_findItem")
 		tm.itemPartialTbl(item_id)
 	}
 
@@ -298,7 +349,6 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 	}
 
 	/*Func*/ def findMaxOrder(o_w_id_arg:Int, o_d_id_arg:Int, c_id_arg:Int)(implicit xact:Transaction) = {
-		xact.addPredicate("P2_findMaxOrder")
 		var max_o_id = -1
 		tm.orderTbl.slice(0,(o_d_id_arg,o_w_id_arg, c_id_arg)).foreach { case ((o_id,_,_), (_,_,_,_,_)) =>
 			if(o_id > max_o_id) {
@@ -309,7 +359,6 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 	}
 
 	/*Func*/ def findOrder(max_o_id:Int, o_w_id_arg:Int, o_d_id_arg:Int)(implicit xact:Transaction) = {
-		xact.addPredicate("P2_findOrder")
 		tm.orderTbl((max_o_id,o_d_id_arg,o_w_id_arg))
 	}
 

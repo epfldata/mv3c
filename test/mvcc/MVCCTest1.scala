@@ -206,4 +206,22 @@ class MVCCSpec1 extends FlatSpec with Matchers {
     xact.commit should be (true)
   }
 
+  it should "handle the validation failure correctly" in {
+    implicit val xact1 = tm.begin("T19")
+    
+    {
+      implicit val xact2 = tm.begin("T20")
+      tbl.+=(Key(1,"y"),(4,"c"))(xact2)
+      xact2.commit should be (true)
+    }
+
+    var sum = 0
+    tbl.slice(0,1).foreach { case (k,v) =>
+      sum += v._1
+    }
+    sum should be (2227)
+
+    xact1.commit should be (false)
+  }
+
 }
