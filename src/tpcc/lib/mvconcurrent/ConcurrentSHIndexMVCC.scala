@@ -9,7 +9,7 @@ import MVCCTpccTableV3._
 
 object ConcurrentSHIndexMVCC {
   implicit val ord: math.Ordering[Any] = null
-  implicit def deltaVersionOrd[K,V <: Product](implicit ord: math.Ordering[K]) = Ordering.by{ e:DeltaVersion[K,V] => e.entry.key }
+  implicit def deltaVersionOrd[K,V <: Product](implicit ord: math.Ordering[K]) = Ordering.by{ e:DeltaVersion[K,V] => e.getKey }
   val EMPTY_INDEX_ENTRY = new ConcurrentSHIndexMVCCEntry[Any,Any,Product](0,(k,v) => 0)
 }
 
@@ -50,7 +50,7 @@ class ConcurrentSHIndexMVCC[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Flo
 
   // @inline //inlining is disabled during development
   final def set(entry: DeltaVersion[K,V])(implicit xact:Transaction):Unit = {
-    val p:P = proj(entry.entry.key, entry.getImage)
+    val p:P = proj(entry.getKey, entry.getImage)
     val s = idx.get(p)
     if (s==null) {
       val newIdx = new ConcurrentSHIndexMVCCEntry[P,K,V](p, proj)
@@ -66,7 +66,7 @@ class ConcurrentSHIndexMVCC[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Flo
 
   // @inline //inlining is disabled during development
   final def del(entry: DeltaVersion[K,V], v:V):Unit = {
-    val p:P = proj(entry.entry.key, v)
+    val p:P = proj(entry.getKey, v)
     val s=idx.get(p)
     if (s!=null) { 
       s.s.remove(entry)
