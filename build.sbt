@@ -69,18 +69,18 @@ addCommandAlias("bench8",  ";bench -i 8 -t 60 ") ++
 addCommandAlias("bench9",  ";bench -i 9 -t 60 ") ++
 addCommandAlias("bench10", ";bench -i 10 -t 60 ")
 
-addCommandAlias("unit", ";run-main ddbt.tpcc.loadtest.TpccUnitTest -w "+numWarehouse+" ;reloadDB") ++
-addCommandAlias("unit-1", ";unit -i -1") ++
-addCommandAlias("unit1",  ";unit -i 1") ++
-addCommandAlias("unit2",  ";unit -i 2") ++
-addCommandAlias("unit3",  ";unit -i 3") ++
-addCommandAlias("unit4",  ";unit -i 4") ++
-addCommandAlias("unit5",  ";unit -i 5") ++
-addCommandAlias("unit6",  ";unit -i 6") ++
-addCommandAlias("unit7",  ";unit -i 7") ++
-addCommandAlias("unit8",  ";unit -i 8") ++
-addCommandAlias("unit9",  ";unit -i 9") ++
-addCommandAlias("unit10", ";unit -i 10")
+addCommandAlias("unit", ";run-main ddbt.tpcc.loadtest.TpccUnitTest -w "+numWarehouse) ++
+addCommandAlias("unit-1", ";unit -i -1; reloadDB") ++
+addCommandAlias("unit1",  ";unit -i 1; reloadDB") ++
+addCommandAlias("unit2",  ";unit -i 2; reloadDB") ++
+addCommandAlias("unit3",  ";unit -i 3; reloadDB") ++
+addCommandAlias("unit4",  ";unit -i 4; reloadDB") ++
+addCommandAlias("unit5",  ";unit -i 5; reloadDB") ++
+addCommandAlias("unit6",  ";unit -i 6; reloadDB") ++
+addCommandAlias("unit7",  ";unit -i 7; reloadDB") ++
+addCommandAlias("unit8",  ";unit -i 8; reloadDB") ++
+addCommandAlias("unit9",  ";unit -i 9; reloadDB") ++
+addCommandAlias("unit10", ";unit -i 10; reloadDB")
 
 addCommandAlias("test-mvconcurrent", ";test-only ddbt.tpcc.lib.mvconcurrent.*")
 
