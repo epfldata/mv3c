@@ -68,7 +68,7 @@ object MVCCTpccTableV3 {
 	class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
 		val DEFAULT_UNDO_BUFFER_SIZE = 64
 
-		val undoBuffer = new MutableMap[Any, DeltaVersion[_,_]](DEFAULT_UNDO_BUFFER_SIZE)
+		val undoBuffer = new HashSet[DeltaVersion[_,_]]()
 		var predicates = new MutableMap[Table, HashSet[Predicate]](TABLES.size * 2)
 
 		def commitTS = xactId
@@ -113,7 +113,11 @@ object MVCCTpccTableV3 {
 		}
 
 		def imageMatchesPredicates(dv:DeltaVersion[_,_], preds: HashSet[Predicate]): Boolean = {
-			preds.foreach { p => if(p.matches(dv)) return true }
+			preds.foreach { p => if(p.matches(dv)) {
+					debug("\t\t\t matched " + p + "!")(this)
+					return true
+				}
+			}
 			false
 		}
 	}
@@ -130,23 +134,24 @@ object MVCCTpccTableV3 {
 		val startAndCommitTimestampGen = new AtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
 		val isGcActive = new AtomicBoolean(DISABLE_GC)
 
-		val activeXacts = new collection.mutable.LinkedHashMap[Long,Transaction]
-		val recentlyCommittedXacts = new collection.mutable.ListBuffer[Transaction]()
+		val activeXacts = new LinkedHashMap[Long,Transaction]
+		val recentlyCommittedXacts = new ListBuffer[Transaction]()
 
 		def begin(name: String) = {
 			val xactId = transactionIdGen.getAndIncrement()
 			val startTS = startAndCommitTimestampGen.getAndIncrement()
-			val xact = new Transaction(this, name, startTS, xactId)
+			implicit val xact = new Transaction(this, name, startTS, xactId)
 			activeXacts.synchronized {
-				activeXacts += ((xactId, xact))
+				activeXacts.put(xactId, xact)
 			}
-			debug("%s started at %d".format(xact, startTS))
+			debug("started at %d".format(startTS))
 			xact
 		}
-		def commit(implicit xact:Transaction): Boolean = this.synchronized {
+		def commit(implicit xact:Transaction):Boolean = this.synchronized {
+			debug("commit started")
 			if(activeXacts.contains(xact.xactId)){
 				if(!validate) {
-					debug("Transaction validation failed! We have to roll it back...")
+					debug("commit failed: transaction validation failed! We have to roll it back...")
 					rollback
 					false
 				} else {
@@ -154,16 +159,17 @@ object MVCCTpccTableV3 {
 					activeXacts.synchronized {
 						activeXacts -= xactId
 					}
-					debug("%s committed at %d\n\twith undo buffer(%d) = %%s".format(xact, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
+					debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
 					xact.xactId = startAndCommitTimestampGen.getAndIncrement()
 					recentlyCommittedXacts.synchronized {
 						recentlyCommittedXacts += xact
 					}
 					garbageCollect
+					debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
 					true
 				}
 			} else {
-				debug("Transaction does not exist! We have to roll it back...")
+				debug("commit failed: transaction does not exist! We have to roll it back...")
 				rollback
 				false
 			}
@@ -172,33 +178,40 @@ object MVCCTpccTableV3 {
 		// missing:
 		//  - validation phase
 		def validate(implicit xact:Transaction): Boolean = {
+			debug("\tvalidation started")
 			val concurrentXacts = recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
-			debug("concurrentXacts = " + concurrentXacts)
+			debug("\t\tconcurrentXacts = " + concurrentXacts)
 			concurrentXacts.foreach { t =>
 				t.undoBuffer.foreach { dv =>
-					debug("checking whether " + dv + " (in " + t + ") matches predicates in " + xact)
-					if(xact.matchesPredicates(dv._2)) {
-						debug("\t matched!")
+					debug("\t\tchecking whether " + dv + " (in " + t + ") matches predicates in " + xact)
+					if(xact.matchesPredicates(dv)) {
+						debug("\tvalidation failed")
 						return false
 					}
 					else {
-						debug("\t did not match!")
+						debug("\t\t\t did not match!")
 					}
 				}
 			}
+			debug("\tvalidation succeeded")
 			true
 		}
 
-		def rollback(implicit xact:Transaction) = {
+		def rollback(implicit xact:Transaction) = this.synchronized {
+			debug("rollback started")
 			activeXacts.synchronized {
 				activeXacts -= xact.xactId
 			}
-			xact.undoBuffer.foreach{ case (_,dv) => dv.remove }
-			debug("%s rolled back at %d\n\twith undo buffer(%d) = %%s".format(xact, xact.commitTS, xact.undoBuffer.size, xact.undoBuffer))
+			debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
+			xact.undoBuffer.foreach{ dv => 
+				debug("\t\tremoved => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
+				dv.remove
+			}
 			garbageCollect
+			debug("rollback finished")
 		}
 
-		private def garbageCollect {
+		private def garbageCollect(implicit xact:Transaction) {
 			if(isGcActive.compareAndSet(false,true)) {
 				if(PARALLEL_GC) {
 					Future {
@@ -212,8 +225,8 @@ object MVCCTpccTableV3 {
 			}
 		}
 
-		private def gcInternal {
-			debug("GC start")
+		private def gcInternal(implicit xact:Transaction) {
+			debug("GC started")
 			if(!recentlyCommittedXacts.isEmpty) {
 				val oldestActiveXactStartTS = activeXacts.synchronized {
 					if(activeXacts.isEmpty) {
@@ -226,36 +239,40 @@ object MVCCTpccTableV3 {
 				var reachedLimit = false
 				while(!reachedLimit && !recentlyCommittedXacts.isEmpty) {
 					val xact = recentlyCommittedXacts.head
+					implicit val theXact = xact
 					if(xact.commitTS < oldestActiveXactStartTS) {
 						debug("\tremoving xact = " + xact.transactionId)
-						xact.undoBuffer.foreach{ case (_,dv) =>
+						xact.undoBuffer.foreach{ dv =>
 							val nextDV = dv.next
 							dv.next = null
 							if(nextDV != null) {
-								// debug("\t\tremoved version => (" + nextDV.entry.map.tbl+"," + nextDV.entry.key + ", " + nextDV + ")")
+								debug("\t\tremoved version => (" + nextDV.getTable+"," + nextDV.getKey + ", " + nextDV + ")")
 								nextDV.gcRemove
 							}
+							else if(dv.op == DELETE_OP){
+								debug("\t\tcould not remove version because of no next => (" + nextDV.getTable+"," + nextDV.getKey + ", " + nextDV + ")")
+							}
 							if(dv.isDeleted) {
-								// debug("\t\tand also removed itself => (" + nextDV.entry.map.tbl+"," + dv.entry.key + ", " + dv + ")")
+								debug("\t\tand also removed itself => (" + nextDV.getTable+"," + dv.getKey + ", " + dv + ")")
 								dv.remove
 							}
 							else if(nextDV != null){
-								// debug("\t\t, and current version is => (" + nextDV.entry.map.tbl+"," + dv.entry.key + ", " + dv + ")")
+								debug("\t\t, and current version is => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
 							}
 						}
 						recentlyCommittedXacts.synchronized {
 							recentlyCommittedXacts.remove(0)
 						}
 					} else {
-						// debug("\treached gc limit T"+xact.transactionId+" vs. oldestActiveXactStartTS=" + oldestActiveXactStartTS)
+						debug("\treached gc limit T"+xact.transactionId+" vs. oldestActiveXactStartTS=" + oldestActiveXactStartTS)
 						reachedLimit = true
 					}
 				}
 			}
-			// else {
-			// 	debug("\tnothing to be done!")
-			// }
-			debug("GC finish")
+			else {
+				debug("\tnothing to be done!")
+			}
+			debug("GC finished")
 		}
 
 		/////// TABLES \\\\\\\
