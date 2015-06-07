@@ -102,8 +102,10 @@ object MVCCTpccTableV3 {
 				}
 				case UPDATE_OP => {
 					val nextDv = dv.next
-					if(nextDv == null) throw new RuntimeException("An updated version should always have the next pointer.")
-					else if(imageMatchesPredicates(dv, preds) || imageMatchesPredicates(nextDv, preds)) return true
+					// An updated version after GC might not have a next pointer
+					// if(nextDv == null) throw new RuntimeException("An updated version should always have the next pointer. The update version is " + dv + " and dv.next = " + dv.next + " and dv.prev = " + dv.prev)
+					// else 
+					if(imageMatchesPredicates(dv, preds) || imageMatchesPredicates(nextDv, preds)) return true
 				}
 				case x => throw new IllegalStateException("DeltaVersion operation " + x + " does not exist.")
 			}
