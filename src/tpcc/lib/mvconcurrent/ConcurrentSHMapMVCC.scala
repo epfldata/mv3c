@@ -578,7 +578,7 @@ object ConcurrentSHMapMVCC {
    */
   @SuppressWarnings(Array("rawtypes", "unchecked")) // @inline //inlining is disabled during development
   final def compareComparables[K](k: K, x: K)(implicit ord: math.Ordering[K]): Int = {
-    if (x == null) 0 else ord.compare(k, x)
+    ord.compare(k, x)
   }
 
   @SuppressWarnings(Array("unchecked")) // @inline //inlining is disabled during development
