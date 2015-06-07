@@ -82,7 +82,11 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV3 with INewOrderInMem {
 
       var d_tax = 0f
       var o_id = 0
-      NewOrderTxOps.updateDistrictNextOrderId(w_id,d_id,cv => { d_tax=cv._7; o_id=cv._9; (cv._1,cv._2,cv._3,cv._4,cv._5,cv._6,d_tax,cv._8,o_id+1) })
+      NewOrderTxOps.updateDistrictNextOrderId(w_id,d_id,cv => {
+        d_tax=cv._7
+        o_id=cv._9
+        (cv._1,cv._2,cv._3,cv._4,cv._5,cv._6,d_tax,cv._8,o_id+1)
+      })
       
       //var o_all_local:Boolean = true
       //supware.foreach { s_w_id => if(s_w_id != w_id) o_all_local = false }
@@ -147,10 +151,16 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV3 with INewOrderInMem {
       ISharedData.commit
       1
     } catch {
-      case e: Throwable => {
+      case me: MVCCException => {
+        error("An error occurred in handling NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
+        error(me)
         ISharedData.rollback
-        logger.error("An error occurred in handling NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
+        0
+      }
+      case e: Throwable => {
+        logger.error("Thread"+Thread.currentThread().getId()+" :> "+xact+": An error occurred in handling NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
         e.printStackTrace
+        ISharedData.rollback
         0
       }
     }

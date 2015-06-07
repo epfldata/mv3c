@@ -25,6 +25,7 @@ object MVCCTpccTableV3 {
 	type MutableMap[K,V] = ddbt.tpcc.lib.shm.SHMap[K,V]
 
 	val DEBUG = false
+	val ERROR = false
 	val DISABLE_GC = false
 	val PARALLEL_GC = true
 
@@ -42,7 +43,9 @@ object MVCCTpccTableV3 {
 	val TABLES = List(NEWORDER_TBL,HISTORY_TBL,WAREHOUSE_TBL,ITEM_TBL,ORDER_TBL,DISTRICT_TBL,ORDERLINE_TBL,CUSTOMER_TBL,STOCK_TBL,CUSTOMERWAREHOUSE_TBL)
 
 	//@inline //TODO FIX IT: it should be inlined for production use
-	def debug(msg: => String) = if(DEBUG) println(msg)
+	def debug(msg: => String)(implicit xact:Transaction) = if(DEBUG) println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
+	def error(msg: => String)(implicit xact:Transaction) = if(ERROR) System.err.println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
+	def error(e: Throwable)(implicit xact:Transaction) = if(ERROR) { System.err.print("Thread"+Thread.currentThread().getId()+" :> "); e.printStackTrace }
 
 	type Table = String
 	trait PredicateOp {

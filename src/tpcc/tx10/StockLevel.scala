@@ -59,10 +59,16 @@ class StockLevel extends InMemoryTxImplViaMVCCTpccTableV3 with IStockLevelInMem 
       ISharedData.commit
       1
     } catch {
-      case e: Throwable => {
+      case me: MVCCException => {
+        error("An error occurred in handling StockLevel transaction for warehouse=%d, district=%d, threshold=%d".format(w_id,d_id,threshold))
+        error(me)
         ISharedData.rollback
-        logger.error("An error occurred in handling StockLevel transaction for warehouse=%d, district=%d, threshold=%d".format(w_id,d_id,threshold))
+        0
+      }
+      case e: Throwable => {
+        logger.error("Thread"+Thread.currentThread().getId()+" :> "+xact+": An error occurred in handling StockLevel transaction for warehouse=%d, district=%d, threshold=%d".format(w_id,d_id,threshold))
         e.printStackTrace
+        ISharedData.rollback
         0
       }
     }

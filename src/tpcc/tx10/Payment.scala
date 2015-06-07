@@ -130,10 +130,16 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV3 with IPaymentInMem {
       ISharedData.commit
       1
     } catch {
-      case e: Throwable => {
+      case me: MVCCException => {
+        error("An error occurred in handling Payment transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
+        error(me)
         ISharedData.rollback
-        logger.error("An error occurred in handling Payment transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
+        0
+      }
+      case e: Throwable => {
+        logger.error("Thread"+Thread.currentThread().getId()+" :> "+xact+": An error occurred in handling Payment transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
         e.printStackTrace
+        ISharedData.rollback
         0
       }
     }

@@ -99,10 +99,16 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV3 with IDeliveryInMem {
       ISharedData.commit
       1
     } catch {
-      case e: Throwable => {
+      case me: MVCCException => {
+        error("An error occurred in handling Delivery transaction for warehouse=%d, carrier=%d".format(w_id,o_carrier_id))
+        error(me)
         ISharedData.rollback
-        logger.error("An error occurred in handling Delivery transaction for warehouse=%d, carrier=%d".format(w_id,o_carrier_id))
+        0
+      }
+      case e: Throwable => {
+        logger.error("Thread"+Thread.currentThread().getId()+" :> "+xact+": An error occurred in handling Delivery transaction for warehouse=%d, carrier=%d".format(w_id,o_carrier_id))
         e.printStackTrace
+        ISharedData.rollback
         0
       }
     }
