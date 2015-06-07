@@ -56,7 +56,7 @@ reloadDB := {
   "bench/bench load "+numWarehouse !
 }
 
-addCommandAlias("bench", ";reloadDB ;run-main ddbt.tpcc.tx.TpccInMem -w "+numWarehouse) ++
+addCommandAlias("bench", ";run-main ddbt.tpcc.tx.TpccInMem -w "+numWarehouse) ++
 addCommandAlias("bench-1", ";bench -i -1 -t 60") ++
 addCommandAlias("bench1",  ";bench -i 1 -t 60 ") ++
 addCommandAlias("bench2",  ";bench -i 2 -t 60 ") ++
@@ -69,7 +69,7 @@ addCommandAlias("bench8",  ";bench -i 8 -t 60 ") ++
 addCommandAlias("bench9",  ";bench -i 9 -t 60 ") ++
 addCommandAlias("bench10", ";bench -i 10 -t 60 ")
 
-addCommandAlias("unit", ";reloadDB ;run-main ddbt.tpcc.loadtest.TpccUnitTest -w "+numWarehouse) ++
+addCommandAlias("unit", ";run-main ddbt.tpcc.loadtest.TpccUnitTest -w "+numWarehouse+" ;reloadDB") ++
 addCommandAlias("unit-1", ";unit -i -1") ++
 addCommandAlias("unit1",  ";unit -i 1") ++
 addCommandAlias("unit2",  ";unit -i 2") ++
