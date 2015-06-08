@@ -224,4 +224,21 @@ class MVCCSpec1 extends FlatSpec with Matchers {
     xact1.commit should be (false)
   }
 
+  it should "handle cleanup correctly after rollback (including the removal of pointers in DeltaVersion)" in {
+    {
+      implicit val xact2 = tm.begin("T21")
+      tbl.update(Key(1,"y"),(44,"c"))
+      tbl.get(Key(1,"y")) should be ((44,"c"))
+      xact2.rollback
+    }
+
+    {
+      implicit val xact1 = tm.begin("T22")
+      tbl.get(Key(1,"y")) should be ((4,"c"))
+      tbl.update(Key(1,"y"),(444,"c"))
+      tbl.get(Key(1,"y")) should be ((444,"c"))
+      xact1.commit should be (true)
+    }
+  }
+
 }

@@ -206,7 +206,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
   }
 
   it should "execute the foreach over all visible elements (5)" in {
-    implicit val xact = tm.begin("T19")
+    implicit val xact = tm.begin("T18")
     var sum = 0
     tbl.foreach { case (k,v) =>
       sum += v._1
@@ -233,9 +233,26 @@ class MVCCSpec2 extends FlatSpec with Matchers {
     xact1.commit should be (false)
   }
 
+  it should "handle cleanup correctly after rollback (including the removal of pointers in DeltaVersion)" in {
+    {
+      implicit val xact2 = tm.begin("T21")
+      tbl.update(SingleHashKey(1,"y"),(44,"c"))
+      tbl.get(SingleHashKey(1,"y")) should be ((44,"c"))
+      xact2.rollback
+    }
+
+    {
+      implicit val xact1 = tm.begin("T22")
+      tbl.get(SingleHashKey(1,"y")) should be ((4,"c"))
+      tbl.update(SingleHashKey(1,"y"),(444,"c"))
+      tbl.get(SingleHashKey(1,"y")) should be ((444,"c"))
+      xact1.commit should be (true)
+    }
+  }
+
   it should "be able to untreeify after passing the threshold" in {
     ConcurrentSHMapMVCC.UNTREEIFY_THRESHOLD should be (6) //we assume that threshold is 8
-    implicit val xact = tm.begin("T21")
+    implicit val xact = tm.begin("T23")
     for( i <- 1 to 4){
       tbl -= (SingleHashKey(i,"z"))
     }
