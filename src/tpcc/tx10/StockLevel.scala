@@ -67,7 +67,8 @@ class StockLevel extends InMemoryTxImplViaMVCCTpccTableV3 with IStockLevelInMem 
       }
       case e: Throwable => {
         logger.error("Thread"+Thread.currentThread().getId()+" :> "+xact+": An error occurred in handling StockLevel transaction for warehouse=%d, district=%d, threshold=%d".format(w_id,d_id,threshold))
-        e.printStackTrace
+        logger.error(e.toString)
+        if(e.getStackTrace.isEmpty) logger.error("Stack Trace is empty!") else e.getStackTrace.foreach(st => logger.error(st.toString))
         ISharedData.rollback
         0
       }

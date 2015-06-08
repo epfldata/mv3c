@@ -103,7 +103,8 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTableV3 with IOrderStatusInMe
       }
       case e: Throwable => {
         logger.error("Thread"+Thread.currentThread().getId()+" :> "+xact+": An error occurred in handling OrderStatus transaction for warehouse=%d, district=%d".format(w_id,d_id))
-        e.printStackTrace
+        logger.error(e.toString)
+        if(e.getStackTrace.isEmpty) logger.error("Stack Trace is empty!") else e.getStackTrace.foreach(st => logger.error(st.toString))
         ISharedData.rollback
         0
       }

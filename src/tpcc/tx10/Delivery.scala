@@ -107,7 +107,8 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV3 with IDeliveryInMem {
       }
       case e: Throwable => {
         logger.error("Thread"+Thread.currentThread().getId()+" :> "+xact+": An error occurred in handling Delivery transaction for warehouse=%d, carrier=%d".format(w_id,o_carrier_id))
-        e.printStackTrace
+        logger.error(e.toString)
+        if(e.getStackTrace.isEmpty) logger.error("Stack Trace is empty!") else e.getStackTrace.foreach(st => logger.error(st.toString))
         ISharedData.rollback
         0
       }
