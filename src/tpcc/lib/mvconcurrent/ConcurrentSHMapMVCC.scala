@@ -395,6 +395,18 @@ object ConcurrentSHMapMVCC {
         // debug("removing node " + getKey + " from " + getTable)
         map.replaceNode(getKey)
       }
+      if(prev != null){
+        prev.next = next
+        prev = null
+      } else {
+          if(entry.value ne this) throw new RuntimeException("Only the head element in version list can have a null previous pointer.")
+          if(next != null) entry.value = next //this entry might still be in use
+      }
+      if(next != null) {
+        next.prev = prev
+        next = null
+      }
+
       if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
     }
 
