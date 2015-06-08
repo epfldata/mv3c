@@ -399,8 +399,10 @@ object ConcurrentSHMapMVCC {
         prev.next = next
         prev = null
       } else {
+        entry.synchronized {
           if(entry.value ne this) throw new RuntimeException("Only the head element in version list can have a null previous pointer.")
           if(next != null) entry.value = next //this entry might still be in use
+        }
       }
       if(next != null) {
         next.prev = prev
@@ -461,12 +463,12 @@ object ConcurrentSHMapMVCC {
     }
 
     // @inline //inlining is disabled during development
-    final def getValueImage(implicit xact:Transaction) = { val v = getTheValue; if(v == null) null.asInstanceOf[V] else v.getImage }
+    final def getValueImage(implicit xact:Transaction) = this.synchronized { val v = getTheValue; if(v == null) null.asInstanceOf[V] else v.getImage }
 
     // final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
     // final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
 
-    final def getTheValue(implicit xact:Transaction) = {
+    final def getTheValue(implicit xact:Transaction) = this.synchronized {
       // debug("getting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
       var res: DeltaVersion[K,V] = value
       var found = false
@@ -488,7 +490,7 @@ object ConcurrentSHMapMVCC {
     }
 
     // @inline //inlining is disabled during development
-    final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): Unit = {
+    final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): Unit = this.synchronized {
       // val oldValue: V = NULL_VALUE
       if(value == null) {
         // debug("setting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
