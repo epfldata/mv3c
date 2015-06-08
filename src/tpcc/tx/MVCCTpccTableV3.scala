@@ -138,13 +138,11 @@ object MVCCTpccTableV3 {
 		val activeXacts = new LinkedHashMap[Long,Transaction]
 		val recentlyCommittedXacts = new ListBuffer[Transaction]()
 
-		def begin(name: String) = {
+		def begin(name: String) = activeXacts.synchronized {
 			val xactId = transactionIdGen.getAndIncrement()
 			val startTS = startAndCommitTimestampGen.getAndIncrement()
 			implicit val xact = new Transaction(this, name, startTS, xactId)
-			activeXacts.synchronized {
-				activeXacts.put(xactId, xact)
-			}
+			activeXacts.put(xactId, xact)
 			debug("started at %d".format(startTS))
 			xact
 		}
@@ -158,10 +156,10 @@ object MVCCTpccTableV3 {
 				} else {
 					val xactId = xact.xactId
 					activeXacts.synchronized {
+						xact.xactId = startAndCommitTimestampGen.getAndIncrement()
 						activeXacts -= xactId
 					}
 					debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
-					xact.xactId = startAndCommitTimestampGen.getAndIncrement()
 					recentlyCommittedXacts.synchronized {
 						recentlyCommittedXacts += xact
 					}
@@ -229,12 +227,11 @@ object MVCCTpccTableV3 {
 		private def gcInternal(implicit xact:Transaction) {
 			debug("GC started")
 			if(!recentlyCommittedXacts.isEmpty) {
-				val oldestActiveXactStartTS = activeXacts.synchronized {
-					if(activeXacts.isEmpty) {
-						TransactionManager.TRANSACTION_ID_GEN_START
-					} else {
-						activeXacts.head._2.startTS
-					}
+				var oldestActiveXactStartTS = TransactionManager.TRANSACTION_ID_GEN_START
+				activeXacts.synchronized {
+					activeXacts.foreach{ a => if(a._2.startTS < oldestActiveXactStartTS) oldestActiveXactStartTS = a._2.startTS }
+					debug("\tactiveXacts = " + activeXacts)
+					debug("\toldestActiveXactStartTS = " + oldestActiveXactStartTS)
 				}
 
 				var reachedLimit = false

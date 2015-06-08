@@ -337,7 +337,7 @@ object ConcurrentSHMapMVCC {
     final def project(part: Int) = getMap.projs(part).apply(getKey, getImage)
 
     // @inline //inlining is disabled during development
-    final def setEntryValue(newValue: V)(implicit xact:Transaction): Unit = {
+    final def setEntryValue(newValue: V)(implicit xact:Transaction): Unit = entry.synchronized {
       var insertOrUpdate = false
       if(op == DELETE_OP) {
         entry.setTheValue(newValue, INSERT_OP)
@@ -356,7 +356,7 @@ object ConcurrentSHMapMVCC {
     }
 
     // @inline //inlining is disabled during development
-    final def isVisible(implicit xact:Transaction): Boolean = {
+    final def isVisible(implicit xact:Transaction): Boolean = entry.synchronized {
       /*val res = */(!isDeleted) && ((vXact eq xact) || 
           (vXact.isCommitted && (vXact.xactId < xact.startTS)
               && ((prev == null) || (prev.vXact.commitTS > xact.startTS))
@@ -391,13 +391,13 @@ object ConcurrentSHMapMVCC {
     }
 
     // @inline //inlining is disabled during development
-    def gcRemove(implicit xact:Transaction): Unit = {
+    def gcRemove(implicit xact:Transaction): Unit = entry.synchronized {
       if(next != null) throw new RuntimeException("There are more than one versions pending for a single garbage collection.")
       remove
     }
 
     // @inline //inlining is disabled during development
-    def remove(implicit xact:Transaction) {
+    def remove(implicit xact:Transaction): Unit = entry.synchronized {
       val map = getMap
       if(/*isDeleted &&*/ prev == null && next == null) {
         // debug("removing node " + getKey + " from " + getTable)
@@ -407,10 +407,8 @@ object ConcurrentSHMapMVCC {
         prev.next = next
         prev = null
       } else {
-        entry.synchronized {
-          if(entry.value ne this) throw new RuntimeException("Only the head element in version list can have a null previous pointer.")
-          if(next != null) entry.value = next //this entry might still be in use
-        }
+        if(entry.value ne this) throw new RuntimeException("Only the head element in version list can have a null previous pointer => this => " + this + " and entry.value = " + entry.value)
+        if(next != null) entry.value = next //this entry might still be in use
       }
       if(next != null) {
         next.prev = prev
@@ -471,7 +469,7 @@ object ConcurrentSHMapMVCC {
     }
 
     // @inline //inlining is disabled during development
-    final def getValueImage(implicit xact:Transaction) = this.synchronized { val v = getTheValue; if(v == null) null.asInstanceOf[V] else v.getImage }
+    final def getValueImage(implicit xact:Transaction) = { val v = getTheValue; if(v == null) null.asInstanceOf[V] else v.getImage }
 
     // final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
     // final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
