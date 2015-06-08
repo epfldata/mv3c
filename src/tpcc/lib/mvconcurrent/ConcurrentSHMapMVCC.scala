@@ -405,14 +405,14 @@ object ConcurrentSHMapMVCC {
       }
       if(prev != null){
         prev.next = next
-        prev = null
+        // prev = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
       } else {
         if(entry.value ne this) throw new RuntimeException("Only the head element in version list can have a null previous pointer => this => " + this + " and entry.value = " + entry.value)
         if(next != null) entry.value = next //this entry might still be in use
       }
       if(next != null) {
         next.prev = prev
-        next = null
+        // next = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
       }
 
       if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
