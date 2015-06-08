@@ -132,7 +132,7 @@ load) load $2 innodb
 ;;
 # ------------------------------------------------------------------------------
 *)
-  echo "Usage: `basename $0` hstore|mysql|voltdb|-1|1|2|3|4|5|6|7|8|9|10"
+  echo "Usage: `basename $0` hstore|mysql|voltdb|-1|1|2|3|4|5|6|7|8|9|10|11"
 ;;
 esac
 rm -rf $BENCH/t2

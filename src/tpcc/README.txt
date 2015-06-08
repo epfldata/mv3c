@@ -8,3 +8,4 @@ ddbt.tpcc.tx7: again, using generic data structures for implementing MVCC. This 
 ddbt.tpcc.tx8: tx7 with MVCC implementation 
 ddbt.tpcc.tx9: tx7 with the initial version of ConcurrentSHMap implementation 
 ddbt.tpcc.tx10: tx9 with MVCC implementation 
+ddbt.tpcc.tx10: tx10 with MVC3T implementation 
