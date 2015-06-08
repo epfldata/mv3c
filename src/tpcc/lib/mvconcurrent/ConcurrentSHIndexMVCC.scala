@@ -23,8 +23,9 @@ class ConcurrentSHIndexMVCCEntry[P,K,V <: Product](val p: P, val proj:(K,V)=>P)(
   // @inline //inlining is disabled during development
   final def foreach(f: (K,V) => Unit)(implicit xact:Transaction): Unit = s.foreach{ e =>
     if(e.isVisible) {
-      f(e.entry.key, e.getImage)
-      // println ((e.entry.map.tbl, e.entry.key, e.getImage) + " is visible!")
+      // if (e != e.entry.getTheValue) throw new RuntimeException("Wrong foreach => "+e.getKey)
+      f(e.getKey, e.getImage)
+      // println ((e.entry.map.tbl, e.entry.key, e) + " is visible!")
     }
     // else {
     //   println ((e.entry.map.tbl, e.entry.key, e) + " is not visible!")
@@ -34,12 +35,12 @@ class ConcurrentSHIndexMVCCEntry[P,K,V <: Product](val p: P, val proj:(K,V)=>P)(
   // @inline //inlining is disabled during development
   final def foreachEntry(f: java.util.Map.Entry[DeltaVersion[K,V], Boolean] => Unit)(implicit xact:Transaction): Unit = s.foreachEntry{ e =>
     if(e.getKey.isVisible) {
-      if (e.getKey != e.getKey.entry.getTheValue) throw new RuntimeException("Wrong foreacEntry => "+e.getKey.entry.key)
+      // if (e.getKey != e.getKey.entry.getTheValue) throw new RuntimeException("Wrong foreacEntry => "+e.getKey.entry.key)
       f(e)
-      // println ((e.getKey.entry.map.tbl,e.getKey.entry.key, e.getKey.getImage) + " (entry) is visible!")
+      // println ((e.getKey.getMap.tbl,e.getKey.getKey, e.getKey) + " (entry) is visible!")
     }
     // else {
-    //   println ((e.getKey.entry.map.tbl,e.getKey.entry.key, e.getKey) + " (entry) is not visible!")
+    //   println ((e.getKey.getMap.tbl,e.getKey.getKey, e.getKey) + " (entry) is not visible!")
     // }
   }
 }
