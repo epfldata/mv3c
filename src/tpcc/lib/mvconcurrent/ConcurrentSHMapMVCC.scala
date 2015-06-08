@@ -310,10 +310,10 @@ object ConcurrentSHMapMVCC {
   /** Number of CPUS, to place bounds on some sizings */
   private val NCPU: Int = Runtime.getRuntime.availableProcessors
 
-  def debug(msg: => String) = MVCCTpccTableV3.debug(msg)
+  def debug(msg: => String)(implicit xact:Transaction) = MVCCTpccTableV3.debug(msg)
 
   final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
-    vXact.undoBuffer.put(entry.key, this)
+    vXact.undoBuffer += this
     if(next != null) next.prev = this
     if(prev != null) prev.next = this
 
@@ -342,7 +342,7 @@ object ConcurrentSHMapMVCC {
       }
 
       if(insertOrUpdate) {
-        val map = entry.map
+        val map = getMap
         if (map.idxs!=Nil) map.idxs.foreach(_.set(entry.value))
       }
     }
@@ -354,6 +354,19 @@ object ConcurrentSHMapMVCC {
               && ((prev == null) || prev.vXact.commitTS > xact.startTS)
           )
         )
+      // if(res) {
+      //   debug("Is it visible => " + this)
+      //   debug("\tisDeleted = " + isDeleted)
+      //   debug("\tvXact eq xact = " + (vXact eq xact))
+      //   if(!(vXact eq xact)) {
+      //     debug("\tvXact.isCommitted = " + vXact.isCommitted)
+      //     debug("\tvXact.xactId < xact.startTS  = " + (vXact.xactId < xact.startTS ))
+      //     debug("\tprev = " + prev)
+      //     if(prev != null) {
+      //       debug("\tprev.vXact.commitTS > xact.startTS = " + (prev.vXact.commitTS > xact.startTS))
+      //     }
+      //   }
+      // }
       // val res = entry.getTheValue eq this
       // res
     }
@@ -370,21 +383,22 @@ object ConcurrentSHMapMVCC {
     }
 
     // @inline //inlining is disabled during development
-    def gcRemove {
+    def gcRemove(implicit xact:Transaction) {
       if(next != null) throw new RuntimeException("There are more than one versions pending for a single garbage collection.")
       remove
     }
 
     // @inline //inlining is disabled during development
-    def remove {
-      val map = entry.map
+    def remove(implicit xact:Transaction) {
+      val map = getMap
       if(/*isDeleted &&*/ prev == null && next == null) {
-        map.replaceNode(entry.key)
+        // debug("removing node " + getKey + " from " + getTable)
+        map.replaceNode(getKey)
       }
       if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
     }
 
-    final override def toString = "<"+img+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " for " + getTable +">"
+    final override def toString = "<"+img+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " for " + getTable +" written by " + vXact + ">"
 
     // final override def hashCode: Int = {
     //   entry.hashCode ^ img.hashCode
@@ -445,6 +459,10 @@ object ConcurrentSHMapMVCC {
       var res: DeltaVersion[K,V] = value
       var found = false
       do {
+        if(res == null) {
+          debug("getting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
+          debug("\tchecking >> " + res)
+        }
         val resXact = res.vXact
         if((resXact eq xact) || 
            (resXact.isCommitted && resXact.xactId < xact.startTS)) {
@@ -459,26 +477,28 @@ object ConcurrentSHMapMVCC {
 
     // @inline //inlining is disabled during development
     final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): Unit = {
-      // debug("setting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
       // val oldValue: V = NULL_VALUE
       if(value == null) {
-        // debug("\t case 1")
+        // debug("setting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
         value = new DeltaVersion(xact,this,newValue,cols,op)
+        // debug("\t case 1 => " + value)
       } else {
+        // debug("setting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
         if(value.vXact eq xact) {
           value.img = newValue
           if((value.op == UPDATE_OP) && (op == UPDATE_OP)) {
-            // debug("\t case 2")
             value.cols = value.cols.union(cols).sorted
+            value.op = op
+            debug("\t case 2 => " + value)
           } else {
-            // debug("\t case 3")
             value.cols = cols
+            value.op = op
+            debug("\t case 3 => " + value)
           }
-          value.op = op
         } else {
-          // debug("\t case 4")
-          if(!value.vXact.isCommitted) throw new MVCCConcurrentWriteException("%s has already written on this object (%s), so %s should get aborted.".format(value.vXact, key, xact))
+          if(!value.vXact.isCommitted) throw new MVCCConcurrentWriteException("%s has already written on this object (%s<%s>), so %s should get aborted.".format(value.vXact, map.tbl, key, xact))
           value = new DeltaVersion(xact,this,newValue,cols,op,value)
+          debug("\t case 4 => " + value)
         }
       }
       // oldValue
@@ -1936,11 +1956,7 @@ class ConcurrentSHMapMVCC[K, V <: Product](val tbl:Table, val projs:(K,V)=>_ *)(
     if(isAdded) addCount(1L, binCount)
 
     if(oldVal == null) {
-      if (idxs != Nil) {
-        idxs.foreach{ idx => 
-          idx.set(entry.getTheValue)
-        }
-      }
+      if (idxs != Nil) idxs.foreach(_.set(entry.getTheValue))
     } else {
       if(onlyIfAbsent && !oldVal.isDeleted) {
         //We ensure the uniqueness of primary keys by aborting a
@@ -1948,29 +1964,27 @@ class ConcurrentSHMapMVCC[K, V <: Product](val tbl:Table, val projs:(K,V)=>_ *)(
         // (i) in the snapshot that is visible to the transaction,
         // (ii) in the last committed version of the key’s record, or
         // (iii) uncommitted as an insert in an undo buffer
-        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists (written by %s). Could not insert the new value (%s) from %s".format(oldVal.entry.key, oldVal.getImage, oldVal.vXact, value, xact))
+        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists (written by %s). Could not insert the new value (%s) from %s".format(oldVal.getKey, oldVal.getImage, oldVal.vXact, value, xact))
       }
 
-      if (idxs != Nil) {
-        idxs.foreach{ idx => 
-          // val pOld = idx.proj(key,oldValImg)
-          // val pNew = idx.proj(key,value)
-          // if(pNew != pOld) {
-            // idx.del(oldVal, oldValImg) // no value image gets deleted from the indices,
-                                          // before it becomes invisible to all the transactions
-                                          // If an update up- dates only non-indexed attributes,
-                                          // updates are performed as usual. If an update updates
-                                          // an indexed attribute, the record is deleted and re-inserted
-                                          // into the relation and both, the deleted and the re-inserted
-                                          // record, are stored in the in- dex. Thus, indexes retain
-                                          // references to all records that are visible by any active
-                                          // transaction. Just like undo buffers, indexes are cleaned up
-                                          // during garbage collection.
-            // we need to always index both the old and new value,
-            // as the old value will become invisible to the future xacts
-            idx.set(entry.getTheValue)
-          // }
-        }
+      if (idxs != Nil) idxs.foreach{ idx => 
+        // val pOld = idx.proj(key,oldValImg)
+        // val pNew = idx.proj(key,value)
+        // if(pNew != pOld) {
+          // idx.del(oldVal, oldValImg) // no value image gets deleted from the indices,
+                                        // before it becomes invisible to all the transactions
+                                        // If an update up- dates only non-indexed attributes,
+                                        // updates are performed as usual. If an update updates
+                                        // an indexed attribute, the record is deleted and re-inserted
+                                        // into the relation and both, the deleted and the re-inserted
+                                        // record, are stored in the in- dex. Thus, indexes retain
+                                        // references to all records that are visible by any active
+                                        // transaction. Just like undo buffers, indexes are cleaned up
+                                        // during garbage collection.
+          // we need to always index both the old and new value,
+          // as the old value will become invisible to the future xacts
+          idx.set(entry.getTheValue)
+        // }
       }
     }
     // oldVal
