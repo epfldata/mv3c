@@ -43,9 +43,10 @@ object MVCCTpccTableV3 {
 	val TABLES = List(NEWORDER_TBL,HISTORY_TBL,WAREHOUSE_TBL,ITEM_TBL,ORDER_TBL,DISTRICT_TBL,ORDERLINE_TBL,CUSTOMER_TBL,STOCK_TBL,CUSTOMERWAREHOUSE_TBL)
 
 	//@inline //TODO FIX IT: it should be inlined for production use
+	def forceDebug(msg: => String)(implicit xact:Transaction) = println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
 	def debug(msg: => String)(implicit xact:Transaction) = if(DEBUG) println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
-	def error(msg: => String)(implicit xact:Transaction) = if(ERROR) System.err.println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
-	def error(e: Throwable)(implicit xact:Transaction) = if(ERROR) { System.err.print("Thread"+Thread.currentThread().getId()+" :> "); e.printStackTrace }
+	def error(msg: => String)(implicit xact:Transaction): Unit = if(ERROR) System.err.println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
+	def error(e: Throwable)(implicit xact:Transaction): Unit = if(ERROR) { e.getStackTrace.foreach(st => error(st.toString))}
 
 	type Table = String
 	trait PredicateOp {

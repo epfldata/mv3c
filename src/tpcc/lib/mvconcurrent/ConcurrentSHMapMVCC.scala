@@ -12,7 +12,15 @@ import sun.misc.Unsafe
 import ddbt.tpcc.lib.concurrent.MyThreadLocalRandom
 import ConcurrentSHMapMVCC._
 import ddbt.tpcc.tx._
-import MVCCTpccTableV3._
+import MVCCTpccTableV3.Table
+import MVCCTpccTableV3.Transaction
+import MVCCTpccTableV3.MVCCConcurrentWriteException
+import MVCCTpccTableV3.MVCCRecordAlreayExistsException
+import MVCCTpccTableV3.PredicateOp
+import MVCCTpccTableV3.GetPredicateOp
+import MVCCTpccTableV3.SlicePredicateOp
+import MVCCTpccTableV3.ForeachPredicateOp
+import MVCCTpccTableV3.Predicate
 
 /**
  * A hash table supporting full concurrency of retrievals and
@@ -349,9 +357,9 @@ object ConcurrentSHMapMVCC {
 
     // @inline //inlining is disabled during development
     final def isVisible(implicit xact:Transaction): Boolean = {
-      /*val res = */(!isDeleted) && ((vXact eq xact)|| 
-          (vXact.isCommitted && vXact.xactId < xact.startTS 
-              && ((prev == null) || prev.vXact.commitTS > xact.startTS)
+      /*val res = */(!isDeleted) && ((vXact eq xact) || 
+          (vXact.isCommitted && (vXact.xactId < xact.startTS)
+              && ((prev == null) || (prev.vXact.commitTS > xact.startTS))
           )
         )
       // if(res) {
@@ -383,7 +391,7 @@ object ConcurrentSHMapMVCC {
     }
 
     // @inline //inlining is disabled during development
-    def gcRemove(implicit xact:Transaction) {
+    def gcRemove(implicit xact:Transaction): Unit = {
       if(next != null) throw new RuntimeException("There are more than one versions pending for a single garbage collection.")
       remove
     }
