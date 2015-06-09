@@ -1877,8 +1877,13 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tbl:Table, val projs:(K,V)=>_ *)
   }
 
   def update(key: K, updateFunc:V=>V)(implicit xact:Transaction): Unit = {
-    //TODO: FIX IT
-    putVal(key, updateFunc(get(key)), false)
+    val dv = getEntry(key)
+    dv.setEntryValue(updateFunc(dv.getImage))
+  }
+
+  def updateEntry(key: K, updateFunc:DeltaVersion[K,V]=>V)(implicit xact:Transaction): Unit = {
+    val dv = getEntry(key)
+    dv.setEntryValue(updateFunc(dv))
   }
 
   /** Implementation for put and putIfAbsent */
