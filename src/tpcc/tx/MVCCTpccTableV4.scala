@@ -62,6 +62,18 @@ object MVCCTpccTableV4 {
 	type StockTblKey = (Int,Int)
 	type StockTblValue = (Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)
 
+	var forcedRollback = 0 // is the rollback requested by transaction program (and it’s a part of benchmark)
+	var failedValidation = 0 // is the rollback due to the validation failure
+	var failedConcurrentUpdate = 0 // is the rollback due to a concurrent update (for the same object), which is not allowed in the reference impl.
+	var failedConcurrentInsert = 0 // is the rollback due to a concurrent insert (for the same object), which is not allowed in the reference impl.
+
+	def clear = {
+		forcedRollback = 0
+		failedValidation = 0
+		failedConcurrentUpdate = 0
+		failedConcurrentInsert = 0
+	}
+
 	//@inline //TODO FIX IT: it should be inlined for production use
 	def forceDebug(msg: => String)(implicit xact:Transaction) = println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
 	def debug(msg: => String)(implicit xact:Transaction) = if(DEBUG) println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
@@ -206,6 +218,7 @@ object MVCCTpccTableV4 {
 					debug("\t\tchecking whether " + dv + " (in " + t + ") matches predicates in " + xact)
 					if(xact.matchesPredicates(dv)) {
 						debug("\tvalidation failed")
+						failedValidation += 1
 						return false
 					}
 					else {
@@ -319,8 +332,13 @@ object MVCCTpccTableV4 {
 	class MVCCException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends RuntimeException(message, cause) {
 		// xact.rollback //rollback the transaction upon any exception
 	}
-	class MVCCConcurrentWriteException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause)
-	class MVCCRecordAlreayExistsException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause)
+	class MVCCConcurrentWriteException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause) {
+		failedConcurrentUpdate += 1
+	}
+
+	class MVCCRecordAlreayExistsException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause) {
+		failedConcurrentInsert += 1
+	}
 
 	// this should not be modified
 	// it is set to false in order to make the inheritance
@@ -559,7 +577,13 @@ class MVCCTpccTableV4 extends TpccTable(7) {
       (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data,c_id)
     }
 
-    override def getAllMapsInfoStr:String = ""
+    override def getAllMapsInfoStr:String = {
+    	("forcedRollback => " + forcedRollback + "\n") +
+		("failedValidation => " + failedValidation + "\n") +
+		("failedConcurrentUpdate => " + failedConcurrentUpdate + "\n") +
+		("failedConcurrentInsert => " + failedConcurrentInsert + "\n")
+		//+ (",%d\n,%d\n,%d\n,%d\n".format(forcedRollback,failedValidation,failedConcurrentUpdate,failedConcurrentInsert))
+    }
 
     override def toTpccTable = {
     	val res = new TpccTable(7)

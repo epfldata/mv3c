@@ -139,6 +139,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
           }
         }
         if(failed) {
+          MVCCTpccTableV4.forcedRollback += 1
           ISharedData.rollback
           return 1
         }
