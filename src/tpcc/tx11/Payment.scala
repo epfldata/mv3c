@@ -46,9 +46,9 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV4 with IPaymentInMem {
   override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float):Int = {
     implicit val xact = ISharedData.begin("payment")
     try {
-      PaymentTxOps.updateWarehouse(w_id, { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) => {
-        PaymentTxOps.updateDistrict(w_id,d_id, { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) => { 
-          var c: ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] = null
+      PaymentTxOps.updateWarehouse(w_id, { warehouse => warehouse.row match { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) =>
+        PaymentTxOps.updateDistrict(w_id,d_id, { district => district.row match { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) =>
+          var c: ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion[CustomerTblKey,CustomerTblValue] = null
           if (c_by_name > 0) {
             c = ISharedData.findCustomerEntryByName(c_w_id, c_d_id, c_last_input)
           } else {
@@ -146,10 +146,10 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV4 with IPaymentInMem {
     }
   }
   object PaymentTxOps {
-    def updateWarehouse(w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double)) => (String, String, String, String, String, String, Float, Double))(implicit xact:Transaction) = {
+    def updateWarehouse(w_id:Int, updateFunc:DeltaVersion[WarehouseTblKey,WarehouseTblValue] => WarehouseTblValue)(implicit xact:Transaction) = {
       ISharedData.onUpdate_Warehouse_byFunc(w_id,updateFunc)
     }
-    def updateDistrict(w_id:Int, d_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int))(implicit xact:Transaction) = {
+    def updateDistrict(w_id:Int, d_id:Int, updateFunc:DeltaVersion[DistrictTblKey,DistrictTblValue] => DistrictTblValue)(implicit xact:Transaction) = {
       ISharedData.onUpdate_District_byFunc(d_id,w_id, updateFunc)
     }
     def insertHistory(h_c_id:Int,h_c_d_id:Int,h_c_w_id:Int,h_d_id:Int,h_w_id:Int,h_date:Date,h_amount:Float,h_data:String)(implicit xact:Transaction) = {

@@ -6,7 +6,6 @@ import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import StockLevel._
-import ddbt.tpcc.tx.TpccTable._
 import ddbt.tpcc.tx.MVCCTpccTableV4._
 
 object StockLevel {

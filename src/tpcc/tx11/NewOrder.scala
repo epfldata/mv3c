@@ -50,21 +50,88 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
    *      + insertOrderLine
    *
    */
-  override def newOrderTx(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stock:Array[Int], bg:Array[Char], amt:Array[Float]): Int = {
+  override def newOrderTx(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stocks:Array[Int], bg:Array[Char], amt:Array[Float]): Int = {
     implicit val xact = ISharedData.begin("neworder")
     try {
       if(SHOW_OUTPUT) logger.info("- Started NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
 
-      var ol_number = 0
-      var failed = false
       val idata = new Array[String](o_ol_count)
+
+      val (customer, warehouse) = NewOrderTxOps.findCustomerWarehouseFinancialInfo(w_id,d_id,c_id)
+      val (c_discount, c_last, c_credit, w_tax) = (customer.getImage._13, customer.row._3, customer.row._11, warehouse.row._7)
+
+      var ditsrict: DeltaVersion[DistrictTblKey,DistrictTblValue] = null
+      NewOrderTxOps.updateDistrictNextOrderId(w_id,d_id,dv => {
+        ditsrict = dv
+        val cv = dv.row
+        (cv._1,cv._2,cv._3,cv._4,cv._5,cv._6,cv._7,cv._8,cv._9+1)
+      })
+      val d_tax = ditsrict.row._7
+      val o_id = ditsrict.row._9
+
+      //var o_all_local:Boolean = true
+      //supware.foreach { s_w_id => if(s_w_id != w_id) o_all_local = false }
+      //val o_ol_count = supware.length
+
+      NewOrderTxOps.insertOrder(o_id, w_id, d_id, c_id, datetime, o_ol_count, o_all_local > 0)
+
+      NewOrderTxOps.insertNewOrder(o_id, w_id, d_id)
+
+      var total = 0f
+      var failed = false
+      var ol_number = 0
 
       while(ol_number < o_ol_count) {
         try {
-          val (/*_, */i_name, i_price, i_data) = NewOrderTxOps.findItem(itemid(ol_number))
+          val item = NewOrderTxOps.findItem(itemid(ol_number))
+          val (/*_, */i_name, i_price, i_data) = item.row
           price(ol_number) = i_price
           iname(ol_number) = i_name
           idata(ol_number) = i_data
+
+          val ol_supply_w_id = supware(ol_number)
+          val ol_i_id = itemid(ol_number)
+          val ol_quantity = quantity(ol_number)
+          var ol_dist_info = ""
+          NewOrderTxOps.updateStock(ol_supply_w_id, ol_i_id, stock => stock.row match {
+            case (s_quantity,s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,s_ytd,s_order_cnt,s_remote_cnt,s_data) =>
+              if(idata(ol_number).contains("original") && s_data.contains("original")) {
+                bg(ol_number) = 'B'
+              } else {
+                bg(ol_number) = 'G'
+              }
+
+              ol_dist_info = d_id match {
+                case 1  => s_dist_01
+                case 2  => s_dist_02
+                case 3  => s_dist_03
+                case 4  => s_dist_04
+                case 5  => s_dist_05
+                case 6  => s_dist_06
+                case 7  => s_dist_07
+                case 8  => s_dist_08
+                case 9  => s_dist_09
+                case 10 => s_dist_10
+              }
+
+              stocks(ol_number) = s_quantity
+
+              var new_s_quantity = s_quantity - ol_quantity
+              if(s_quantity <= ol_quantity) new_s_quantity += 91
+
+              //TODO this is the correct version but is not implemented in the correctness test
+              // var s_remote_cnt_increment = 0
+              // if(ol_supply_w_id != w_id) s_remote_cnt_increment = 1
+              ((new_s_quantity,s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,
+                s_ytd/*+ol_quantity*/,s_order_cnt/*+1*/,s_remote_cnt/*+s_remote_cnt_increment*/, s_data))
+          })
+
+          val ol_amount = (ol_quantity * price(ol_number) * (1+w_tax+d_tax) * (1 - c_discount)).asInstanceOf[Float]
+          amt(ol_number) =  ol_amount
+          total += ol_amount
+
+          NewOrderTxOps.insertOrderLine(w_id, d_id, o_id, ol_number+1/*to start from 1*/, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info)
+
         } catch {
           case nsee: Exception => {
             if(SHOW_OUTPUT) logger.info("An item was not found in handling NewOrder transaction for warehouse=%d, district=%d, customer=%d, items=%s".format(w_id,d_id,c_id, java.util.Arrays.toString(itemid)))
@@ -75,74 +142,6 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
           ISharedData.rollback
           return 1
         }
-        ol_number += 1
-      }
-
-      val (c_discount, c_last, c_credit, w_tax) = NewOrderTxOps.findCustomerWarehouseFinancialInfo(w_id,d_id,c_id)
-
-      var d_tax = 0f
-      var o_id = 0
-      NewOrderTxOps.updateDistrictNextOrderId(w_id,d_id,cv => {
-        d_tax=cv._7
-        o_id=cv._9
-        (cv._1,cv._2,cv._3,cv._4,cv._5,cv._6,d_tax,cv._8,o_id+1)
-      })
-      
-      //var o_all_local:Boolean = true
-      //supware.foreach { s_w_id => if(s_w_id != w_id) o_all_local = false }
-      //val o_ol_count = supware.length
-
-      NewOrderTxOps.insertOrder(o_id, w_id, d_id, c_id, datetime, o_ol_count, o_all_local > 0)
-
-      NewOrderTxOps.insertNewOrder(o_id, w_id, d_id)
-
-      var total = 0f
-
-      ol_number = 0
-      while(ol_number < o_ol_count) {
-        val ol_supply_w_id = supware(ol_number)
-        val ol_i_id = itemid(ol_number)
-        val ol_quantity = quantity(ol_number)
-        var ol_dist_info = ""
-        NewOrderTxOps.updateStock(ol_supply_w_id, ol_i_id, cv => cv match {
-          case (s_quantity,s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,s_ytd,s_order_cnt,s_remote_cnt,s_data) =>
-            if(idata(ol_number).contains("original") && s_data.contains("original")) {
-              bg(ol_number) = 'B'
-            } else {
-              bg(ol_number) = 'G'
-            }
-
-            ol_dist_info = d_id match {
-              case 1  => s_dist_01
-              case 2  => s_dist_02
-              case 3  => s_dist_03
-              case 4  => s_dist_04
-              case 5  => s_dist_05
-              case 6  => s_dist_06
-              case 7  => s_dist_07
-              case 8  => s_dist_08
-              case 9  => s_dist_09
-              case 10 => s_dist_10
-            }
-
-            stock(ol_number) = s_quantity
-
-            var new_s_quantity = s_quantity - ol_quantity
-            if(s_quantity <= ol_quantity) new_s_quantity += 91
-
-            //TODO this is the correct version but is not implemented in the correctness test
-            // var s_remote_cnt_increment = 0
-            // if(ol_supply_w_id != w_id) s_remote_cnt_increment = 1
-            ((new_s_quantity,s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,
-              s_ytd/*+ol_quantity*/,s_order_cnt/*+1*/,s_remote_cnt/*+s_remote_cnt_increment*/, s_data))
-        })
-
-        val ol_amount = (ol_quantity * price(ol_number) * (1+w_tax+d_tax) * (1 - c_discount)).asInstanceOf[Float]
-        amt(ol_number) =  ol_amount
-        total += ol_amount
-
-        NewOrderTxOps.insertOrderLine(w_id, d_id, o_id, ol_number+1/*to start from 1*/, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info)
-      
         ol_number += 1
       }
 
@@ -185,7 +184,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
      * @param new_d_next_o_id is the next order id
      * @param d_tax is the district tax value for this dirstrict
      */
-    def updateDistrictNextOrderId(w_id:Int, d_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int))(implicit xact:Transaction): Unit = {
+    def updateDistrictNextOrderId(w_id:Int, d_id:Int, updateFunc:DeltaVersion[DistrictTblKey,DistrictTblValue] => DistrictTblValue)(implicit xact:Transaction): Unit = {
       ISharedData.onUpdate_District_byFunc(d_id, w_id, updateFunc)
     }
 
@@ -215,7 +214,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
     /**
      * @param w_id is warehouse id
      */
-    def updateStock(w_id:Int, item_id:Int, updateFunc:((Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String)) => (Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String))(implicit xact:Transaction) = {
+    def updateStock(w_id:Int, item_id:Int, updateFunc:DeltaVersion[StockTblKey,StockTblValue] => StockTblValue)(implicit xact:Transaction) = {
       ISharedData.onUpdateStock_byFunc(item_id,w_id, updateFunc)
     }
 

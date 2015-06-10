@@ -328,6 +328,8 @@ object ConcurrentSHMapMVC3T {
     @inline
     final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
     @inline
+    final def row: V = img
+    @inline
     final def getKey: K = entry.key
     @inline
     final def getMap = entry.map
@@ -2032,6 +2034,15 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tbl:Table, val projs:(K,V)=>_ *)
   final def -=(key: K)(implicit xact:Transaction): Unit = {
     // debug("- started deleting " + key)
     val dv = getEntry(key)
+    if(dv ne null) {
+      dv.setEntryValue(NULL_VALUE)
+    }
+    // debug("- finished deleting " + key)
+    // replaceNode(key)
+  }
+  // @inline //inlining is disabled during development
+  final def -=(dv: DeltaVersion[K,V])(implicit xact:Transaction): Unit = {
+    // debug("- started deleting " + key)
     if(dv ne null) {
       dv.setEntryValue(NULL_VALUE)
     }

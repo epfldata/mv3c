@@ -6,7 +6,6 @@ import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import ddbt.tpcc.tx.MVCCTpccTableV4._
-import ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion
 import Delivery._
 
 object Delivery {
@@ -53,13 +52,18 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV4 with IDeliveryInMem {
       var d_id = 1
       while (d_id <= DIST_PER_WAREHOUSE) {
         DeliveryTxOps.findFirstNewOrder(w_id,d_id) match {
-          case Some(no_o_id) => {
+          case Some(newOrder) => {
+            val no_o_id = newOrder.getKey._1
             orderIDs(d_id - 1) = no_o_id
-            DeliveryTxOps.deleteNewOrder(w_id,d_id,no_o_id)
-            var c_id = 0
-            DeliveryTxOps.updateOrderCarrierAndFindCID(w_id,d_id,no_o_id,(cv => { c_id = cv._1; ((cv._1,cv._2,Some(o_carrier_id),cv._4,cv._5)) }))
-            val ol_total = DeliveryTxOps.updateOrderLineDeliveryDateAndFindOrderLineTotalAmount(w_id,d_id,no_o_id,datetime)
-            DeliveryTxOps.updateCustomerBalance(w_id,d_id,c_id,ol_total)
+            DeliveryTxOps.deleteNewOrder(newOrder)
+            var order:DeltaVersion[OrderTblKey,OrderTblValue] = null
+            DeliveryTxOps.updateOrderCarrierAndFindCID(w_id,d_id,no_o_id,{ ord => {
+              order = ord
+              val cv = ord.row
+              cv.copy(_3 = Some(o_carrier_id))
+            }})
+            val orderLines = DeliveryTxOps.updateOrderLineDeliveryDateAndFindOrderLineTotalAmount(w_id,d_id,no_o_id,datetime)
+            DeliveryTxOps.updateCustomerBalance(w_id,d_id,order,orderLines)
           }
           case None => orderIDs(d_id - 1) = 0
         }
@@ -116,37 +120,42 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV4 with IDeliveryInMem {
   }
 
   object DeliveryTxOps {
-    def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int)(implicit xact:Transaction):Option[Int] = {
+    def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int)(implicit xact:Transaction) = {
       ISharedData.findFirstNewOrder(no_w_id_input, no_d_id_input)
     }
 
-    def deleteNewOrder(no_w_id:Int, no_d_id:Int, no_o_id:Int)(implicit xact:Transaction) = {
-      ISharedData.onDelete_NewOrder(no_o_id,no_d_id,no_w_id)
+    def deleteNewOrder(newOrder: DeltaVersion[NewOrderTblKey,NewOrderTblValue])(implicit xact:Transaction) = {
+      ISharedData.onDelete_NewOrder(newOrder)
     }
 
-    def updateOrderCarrierAndFindCID(o_w_id:Int, o_d_id:Int, o_id:Int, updateFunc:((Int, Date, Option[Int], Int, Boolean)) => (Int, Date, Option[Int], Int, Boolean))(implicit xact:Transaction) = {
+    def updateOrderCarrierAndFindCID(o_w_id:Int, o_d_id:Int, o_id:Int, updateFunc:DeltaVersion[OrderTblKey,OrderTblValue] => OrderTblValue)(implicit xact:Transaction) = {
       ISharedData.onUpdate_Order_byFunc(o_id,o_d_id,o_w_id, updateFunc)
     }
 
-    def updateOrderLineDeliveryDateAndFindOrderLineTotalAmount(ol_w_id_input:Int, ol_d_id_input:Int, ol_o_id_input:Int, ol_delivery_d_input:Date)(implicit xact:Transaction):Float = {
+    def updateOrderLineDeliveryDateAndFindOrderLineTotalAmount(ol_w_id_input:Int, ol_d_id_input:Int, ol_o_id_input:Int, ol_delivery_d_input:Date)(implicit xact:Transaction) = {
       //Modifying the value of elements during traversal might lead to wrong result (e.g. seeing an entry several times)
-      var entryList = List[DeltaVersion[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)]]()
+      var orderLines = List[DeltaVersion[OrderLineTblKey,OrderLineTblValue]]()
       ISharedData.orderLineTblSliceEntry(0, (ol_o_id_input, ol_d_id_input, ol_w_id_input), { v => 
-        entryList = v :: entryList
+        orderLines = v :: orderLines
       })
 
-      var ol_total = 0f
-      entryList.foreach { v =>
-        val vi = v.getImage
-        ol_total += vi._5
-        v.setEntryValue(vi.copy(_3 = Some(ol_delivery_d_input)))
+      orderLines.foreach { orderLine =>
+        val vi = orderLine.row
+        orderLine.setEntryValue(vi.copy(_3 = Some(ol_delivery_d_input)))
       }
-      ol_total
+      orderLines
     }
 
-    def updateCustomerBalance(c_w_id:Int, c_d_id:Int, c_id:Int, ol_total:Float)(implicit xact:Transaction) = {
+    def updateCustomerBalance(c_w_id:Int, c_d_id:Int, deliveredOrder:DeltaVersion[OrderTblKey,OrderTblValue], orderLines:List[DeltaVersion[OrderLineTblKey,OrderLineTblValue]])(implicit xact:Transaction) = {
+      val c_id = deliveredOrder.row._1
+      var ol_total = 0f
+      orderLines.foreach { orderLine =>
+        val vi = orderLine.row
+        ol_total += vi._5
+      }
+      ol_total
       ISharedData.onUpdateCustomer_byFunc(c_id,c_d_id,c_w_id, {
-        c:((String, String, String, String, String, String, String, String, String, Date, String, Float, Float, Float, Float, Int, Int, String)) => c match {
+        customer:DeltaVersion[CustomerTblKey,CustomerTblValue] => customer.row match {
           case (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data) => 
             (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance+ol_total,c_ytd_payment,c_payment_cnt,c_delivery_cnt+1,c_data)
         }

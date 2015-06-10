@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 object MVCCTpccTableV4 {
 	type MutableMap[K,V] = ddbt.tpcc.lib.shm.SHMap[K,V]
+	type DeltaVersion[K,V<:Product] = ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion[K,V]
 
 	val DEBUG = false
 	val ERROR = false
@@ -38,9 +39,28 @@ object MVCCTpccTableV4 {
 	val ORDERLINE_TBL = "orderLineTbl"
 	val CUSTOMER_TBL = "customerTbl"
 	val STOCK_TBL = "stockTbl"
-	val CUSTOMERWAREHOUSE_TBL = "customerWarehouseFinancialInfoMap"
+	// val CUSTOMERWAREHOUSE_TBL = "customerWarehouseFinancialInfoMap"
 
-	val TABLES = List(NEWORDER_TBL,HISTORY_TBL,WAREHOUSE_TBL,ITEM_TBL,ORDER_TBL,DISTRICT_TBL,ORDERLINE_TBL,CUSTOMER_TBL,STOCK_TBL,CUSTOMERWAREHOUSE_TBL)
+	val TABLES = List(NEWORDER_TBL,HISTORY_TBL,WAREHOUSE_TBL,ITEM_TBL,ORDER_TBL,DISTRICT_TBL,ORDERLINE_TBL,CUSTOMER_TBL,STOCK_TBL/*,CUSTOMERWAREHOUSE_TBL*/)
+
+	type NewOrderTblKey = (Int,Int,Int)
+	type NewOrderTblValue = Tuple1[Boolean]
+	type HistoryTblKey = (Int,Int,Int,Int,Int,Date,Float,String)
+	type HistoryTblValue = Tuple1[Boolean]
+	type WarehouseTblKey = Int
+	type WarehouseTblValue = (String,String,String,String,String,String,Float,Double)
+	type ItemTblKey = Int
+	type ItemTblValue = (/*Int,*/String,Float,String)
+	type OrderTblKey = (Int,Int,Int)
+	type OrderTblValue = (Int,Date,Option[Int],Int,Boolean)
+	type DistrictTblKey = (Int,Int)
+	type DistrictTblValue = (String, String, String, String, String, String, Float, Double, Int)
+	type OrderLineTblKey = (Int,Int,Int,Int)
+	type OrderLineTblValue = (Int,Int,Option[Date],Int,Float,String)
+	type CustomerTblKey = (Int,Int,Int)
+	type CustomerTblValue = (String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)
+	type StockTblKey = (Int,Int)
+	type StockTblValue = (Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)
 
 	//@inline //TODO FIX IT: it should be inlined for production use
 	def forceDebug(msg: => String)(implicit xact:Transaction) = println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
@@ -275,25 +295,25 @@ object MVCCTpccTableV4 {
 		}
 
 		/////// TABLES \\\\\\\
-		val newOrderTbl = new ConcurrentSHMapMVC3T[(Int,Int,Int),Tuple1[Boolean]](NEWORDER_TBL,/*0.9f, 262144,*/ (k:(Int,Int,Int),v:Tuple1[Boolean]) => ((k._2, k._3)) )
+		val newOrderTbl = new ConcurrentSHMapMVC3T[NewOrderTblKey,NewOrderTblValue](NEWORDER_TBL,/*0.9f, 262144,*/ (k:NewOrderTblKey,v:NewOrderTblValue) => ((k._2, k._3)) )
 
-		val historyTbl = new ConcurrentSHMapMVC3T[(Int,Int,Int,Int,Int,Date,Float,String),Tuple1[Boolean]](HISTORY_TBL/*0.9f, 4194304)*/)
+		val historyTbl = new ConcurrentSHMapMVC3T[HistoryTblKey,HistoryTblValue](HISTORY_TBL/*0.9f, 4194304)*/)
 
-		val warehouseTbl = new ConcurrentSHMapMVC3T[Int,(String,String,String,String,String,String,Float,Double)](WAREHOUSE_TBL)
+		val warehouseTbl = new ConcurrentSHMapMVC3T[WarehouseTblKey,WarehouseTblValue](WAREHOUSE_TBL)
 
-		val itemPartialTbl = new ConcurrentSHMapMVC3T[Int,(/*Int,*/String,Float,String)](ITEM_TBL/*1f, 262144*/)
+		val itemPartialTbl = new ConcurrentSHMapMVC3T[ItemTblKey,ItemTblValue](ITEM_TBL/*1f, 262144*/)
 
-		val orderTbl = new ConcurrentSHMapMVC3T[(Int,Int,Int),(Int,Date,Option[Int],Int,Boolean)](ORDER_TBL,/*0.9f, 4194304,*/ (k:(Int,Int,Int), v:(Int,Date,Option[Int],Int,Boolean)) => ((k._2, k._3, v._1)) )
+		val orderTbl = new ConcurrentSHMapMVC3T[OrderTblKey,OrderTblValue](ORDER_TBL,/*0.9f, 4194304,*/ (k:OrderTblKey, v:OrderTblValue) => ((k._2, k._3, v._1)) )
 
-		val districtTbl = new ConcurrentSHMapMVC3T[(Int,Int),(String,String,String,String,String,String,Float,Double,Int)](DISTRICT_TBL/*1f, 32*/)
+		val districtTbl = new ConcurrentSHMapMVC3T[DistrictTblKey,DistrictTblValue](DISTRICT_TBL/*1f, 32*/)
 
-		val orderLineTbl = new ConcurrentSHMapMVC3T[(Int,Int,Int,Int),(Int,Int,Option[Date],Int,Float,String)](ORDERLINE_TBL,/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:(Int,Int,Int,Int), v:(Int,Int,Option[Date],Int,Float,String)) => ((k._1, k._2, k._3)) )
+		val orderLineTbl = new ConcurrentSHMapMVC3T[OrderLineTblKey,OrderLineTblValue](ORDERLINE_TBL,/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:OrderLineTblKey, v:OrderLineTblValue) => ((k._1, k._2, k._3)) )
 
-		val customerTbl = new ConcurrentSHMapMVC3T[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] (CUSTOMER_TBL,/*1f, 65536, List((1f, 16384)),*/ (k:(Int,Int,Int), v:(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)) => ((k._2, k._3, v._3)) )
+		val customerTbl = new ConcurrentSHMapMVC3T[CustomerTblKey,CustomerTblValue] (CUSTOMER_TBL,/*1f, 65536, List((1f, 16384)),*/ (k:CustomerTblKey, v:CustomerTblValue) => ((k._2, k._3, v._3)) )
 
-		val stockTbl = new ConcurrentSHMapMVC3T[(Int,Int),(Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)](STOCK_TBL/*1f, 262144*/)
+		val stockTbl = new ConcurrentSHMapMVC3T[StockTblKey,StockTblValue](STOCK_TBL/*1f, 262144*/)
 
-		val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVC3T[(Int,Int,Int),(Float,String,String,Float)](CUSTOMERWAREHOUSE_TBL/*1f, 65536*/)
+		// val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVC3T[(Int,Int,Int),(Float,String,String,Float)](CUSTOMERWAREHOUSE_TBL/*1f, 65536*/)
 	}
 
 	class MVCCException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends RuntimeException(message, cause) {
@@ -324,7 +344,7 @@ class MVCCTpccTableV4 extends TpccTable(7) {
 	override val orderLineTbl = null
 	override val customerTbl = null
 	override val stockTbl = null
-	override val customerWarehouseFinancialInfoMap = null
+	// override val customerWarehouseFinancialInfoMap = null
 
 	val tm = new TransactionManager
 
@@ -339,18 +359,21 @@ class MVCCTpccTableV4 extends TpccTable(7) {
 		tm.newOrderTbl += ((no_o_id, no_d_id, no_w_id), Tuple1(true))
 	}
 
-	def onDelete_NewOrder(no_o_id:Int, no_d_id:Int, no_w_id:Int)(implicit xact:Transaction) = {
-		tm.newOrderTbl -= ((no_o_id, no_d_id, no_w_id))
+	def onDelete_NewOrder(newOrder: DeltaVersion[NewOrderTblKey,NewOrderTblValue])(implicit xact:Transaction) = {
+		tm.newOrderTbl -= newOrder
 	}
 
-    /*Func*/ def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int)(implicit xact:Transaction):Option[Int] = {
-      var first_no_o_id:Option[Int] = None
-      tm.newOrderTbl.slice(0, (no_d_id_input, no_w_id_input)).foreach { case ((no_o_id,_,_),_) =>
-        if(no_o_id <= first_no_o_id.getOrElse(Integer.MAX_VALUE)) {
-          first_no_o_id = Some(no_o_id)
+    /*Func*/ def findFirstNewOrder(no_w_id_input:Int, no_d_id_input:Int)(implicit xact:Transaction) = {
+      var first_no_o_id = Integer.MAX_VALUE
+      var first_newOrder:Option[DeltaVersion[NewOrderTblKey,NewOrderTblValue]] = None
+      tm.newOrderTbl.slice(0, (no_d_id_input, no_w_id_input)).foreachEntry { newOrder => newOrder.getKey.getKey match { case (no_o_id,_,_) =>
+          if(no_o_id <= first_no_o_id) {
+            first_no_o_id = no_o_id
+            first_newOrder = Some(newOrder.getKey)
+          }
         }
       }
-      first_no_o_id
+      first_newOrder
     }
 
 	def onInsert_HistoryTbl(h_c_id:Int, h_c_d_id:Int, h_c_w_id:Int, h_d_id:Int, h_w_id:Int, h_date:Date, h_amount:Float, h_data:String)(implicit xact:Transaction) = {
@@ -362,7 +385,7 @@ class MVCCTpccTableV4 extends TpccTable(7) {
 	}
 
 	/*Func*/ def findItem(item_id:Int)(implicit xact:Transaction) = {
-		tm.itemPartialTbl(item_id)
+		tm.itemPartialTbl.getEntry(item_id)
 	}
 
 	def onInsert_Order(o_id:Int, o_d_id:Int, o_w_id:Int, o_c_id:Int, o_entry_d:Date, o_carrier_id:Option[Int], o_ol_cnt:Int, o_all_local:Boolean)(implicit xact:Transaction) = {
@@ -387,8 +410,8 @@ class MVCCTpccTableV4 extends TpccTable(7) {
 		tm.orderTbl.update((o_id,o_d_id,o_w_id),(currentVal/*:(Int, java.util.Date, Option[Int], Int, Boolean))*/ => ((o_c_id,currentVal._2,o_carrier_id,currentVal._4,currentVal._5))))
 	}
 
-	def onUpdate_Order_byFunc(o_id:Int, o_d_id:Int, o_w_id:Int, updateFunc:((Int, Date, Option[Int], Int, Boolean)) => (Int, Date, Option[Int], Int, Boolean))(implicit xact:Transaction) = {
-		tm.orderTbl.update((o_id,o_d_id,o_w_id),updateFunc)
+	def onUpdate_Order_byFunc(o_id:Int, o_d_id:Int, o_w_id:Int, updateFunc:DeltaVersion[OrderTblKey,OrderTblValue] => OrderTblValue)(implicit xact:Transaction) = {
+		tm.orderTbl.updateEntry((o_id,o_d_id,o_w_id),updateFunc)
 	}
 
 	def onInsert_Warehouse(w_id:Int, w_name:String, w_street_1:String, w_street_2:String, w_city:String, w_state:String, w_zip:String, w_tax:Float, w_ytd:Double)(implicit xact:Transaction) = {
@@ -399,8 +422,8 @@ class MVCCTpccTableV4 extends TpccTable(7) {
 		tm.warehouseTbl(w_id) = ((w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd))
 	}
 
-	def onUpdate_Warehouse_byFunc(w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double)) => (String, String, String, String, String, String, Float, Double))(implicit xact:Transaction) = {
-		tm.warehouseTbl.update(w_id,updateFunc)
+	def onUpdate_Warehouse_byFunc(w_id:Int, updateFunc:DeltaVersion[WarehouseTblKey,WarehouseTblValue] => WarehouseTblValue)(implicit xact:Transaction) = {
+		tm.warehouseTbl.updateEntry(w_id,updateFunc)
 	}
 
 	def onInsert_District(d_id:Int, d_w_id:Int, d_name:String, d_street1:String, d_street2:String, d_city:String, d_state:String, d_zip:String, d_tax:Float, d_ytd:Double, d_next_o_id:Int)(implicit xact:Transaction) = {
@@ -416,8 +439,8 @@ class MVCCTpccTableV4 extends TpccTable(7) {
 		tm.districtTbl((d_id,d_w_id)) = ((d_name,d_street1,d_street2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id))
 	}
 
-	def onUpdate_District_byFunc(d_id:Int, d_w_id:Int, updateFunc:((String, String, String, String, String, String, Float, Double, Int)) => (String, String, String, String, String, String, Float, Double, Int))(implicit xact:Transaction) = {
-		tm.districtTbl.update((d_id,d_w_id), updateFunc)
+	def onUpdate_District_byFunc(d_id:Int, d_w_id:Int, updateFunc:DeltaVersion[DistrictTblKey,DistrictTblValue] => DistrictTblValue)(implicit xact:Transaction) = {
+		tm.districtTbl.updateEntry((d_id,d_w_id), updateFunc)
 	}
 
 	/*Func*/ def findDistrict(w_id:Int, d_id:Int)(implicit xact:Transaction) = {
@@ -443,22 +466,23 @@ class MVCCTpccTableV4 extends TpccTable(7) {
       tm.customerTbl += ((c_id,c_d_id,c_w_id), (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data))
       var w_tax = 0f
       w_tax = tm.warehouseTbl(c_w_id)._7
-      tm.customerWarehouseFinancialInfoMap += ((c_id,c_d_id,c_w_id), (c_discount, c_last, c_credit, w_tax))
+      // tm.customerWarehouseFinancialInfoMap += ((c_id,c_d_id,c_w_id), (c_discount, c_last, c_credit, w_tax))
     }
 
     /*Func*/ def findCustomerWarehouseFinancialInfo(w_id:Int, d_id:Int, c_id:Int)(implicit xact:Transaction) = {
-      tm.customerWarehouseFinancialInfoMap(c_id,d_id,w_id)
+      // tm.customerWarehouseFinancialInfoMap(c_id,d_id,w_id)
+      (tm.customerTbl.getEntry((c_id,d_id,w_id)), tm.warehouseTbl.getEntry(w_id))
     }
 
     def onUpdateCustomer(c_id: Int, c_d_id: Int, c_w_id: Int, c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
       tm.customerTbl((c_id,c_d_id,c_w_id)) = ((c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,c_data))
     }
 
-    def onUpdateCustomer_byFunc(c_id: Int, c_d_id: Int, c_w_id: Int, updateFunc:((String, String, String, String, String, String, String, String, String, Date, String, Float, Float, Float, Float, Int, Int, String)) => (String, String, String, String, String, String, String, String, String, Date, String, Float, Float, Float, Float, Int, Int, String))(implicit xact:Transaction) = {
-      tm.customerTbl.update((c_id,c_d_id,c_w_id),updateFunc)
+    def onUpdateCustomer_byFunc(c_id: Int, c_d_id: Int, c_w_id: Int, updateFunc:DeltaVersion[CustomerTblKey,CustomerTblValue] => CustomerTblValue)(implicit xact:Transaction) = {
+      tm.customerTbl.updateEntry((c_id,c_d_id,c_w_id),updateFunc)
     }
 
-    def onUpdateCustomer_byEntry(c: DeltaVersion[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)], c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
+    def onUpdateCustomer_byEntry(c: DeltaVersion[CustomerTblKey,CustomerTblValue], c_first:String, c_middle:String, c_last:String, c_street_1:String, c_street_2:String, c_city:String, c_state:String, c_zip:String, c_phone:String, c_since:Date, c_credit:String, c_credit_lim:Float, c_discount:Float, c_balance:Float, c_ytd_payment:Float, c_payment_cnt:Int, c_delivery_cnt:Int, c_data:String)(implicit xact:Transaction) = {
     	c.setEntryValue((c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment/*+h_amount*/,c_payment_cnt/*+1*/,c_delivery_cnt,c_data))
     }
 
@@ -470,8 +494,8 @@ class MVCCTpccTableV4 extends TpccTable(7) {
       tm.stockTbl((s_i_id,s_w_id)) = ((s_quantity, s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,s_ytd,s_order_cnt,s_remote_cnt,s_data))
     }
 
-    def onUpdateStock_byFunc(s_i_id:Int, s_w_id:Int, updateFunc:((Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String)) => (Int, String, String, String, String, String, String, String, String, String, String, Int, Int, Int, String))(implicit xact:Transaction) = {
-      tm.stockTbl.update((s_i_id,s_w_id), updateFunc)
+    def onUpdateStock_byFunc(s_i_id:Int, s_w_id:Int, updateFunc:DeltaVersion[StockTblKey,StockTblValue] => StockTblValue)(implicit xact:Transaction) = {
+      tm.stockTbl.updateEntry((s_i_id,s_w_id), updateFunc)
     }
 
 	/*Func*/ def findStock(item_id:Int, w_id:Int)(implicit xact:Transaction) = {
