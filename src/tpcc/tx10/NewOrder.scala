@@ -55,28 +55,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV3 with INewOrderInMem {
     try {
       if(SHOW_OUTPUT) logger.info("- Started NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
 
-      var ol_number = 0
-      var failed = false
       val idata = new Array[String](o_ol_count)
-
-      while(ol_number < o_ol_count) {
-        try {
-          val (/*_, */i_name, i_price, i_data) = NewOrderTxOps.findItem(itemid(ol_number))
-          price(ol_number) = i_price
-          iname(ol_number) = i_name
-          idata(ol_number) = i_data
-        } catch {
-          case nsee: Exception => {
-            if(SHOW_OUTPUT) logger.info("An item was not found in handling NewOrder transaction for warehouse=%d, district=%d, customer=%d, items=%s".format(w_id,d_id,c_id, java.util.Arrays.toString(itemid)))
-            failed = true
-          }
-        }
-        if(failed) {
-          ISharedData.rollback
-          return 1
-        }
-        ol_number += 1
-      }
 
       val (c_discount, c_last, c_credit, w_tax) = NewOrderTxOps.findCustomerWarehouseFinancialInfo(w_id,d_id,c_id)
 
@@ -97,52 +76,70 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV3 with INewOrderInMem {
       NewOrderTxOps.insertNewOrder(o_id, w_id, d_id)
 
       var total = 0f
+      var failed = false
+      var ol_number = 0
 
-      ol_number = 0
       while(ol_number < o_ol_count) {
-        val ol_supply_w_id = supware(ol_number)
-        val ol_i_id = itemid(ol_number)
-        val ol_quantity = quantity(ol_number)
-        var ol_dist_info = ""
-        NewOrderTxOps.updateStock(ol_supply_w_id, ol_i_id, cv => cv match {
-          case (s_quantity,s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,s_ytd,s_order_cnt,s_remote_cnt,s_data) =>
-            if(idata(ol_number).contains("original") && s_data.contains("original")) {
-              bg(ol_number) = 'B'
-            } else {
-              bg(ol_number) = 'G'
-            }
+        try {
+          val (/*_, */i_name, i_price, i_data) = NewOrderTxOps.findItem(itemid(ol_number))
+          price(ol_number) = i_price
+          iname(ol_number) = i_name
+          idata(ol_number) = i_data
 
-            ol_dist_info = d_id match {
-              case 1  => s_dist_01
-              case 2  => s_dist_02
-              case 3  => s_dist_03
-              case 4  => s_dist_04
-              case 5  => s_dist_05
-              case 6  => s_dist_06
-              case 7  => s_dist_07
-              case 8  => s_dist_08
-              case 9  => s_dist_09
-              case 10 => s_dist_10
-            }
+          val ol_supply_w_id = supware(ol_number)
+          val ol_i_id = itemid(ol_number)
+          val ol_quantity = quantity(ol_number)
+          var ol_dist_info = ""
+          NewOrderTxOps.updateStock(ol_supply_w_id, ol_i_id, cv => cv match {
+            case (s_quantity,s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,s_ytd,s_order_cnt,s_remote_cnt,s_data) =>
+              if(idata(ol_number).contains("original") && s_data.contains("original")) {
+                bg(ol_number) = 'B'
+              } else {
+                bg(ol_number) = 'G'
+              }
 
-            stock(ol_number) = s_quantity
+              ol_dist_info = d_id match {
+                case 1  => s_dist_01
+                case 2  => s_dist_02
+                case 3  => s_dist_03
+                case 4  => s_dist_04
+                case 5  => s_dist_05
+                case 6  => s_dist_06
+                case 7  => s_dist_07
+                case 8  => s_dist_08
+                case 9  => s_dist_09
+                case 10 => s_dist_10
+              }
 
-            var new_s_quantity = s_quantity - ol_quantity
-            if(s_quantity <= ol_quantity) new_s_quantity += 91
+              stock(ol_number) = s_quantity
 
-            //TODO this is the correct version but is not implemented in the correctness test
-            // var s_remote_cnt_increment = 0
-            // if(ol_supply_w_id != w_id) s_remote_cnt_increment = 1
-            ((new_s_quantity,s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,
-              s_ytd/*+ol_quantity*/,s_order_cnt/*+1*/,s_remote_cnt/*+s_remote_cnt_increment*/, s_data))
-        })
+              var new_s_quantity = s_quantity - ol_quantity
+              if(s_quantity <= ol_quantity) new_s_quantity += 91
 
-        val ol_amount = (ol_quantity * price(ol_number) * (1+w_tax+d_tax) * (1 - c_discount)).asInstanceOf[Float]
-        amt(ol_number) =  ol_amount
-        total += ol_amount
+              //TODO this is the correct version but is not implemented in the correctness test
+              // var s_remote_cnt_increment = 0
+              // if(ol_supply_w_id != w_id) s_remote_cnt_increment = 1
+              ((new_s_quantity,s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,
+                s_ytd/*+ol_quantity*/,s_order_cnt/*+1*/,s_remote_cnt/*+s_remote_cnt_increment*/, s_data))
+          })
 
-        NewOrderTxOps.insertOrderLine(w_id, d_id, o_id, ol_number+1/*to start from 1*/, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info)
-      
+          val ol_amount = (ol_quantity * price(ol_number) * (1+w_tax+d_tax) * (1 - c_discount)).asInstanceOf[Float]
+          amt(ol_number) =  ol_amount
+          total += ol_amount
+
+          NewOrderTxOps.insertOrderLine(w_id, d_id, o_id, ol_number+1/*to start from 1*/, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info)
+
+        } catch {
+          case nsee: Exception => {
+            if(SHOW_OUTPUT) logger.info("An item was not found in handling NewOrder transaction for warehouse=%d, district=%d, customer=%d, items=%s".format(w_id,d_id,c_id, java.util.Arrays.toString(itemid)))
+            failed = true
+          }
+        }
+        if(failed) {
+          MVCCTpccTableV3.forcedRollback += 1
+          ISharedData.rollback
+          return 1
+        }
         ol_number += 1
       }
 
