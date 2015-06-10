@@ -555,8 +555,8 @@ class MVCCTpccTableV3 extends TpccTable(7) {
     	("forcedRollback => " + forcedRollback + "\n") +
 		("failedValidation => " + failedValidation + "\n") +
 		("failedConcurrentUpdate => " + failedConcurrentUpdate + "\n") +
-		("failedConcurrentInsert => " + failedConcurrentInsert + "\n") +
-		// (",%d\n,%d\n,%d\n,%d\n".format(forcedRollback,failedValidation,failedConcurrentUpdate,failedConcurrentInsert))
+		("failedConcurrentInsert => " + failedConcurrentInsert + "\n")
+		//+ (",%d\n,%d\n,%d\n,%d\n".format(forcedRollback,failedValidation,failedConcurrentUpdate,failedConcurrentInsert))
     }
 
     override def toTpccTable = {
