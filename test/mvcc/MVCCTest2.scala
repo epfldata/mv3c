@@ -63,7 +63,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
 
   it should "throw an exception on inserting an existing key" in {
     implicit val xact = tm.begin("T3")
-    a [MVCCRecordAlreayExistsException] should be thrownBy {
+    a [MVCCRecordAlreadyExistsException] should be thrownBy {
       tbl += (SingleHashKey(1,"z"),(3,"b"))
     }
     tbl.size should be (9)
@@ -73,7 +73,7 @@ class MVCCSpec2 extends FlatSpec with Matchers {
   it should "throw an exception on inserting an already inserted entry even by current transaction" in {
     implicit val xact = tm.begin("T4")
     tbl += (SingleHashKey(1,"y"),(4,"c"))
-    a [MVCCRecordAlreayExistsException] should be thrownBy {
+    a [MVCCRecordAlreadyExistsException] should be thrownBy {
       tbl += (SingleHashKey(1,"y"),(5,"d"))
     }
     tbl.size should be (10)
