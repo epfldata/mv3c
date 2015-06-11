@@ -60,14 +60,14 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
       val (customer, warehouse) = NewOrderTxOps.findCustomerWarehouseFinancialInfo(w_id,d_id,c_id)
       val (c_discount, c_last, c_credit, w_tax) = (customer.getImage._13, customer.row._3, customer.row._11, warehouse.row._7)
 
-      var ditsrict: DeltaVersion[DistrictTblKey,DistrictTblValue] = null
+      var district: DeltaVersion[DistrictTblKey,DistrictTblValue] = null
       NewOrderTxOps.updateDistrictNextOrderId(w_id,d_id,dv => {
-        ditsrict = dv
+        district = dv
         val cv = dv.row
         (cv._1,cv._2,cv._3,cv._4,cv._5,cv._6,cv._7,cv._8,cv._9+1)
       })
-      val d_tax = ditsrict.row._7
-      val o_id = ditsrict.row._9
+      val d_tax = district.row._7
+      val o_id = district.row._9
 
       //var o_all_local:Boolean = true
       //supware.foreach { s_w_id => if(s_w_id != w_id) o_all_local = false }

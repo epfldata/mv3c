@@ -15,7 +15,7 @@ import ddbt.tpcc.tx._
 import MVCCTpccTableV4.Table
 import MVCCTpccTableV4.Transaction
 import MVCCTpccTableV4.MVCCConcurrentWriteException
-import MVCCTpccTableV4.MVCCRecordAlreayExistsException
+import MVCCTpccTableV4.MVCCRecordAlreadyExistsException
 import MVCCTpccTableV4.PredicateOp
 import MVCCTpccTableV4.GetPredicateOp
 import MVCCTpccTableV4.SlicePredicateOp
@@ -420,7 +420,7 @@ object ConcurrentSHMapMVC3T {
       if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
     }
 
-    final override def toString = "<"+img+" with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " for " + getTable +" written by " + vXact + ">"
+    final override def toString = "<{"+getKey+" -> "+img+"} with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " for " + getTable +" written by " + vXact + ">"
 
     // final override def hashCode: Int = {
     //   entry.hashCode ^ img.hashCode
@@ -511,16 +511,16 @@ object ConcurrentSHMapMVC3T {
           if((value.op == UPDATE_OP) && (op == UPDATE_OP)) {
             value.cols = value.cols.union(cols).sorted
             value.op = op
-            debug("\t case 2 => " + value)
+            // debug("\t case 2 => " + value)
           } else {
             value.cols = cols
             value.op = op
-            debug("\t case 3 => " + value)
+            // debug("\t case 3 => " + value)
           }
         } else {
-          if(!value.vXact.isCommitted) throw new MVCCConcurrentWriteException("%s has already written on this object (%s<%s>), so %s should get aborted.".format(value.vXact, map.tbl, key, xact))
+          if(!value.vXact.isCommitted || !value.isVisible) throw new MVCCConcurrentWriteException("%s has already written on this object (%s<%s>), so %s should get aborted.".format(value.vXact, map.tbl, key, xact))
           value = new DeltaVersion(xact,this,newValue,cols,op,value)
-          debug("\t case 4 => " + value)
+          // debug("\t case 4 => " + value)
         }
       }
       // oldValue
@@ -1991,7 +1991,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tbl:Table, val projs:(K,V)=>_ *)
         // (i) in the snapshot that is visible to the transaction,
         // (ii) in the last committed version of the key’s record, or
         // (iii) uncommitted as an insert in an undo buffer
-        throw new MVCCRecordAlreayExistsException("The record (%s -> %s) already exists (written by %s). Could not insert the new value (%s) from %s".format(oldVal.getKey, oldVal.getImage, oldVal.vXact, value, xact))
+        throw new MVCCRecordAlreadyExistsException("The record (%s -> %s) already exists (written by %s). Could not insert the new value (%s) from %s".format(oldVal.getKey, oldVal.getImage, oldVal.vXact, value, xact))
       }
 
       if (idxs != Nil) idxs.foreach{ idx => 

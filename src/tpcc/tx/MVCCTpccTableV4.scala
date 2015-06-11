@@ -78,7 +78,7 @@ object MVCCTpccTableV4 {
 	def forceDebug(msg: => String)(implicit xact:Transaction) = println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
 	def debug(msg: => String)(implicit xact:Transaction) = if(DEBUG) println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
 	def error(msg: => String)(implicit xact:Transaction): Unit = if(ERROR) System.err.println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
-	def error(e: Throwable)(implicit xact:Transaction): Unit = if(ERROR) { e.getStackTrace.foreach(st => error(st.toString))}
+	def error(e: Throwable)(implicit xact:Transaction): Unit = if(ERROR) { error(e.toString); e.getStackTrace.foreach(st => error(st.toString))}
 
 	type Table = String
 	trait PredicateOp {
@@ -335,8 +335,7 @@ object MVCCTpccTableV4 {
 	class MVCCConcurrentWriteException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause) {
 		failedConcurrentUpdate += 1
 	}
-
-	class MVCCRecordAlreayExistsException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause) {
+	class MVCCRecordAlreadyExistsException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause) {
 		failedConcurrentInsert += 1
 	}
 
