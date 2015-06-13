@@ -418,7 +418,7 @@ object ConcurrentSHMapMVCC {
       if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
     }
 
-    final override def toString = "<{"+getKey+" -> "+img+"} with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " for " + getTable +" written by " + vXact + ">"
+    final override def toString = "<" + getTable +" {"+getKey+" -> "+img+"} with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " written by " + vXact + ">"
 
     // final override def hashCode: Int = {
     //   entry.hashCode ^ img.hashCode
@@ -516,7 +516,7 @@ object ConcurrentSHMapMVCC {
             // debug("\t case 3 => " + value)
           }
         } else {
-          if(!value.vXact.isCommitted || !value.isVisible) throw new MVCCConcurrentWriteException("%s has already written on this object (%s<%s>), so %s should get aborted.".format(value.vXact, map.tbl, key, xact))
+          if(!value.vXact.isCommitted || !value.isVisible) throw new MVCCConcurrentWriteException("%s has already written on this object (%s<%s>), so %s should get aborted.".format(value, map.tbl, key, xact))
           value = new DeltaVersion(xact,this,newValue,cols,op,value)
           // debug("\t case 4 => " + value)
         }
@@ -1866,6 +1866,10 @@ class ConcurrentSHMapMVCC[K, V <: Product](val tbl:Table, val projs:(K,V)=>_ *)(
    * @throws NullPointerException if the specified key or value is null
    */
   def put(key: K, value: V)(implicit xact:Transaction): Unit = {
+    //TODO: For foreign key constraints we need to detect the case
+    //      when an active transaction deletes a primary key and a
+    //      concurrent transaction inserts a foreign key reference
+    //      to that key
     putVal(key, value, false)
   }
   def +=(key: K, value: V)(implicit xact:Transaction): Unit = {
