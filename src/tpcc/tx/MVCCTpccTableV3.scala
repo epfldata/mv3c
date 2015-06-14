@@ -73,6 +73,8 @@ object MVCCTpccTableV3 {
 	case class ForeachPredicateOp() extends PredicateOp {
 		def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
 	}
+	//TODO: the base implementation uses 64-bit comparison summaries for compacted predicate entries, should we do that, too?
+	//TODO: predicate should know the accessed fields, too, in order to do the attribute-level validation
 	case class Predicate(tbl: Table, op: PredicateOp) {
 		@inline
 		def matches(dv: DeltaVersion[_,_]) = op.matches(dv)
@@ -89,6 +91,8 @@ object MVCCTpccTableV3 {
 		def transactionId = startTS //if(xactId < TransactionManager.TRANSACTION_ID_GEN_START) xactId else (xactId - TransactionManager.TRANSACTION_ID_GEN_START)
 
 		def isCommitted = (xactId < TransactionManager.TRANSACTION_ID_GEN_START)
+
+		def isReadOnly = undoBuffer.isEmpty
 
 		def addPredicate(p:Predicate) = {
 			val pList = predicates.getNullOnNotFound(p.tbl)
@@ -161,7 +165,17 @@ object MVCCTpccTableV3 {
 		def commit(implicit xact:Transaction):Boolean = this.synchronized {
 			debug("commit started")
 			if(activeXacts.contains(xact.xactId)){
-				if(!validate) {
+				if(xact.isReadOnly) {
+					xact.xactId = xact.startTS
+					activeXacts.synchronized {
+						activeXacts -= xactId
+					}
+					recentlyCommittedXacts.synchronized {
+						recentlyCommittedXacts += xact
+					}
+					debug("(read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
+					true
+				} else if(!validate) {
 					debug("commit failed: transaction validation failed! We have to roll it back...")
 					rollback
 					false
@@ -187,7 +201,8 @@ object MVCCTpccTableV3 {
 		}
 		//TODO: should be implemented completely
 		// missing:
-		//  - validation phase
+		//  - validation can run in parallel for the transactions that are in this stage (we do not have to synchronize it)
+		//  - attribute-level validation should be supported
 		def validate(implicit xact:Transaction): Boolean = {
 			debug("\tvalidation started")
 			val concurrentXacts = recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
