@@ -222,7 +222,8 @@ object MVCCTpccTableV4 {
 		}
 		//TODO: should be implemented completely
 		// missing:
-		//  - validation phase
+		//  - validation can run in parallel for the transactions that are in this stage (we do not have to synchronize it)
+		//  - attribute-level validation should be supported
 		def validate(implicit xact:Transaction): Boolean = {
 			debug("\tvalidation started")
 			val concurrentXacts = recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
