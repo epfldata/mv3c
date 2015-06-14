@@ -185,7 +185,8 @@ object MVCCTpccTableV4 {
 		}
 		def commit(implicit xact:Transaction):Boolean = this.synchronized {
 			debug("commit started")
-			if(activeXacts.contains(xact.xactId)){
+			val xactId = xact.xactId
+			if(activeXacts.contains(xactId)){
 				if(xact.isReadOnly) {
 					xact.xactId = xact.startTS
 					activeXacts.synchronized {
@@ -201,7 +202,6 @@ object MVCCTpccTableV4 {
 					rollback
 					false
 				} else {
-					val xactId = xact.xactId
 					activeXacts.synchronized {
 						xact.xactId = startAndCommitTimestampGen.getAndIncrement()
 						activeXacts -= xactId
