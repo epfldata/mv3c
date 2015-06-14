@@ -58,7 +58,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
       val idata = new Array[String](o_ol_count)
 
       val (customer, warehouse) = NewOrderTxOps.findCustomerWarehouseFinancialInfo(w_id,d_id,c_id)
-      val (c_discount, c_last, c_credit, w_tax) = (customer.getImage._13, customer.row._3, customer.row._11, warehouse.row._7)
+      val (c_discount, c_last, c_credit, w_tax) = (customer.row._13, customer.row._3, customer.row._11, warehouse.row._7)
 
       var district: DeltaVersion[DistrictTblKey,DistrictTblValue] = null
       NewOrderTxOps.updateDistrictNextOrderId(w_id,d_id,dv => {

@@ -81,23 +81,19 @@ object MVCCTpccTableV4 {
 	def error(e: Throwable)(implicit xact:Transaction): Unit = if(ERROR) { error(e.toString); e.getStackTrace.foreach(st => error(st.toString))}
 
 	type Table = String
-	trait PredicateOp {
-		def matches(dv: DeltaVersion[_,_]): Boolean
-	}
-	case class GetPredicateOp[K](key:K) extends PredicateOp {
-		def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
-	}
-	case class SlicePredicateOp[K](part:Int, partKey:K) extends PredicateOp {
-		def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
-	}
-	case class ForeachPredicateOp() extends PredicateOp {
-		def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
-	}
 	//TODO: the base implementation uses 64-bit comparison summaries for compacted predicate entries, should we do that, too?
 	//TODO: predicate should know the accessed fields, too, in order to do the attribute-level validation
-	case class Predicate(tbl: Table, op: PredicateOp) {
-		@inline
-		def matches(dv: DeltaVersion[_,_]) = op.matches(dv)
+	abstract class Predicate(val tbl: Table) {
+		def matches(dv: DeltaVersion[_,_]): Boolean
+	}
+	case class GetPredicate[K](override val tbl: Table, key:K) extends Predicate(tbl) {
+		def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
+	}
+	case class SlicePredicate[K](override val tbl: Table, part:Int, partKey:K) extends Predicate(tbl) {
+		def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
+	}
+	case class ForeachPredicate(override val tbl: Table) extends Predicate(tbl) {
+		def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
 	}
 
 	class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
