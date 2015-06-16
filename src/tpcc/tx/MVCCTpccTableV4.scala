@@ -11,7 +11,7 @@ import ddbt.tpcc.lib.concurrent.ConcurrentSHMap
 import ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T
 import ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.SEntryMVCC
 import ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion
-import ConcurrentSHMapMVC3T.{INSERT_OP, DELETE_OP, UPDATE_OP}
+import ConcurrentSHMapMVC3T.{Predicate, Table, INSERT_OP, DELETE_OP, UPDATE_OP}
 import ddbt.tpcc.loadtest.TpccConstants._
 import scala.concurrent._
 import ExecutionContext.Implicits.global
@@ -80,27 +80,11 @@ object MVCCTpccTableV4 {
 	def error(msg: => String)(implicit xact:Transaction): Unit = if(ERROR) System.err.println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
 	def error(e: Throwable)(implicit xact:Transaction): Unit = if(ERROR) { error(e.toString); e.getStackTrace.foreach(st => error(st.toString))}
 
-	type Table = String
-	//TODO: the base implementation uses 64-bit comparison summaries for compacted predicate entries, should we do that, too?
-	//TODO: predicate should know the accessed fields, too, in order to do the attribute-level validation
-	abstract class Predicate(val tbl: Table) {
-		def matches(dv: DeltaVersion[_,_]): Boolean
-	}
-	case class GetPredicate[K](override val tbl: Table, key:K) extends Predicate(tbl) {
-		def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
-	}
-	case class SlicePredicate[K](override val tbl: Table, part:Int, partKey:K) extends Predicate(tbl) {
-		def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
-	}
-	case class ForeachPredicate(override val tbl: Table) extends Predicate(tbl) {
-		def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
-	}
-
 	class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
 		val DEFAULT_UNDO_BUFFER_SIZE = 64
 
 		val undoBuffer = new HashSet[DeltaVersion[_,_]]()
-		var predicates = new MutableMap[Table, HashSet[Predicate]](TABLES.size * 2)
+		var predicates = new MutableMap[Table, HashSet[Predicate[_,_]]](TABLES.size * 2)
 
 		def commitTS = xactId
 
@@ -110,13 +94,13 @@ object MVCCTpccTableV4 {
 
 		def isReadOnly = undoBuffer.isEmpty
 
-		def addPredicate(p:Predicate) = {
-			val pList = predicates.getNullOnNotFound(p.tbl)
+		def addPredicate(p:Predicate[_,_]) = {
+			val pList = predicates.getNullOnNotFound(p.tbl.tblName)
 			if(pList != null) pList += p
 			else {
-				val pBuf = new HashSet[Predicate]
+				val pBuf = new HashSet[Predicate[_,_]]
 				pBuf += p
-				predicates += (p.tbl, pBuf)
+				predicates += (p.tbl.tblName, pBuf)
 			}
 		}
 		def commit = tm.commit(this)
@@ -146,7 +130,7 @@ object MVCCTpccTableV4 {
 			false
 		}
 
-		def imageMatchesPredicates(dv:DeltaVersion[_,_], preds: HashSet[Predicate]): Boolean = {
+		def imageMatchesPredicates(dv:DeltaVersion[_,_], preds: HashSet[Predicate[_,_]]): Boolean = {
 			preds.foreach { p => if(p.matches(dv)) {
 					debug("\t\t\t matched " + p + "!")(this)
 					return true
