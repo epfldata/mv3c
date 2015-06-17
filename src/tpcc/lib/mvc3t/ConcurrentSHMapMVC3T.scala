@@ -378,7 +378,7 @@ object ConcurrentSHMapMVC3T {
     final def isVisible(implicit xact:Transaction): Boolean = entry.synchronized {
       /*val res = */(!isDeleted) && ((vXact eq xact) || 
           (vXact.isCommitted && (vXact.xactId < xact.startTS)
-              && ((prev == null) || (prev.vXact.commitTS > xact.startTS))
+              && ((prev == null) || ((prev.vXact ne xact) && (prev.vXact.commitTS > xact.startTS)))
           )
         )
       // if(res) {
