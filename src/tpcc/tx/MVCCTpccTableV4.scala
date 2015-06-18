@@ -85,6 +85,7 @@ object MVCCTpccTableV4 {
 
 		val undoBuffer = new HashSet[DeltaVersion[_,_]]()
 		var predicates = new MutableMap[Table, HashSet[Predicate[_,_]]](TABLES.size * 2)
+		var predicateResultCache = new MutableMap[Predicate[_,_], AnyRef](TABLES.size * 2)
 
 		def commitTS = xactId
 
@@ -103,6 +104,16 @@ object MVCCTpccTableV4 {
 				predicates += (p.tbl.tblName, pBuf)
 			}
 		}
+
+		def findPredicateCachedResult(p:Predicate[_,_]):Option[AnyRef] = {
+			val res = predicateResultCache.getNullOnNotFound(p)
+			if(res == null) None else Some(res)
+		}
+
+		def cachePredicateResult(p:Predicate[_,_], res: AnyRef) {
+			predicateResultCache += (p, res)
+		}
+
 		def commit = tm.commit(this)
 		def rollback = tm.rollback(this)
 
