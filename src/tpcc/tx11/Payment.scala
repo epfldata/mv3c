@@ -46,16 +46,39 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV4 with IPaymentInMem {
   override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float):Int = {
     implicit val xact = ISharedData.begin("payment")
     try {
-      PaymentTxOps.updateWarehouse(w_id, { warehouse => warehouse.row match { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) =>
-        PaymentTxOps.updateDistrict(w_id,d_id, { district => district.row match { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) =>
-          var c: ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion[CustomerTblKey,CustomerTblValue] = null
-          if (c_by_name > 0) {
-            c = ISharedData.findCustomerEntryByName(c_w_id, c_d_id, c_last_input)
+      var warehousePred = ISharedData.tm.warehouseTbl.getPred(w_id)
+      val warehouse = warehousePred.getEntry
+      warehouse.setEntryValue(warehouse.row match { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) =>
+        var districtPred = ISharedData.tm.districtTbl.getPred((d_id,w_id))
+        val district = districtPred.getEntry
+        district.setEntryValue(district.row match { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) =>
+          val customerPred = if (c_by_name > 0) {
+            var customers = new ArrayBuffer[MiniCustomer]
+            //we should slice over c_last_input
+            var customerSlicePred = ISharedData.tm.customerTbl.slicePred(0, (c_d_id, c_w_id, c_last_input))
+            customerSlicePred.slice.foreach { case ((c_id,_,_) , (c_first,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)) =>
+              customers += new MiniCustomer(c_id,c_first)
+            }
+            if (customers.size == 0) {
+            throw new RuntimeException("The customer C_LAST=" + c_last_input + " C_D_ID=" + c_d_id + " C_W_ID=" + c_w_id + " not found!")
+            }
+            // println("**********************************")
+            // println("Customers before:",customers)
+            customers = customers.sorted
+            // println("Customers after:",customers)
+            // println("**********************************")
+            var index: Int = customers.size / 2
+            if (customers.size % 2 == 0) {
+              index -= 1
+            }
+            val c_id = customers(index).cust_id
+            ISharedData.tm.customerTbl.getPred((c_id,c_d_id,c_w_id))
           } else {
-            c = ISharedData.findCustomerEntryById(c_w_id, c_d_id, c_id)
+            ISharedData.tm.customerTbl.getPred((c_id,c_d_id,c_w_id))
           }
-          val (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,found_c_data) = c.getImage
-          val found_c_id = c.entry.key._1
+          val customer = customerPred.getEntry
+          val (c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance,c_ytd_payment,c_payment_cnt,c_delivery_cnt,found_c_data) = customer.row
+          val found_c_id = customer.entry.key._1
           var c_data:String = found_c_data
 
           if (c_credit.contains("BC")) {
@@ -63,14 +86,14 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV4 with IPaymentInMem {
                 h_amount, datetime.toString, c_data)
             if (c_data.length > 500) c_data = c_data.substring(0, 500)
             //TODO this is the correct version but is not implemented in the correctness test
-            ISharedData.onUpdateCustomer_byEntry(c, c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance+h_amount,c_ytd_payment/*+h_amount*/,c_payment_cnt/*+1*/,c_delivery_cnt,c_data)
+            customer.setEntryValue(customer.row.copy(_14 = c_balance+h_amount/*, _15 = c_ytd_payment+h_amount, _16 = c_payment_cnt+1*/, _18 = c_data))
           } else {
             //TODO this is the correct version but is not implemented in the correctness test
-            ISharedData.onUpdateCustomer_byEntry(c, c_first,c_middle,c_last,c_street_1,c_street_2,c_city,c_state,c_zip,c_phone,c_since,c_credit,c_credit_lim,c_discount,c_balance+h_amount,c_ytd_payment/*+h_amount*/,c_payment_cnt/*+1*/,c_delivery_cnt,found_c_data)
+            customer.setEntryValue(customer.row.copy(_14 = c_balance+h_amount/*, _15 = c_ytd_payment+h_amount, _16 = c_payment_cnt+1*/))
           }
           //TODO this is the correct version but is not implemented in the correctness test
           val h_data: String = {if (w_name.length > 10) w_name.substring(0, 10) else w_name} + "    " + {if (d_name.length > 10) d_name.substring(0, 10) else d_name}
-          PaymentTxOps.insertHistory(found_c_id,c_d_id,c_w_id,d_id,w_id,datetime,h_amount,h_data)
+          ISharedData.tm.historyTbl += ((found_c_id,c_d_id,c_w_id,d_id,w_id,ddbt.tpcc.loadtest.Util.roundDate(datetime),h_amount,h_data), Tuple1(true))
 
           if(SHOW_OUTPUT) {
             val output: StringBuilder = new StringBuilder
@@ -125,9 +148,9 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV4 with IPaymentInMem {
             logger.info(output.toString)
           }
           (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd+h_amount,d_next_o_id)
-        }})
+        })
         (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd+h_amount)
-      }})
+      })
 
       ISharedData.commit
       1
@@ -147,16 +170,20 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV4 with IPaymentInMem {
       }
     }
   }
+  private class MiniCustomer(val cust_id:Int, val cust_first:String) extends Ordered[MiniCustomer] {
+    def compare(that: MiniCustomer) = this.cust_first.compareToIgnoreCase(that.cust_first)
+    override def toString = "MiniCustomer(%s,%s)".format(cust_id, cust_first)
+  }
   object PaymentTxOps {
-    def updateWarehouse(w_id:Int, updateFunc:DeltaVersion[WarehouseTblKey,WarehouseTblValue] => WarehouseTblValue)(implicit xact:Transaction) = {
-      ISharedData.onUpdate_Warehouse_byFunc(w_id,updateFunc)
-    }
-    def updateDistrict(w_id:Int, d_id:Int, updateFunc:DeltaVersion[DistrictTblKey,DistrictTblValue] => DistrictTblValue)(implicit xact:Transaction) = {
-      ISharedData.onUpdate_District_byFunc(d_id,w_id, updateFunc)
-    }
-    def insertHistory(h_c_id:Int,h_c_d_id:Int,h_c_w_id:Int,h_d_id:Int,h_w_id:Int,h_date:Date,h_amount:Float,h_data:String)(implicit xact:Transaction) = {
-      ISharedData.onInsert_HistoryTbl(h_c_id,h_c_d_id,h_c_w_id,h_d_id,h_w_id,h_date,h_amount,h_data)
-    }
+    // def updateWarehouse(w_id:Int, updateFunc:DeltaVersion[WarehouseTblKey,WarehouseTblValue] => WarehouseTblValue)(implicit xact:Transaction) = {
+    //   ISharedData.onUpdate_Warehouse_byFunc(w_id,updateFunc)
+    // }
+    // def updateDistrict(w_id:Int, d_id:Int, updateFunc:DeltaVersion[DistrictTblKey,DistrictTblValue] => DistrictTblValue)(implicit xact:Transaction) = {
+    //   ISharedData.onUpdate_District_byFunc(d_id,w_id, updateFunc)
+    // }
+    // def insertHistory(h_c_id:Int,h_c_d_id:Int,h_c_w_id:Int,h_d_id:Int,h_w_id:Int,h_date:Date,h_amount:Float,h_data:String)(implicit xact:Transaction) = {
+    //   ISharedData.onInsert_HistoryTbl(h_c_id,h_c_d_id,h_c_w_id,h_d_id,h_w_id,h_date,h_amount,h_data)
+    // }
   }
 }
 

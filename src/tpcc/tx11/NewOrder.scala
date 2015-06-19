@@ -57,25 +57,32 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
 
       val idata = new Array[String](o_ol_count)
 
-      val (customer, warehouse) = NewOrderTxOps.findCustomerWarehouseFinancialInfo(w_id,d_id,c_id)
+      val warehousePred = ISharedData.tm.warehouseTbl.getPred(w_id)
+      val warehouse = warehousePred.getEntry
+
+      val customerPred = ISharedData.tm.customerTbl.getPred((c_id,d_id,w_id))
+      val customer = customerPred.getEntry
+
       val (c_discount, c_last, c_credit, w_tax) = (customer.row._13, customer.row._3, customer.row._11, warehouse.row._7)
 
-      var district: DeltaVersion[DistrictTblKey,DistrictTblValue] = null
-      NewOrderTxOps.updateDistrictNextOrderId(w_id,d_id,dv => {
-        district = dv
-        val cv = dv.row
-        (cv._1,cv._2,cv._3,cv._4,cv._5,cv._6,cv._7,cv._8,cv._9+1)
-      })
+      var districtPred = ISharedData.tm.districtTbl.getPred((d_id,w_id))
+      val district = districtPred.getEntry
+
       val d_tax = district.row._7
       val o_id = district.row._9
+
+      district.setEntryValue(district.row.copy(_9 = district.row._9+1)/*, new ClosureTransition(List(districtPred), {
+        val newDistrict = districtPred.getEntry
+        newDistrict.setEntryValue(newDistrict.row.copy(_9 = newDistrict.row._9+1))
+      })*/)
 
       //var o_all_local:Boolean = true
       //supware.foreach { s_w_id => if(s_w_id != w_id) o_all_local = false }
       //val o_ol_count = supware.length
 
-      NewOrderTxOps.insertOrder(o_id, w_id, d_id, c_id, datetime, o_ol_count, o_all_local > 0)
+      ISharedData.tm.orderTbl += ((o_id,d_id,w_id), (c_id,datetime,None,o_ol_count,o_all_local > 0))
 
-      NewOrderTxOps.insertNewOrder(o_id, w_id, d_id)
+      ISharedData.tm.newOrderTbl += ((o_id, d_id, w_id), Tuple1(true))
 
       var total = 0f
       var failed = false
@@ -83,7 +90,9 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
 
       while(ol_number < o_ol_count) {
         try {
-          val item = NewOrderTxOps.findItem(itemid(ol_number))
+          val itemPred = ISharedData.tm.itemPartialTbl.getPred(itemid(ol_number))
+          val item = itemPred.getEntry
+
           val (/*_, */i_name, i_price, i_data) = item.row
           price(ol_number) = i_price
           iname(ol_number) = i_name
@@ -93,7 +102,11 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
           val ol_i_id = itemid(ol_number)
           val ol_quantity = quantity(ol_number)
           var ol_dist_info = ""
-          NewOrderTxOps.updateStock(ol_supply_w_id, ol_i_id, stock => stock.row match {
+
+
+          var stockPred = ISharedData.tm.stockTbl.getPred((ol_i_id,ol_supply_w_id))
+          val stock = stockPred.getEntry
+          stock.setEntryValue(stock.row match {
             case (s_quantity,s_dist_01,s_dist_02,s_dist_03,s_dist_04,s_dist_05,s_dist_06,s_dist_07,s_dist_08,s_dist_09,s_dist_10,s_ytd,s_order_cnt,s_remote_cnt,s_data) =>
               if(idata(ol_number).contains("original") && s_data.contains("original")) {
                 bg(ol_number) = 'B'
@@ -130,7 +143,8 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
           amt(ol_number) =  ol_amount
           total += ol_amount
 
-          NewOrderTxOps.insertOrderLine(w_id, d_id, o_id, ol_number+1/*to start from 1*/, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info)
+          ISharedData.tm.orderLineTbl += ((o_id, d_id, w_id, ol_number+1/*to start from 1*/), (ol_i_id, ol_supply_w_id, None, ol_quantity, ol_amount, ol_dist_info))
+
 
         } catch {
           case nsee: Exception => {
@@ -174,9 +188,9 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
      * @param c_id is customer id
      * @return (c_discount, c_last, c_credit, w_tax)
      */
-    def findCustomerWarehouseFinancialInfo(w_id:Int, d_id:Int, c_id:Int)(implicit xact:Transaction) = {
-      ISharedData.findCustomerWarehouseFinancialInfo(w_id,d_id,c_id)
-    }
+    // def findCustomerWarehouseFinancialInfo(w_id:Int, d_id:Int, c_id:Int)(implicit xact:Transaction) = {
+    //   ISharedData.findCustomerWarehouseFinancialInfo(w_id,d_id,c_id)
+    // }
 
     /**
      * @param w_id is warehouse id
@@ -185,46 +199,46 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
      * @param new_d_next_o_id is the next order id
      * @param d_tax is the district tax value for this dirstrict
      */
-    def updateDistrictNextOrderId(w_id:Int, d_id:Int, updateFunc:DeltaVersion[DistrictTblKey,DistrictTblValue] => DistrictTblValue)(implicit xact:Transaction): Unit = {
-      ISharedData.onUpdate_District_byFunc(d_id, w_id, updateFunc)
-    }
+    // def updateDistrictNextOrderId(w_id:Int, d_id:Int, updateFunc:DeltaVersion[DistrictTblKey,DistrictTblValue] => DistrictTblValue)(implicit xact:Transaction): Unit = {
+    //   ISharedData.onUpdate_District_byFunc(d_id, w_id, updateFunc)
+    // }
 
     /**
      * @param w_id is warehouse id
      * @param d_id is district id
      */
-    def insertOrder(o_id:Int, w_id:Int, d_id:Int, c_id:Int, o_entry_d:Date, o_ol_cnt:Int, o_all_local:Boolean)(implicit xact:Transaction): Unit = {
-      ISharedData.onInsert_Order(o_id,d_id,w_id , c_id, o_entry_d, None, o_ol_cnt, o_all_local)
-    }
+    // def insertOrder(o_id:Int, w_id:Int, d_id:Int, c_id:Int, o_entry_d:Date, o_ol_cnt:Int, o_all_local:Boolean)(implicit xact:Transaction): Unit = {
+    //   ISharedData.onInsert_Order(o_id,d_id,w_id , c_id, o_entry_d, None, o_ol_cnt, o_all_local)
+    // }
 
     /**
      * @param w_id is warehouse id
      * @param d_id is district id
      */
-    def insertNewOrder(o_id:Int, w_id:Int, d_id:Int)(implicit xact:Transaction): Unit = {
-      ISharedData.onInsert_NewOrder(o_id,d_id,w_id)
-    }
+    // def insertNewOrder(o_id:Int, w_id:Int, d_id:Int)(implicit xact:Transaction): Unit = {
+    //   ISharedData.onInsert_NewOrder(o_id,d_id,w_id)
+    // }
 
     /**
      * @param item_id is the item id
      */
-    def findItem(item_id:Int)(implicit xact:Transaction) = {
-      ISharedData.findItem(item_id)
-    }
+    // def findItem(item_id:Int)(implicit xact:Transaction) = {
+    //   ISharedData.findItem(item_id)
+    // }
 
     /**
      * @param w_id is warehouse id
      */
-    def updateStock(w_id:Int, item_id:Int, updateFunc:DeltaVersion[StockTblKey,StockTblValue] => StockTblValue)(implicit xact:Transaction) = {
-      ISharedData.onUpdateStock_byFunc(item_id,w_id, updateFunc)
-    }
+    // def updateStock(w_id:Int, item_id:Int, updateFunc:DeltaVersion[StockTblKey,StockTblValue] => StockTblValue)(implicit xact:Transaction) = {
+    //   ISharedData.onUpdateStock_byFunc(item_id,w_id, updateFunc)
+    // }
 
     /**
      * @param w_id is warehouse id
      * @param d_id is district id
      */
-    def insertOrderLine(w_id:Int, d_id:Int, o_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_quantity:Int, ol_amount:Float, ol_dist_info:String)(implicit xact:Transaction): Unit = {
-      ISharedData.onInsertOrderLine(o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, None, ol_quantity, ol_amount, ol_dist_info)
-    }
+    // def insertOrderLine(w_id:Int, d_id:Int, o_id:Int, ol_number:Int, ol_i_id:Int, ol_supply_w_id:Int, ol_quantity:Int, ol_amount:Float, ol_dist_info:String)(implicit xact:Transaction): Unit = {
+    //   ISharedData.onInsertOrderLine(o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, None, ol_quantity, ol_amount, ol_dist_info)
+    // }
   }
 }
