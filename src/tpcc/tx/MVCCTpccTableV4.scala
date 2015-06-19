@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 object MVCCTpccTableV4 {
 	type MutableMap[K,V] = ddbt.tpcc.lib.shm.SHMap[K,V]
 	type DeltaVersion[K,V<:Product] = ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion[K,V]
+	type ClosureTransition = ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.ClosureTransition
 
 	val DEBUG = false
 	val ERROR = false

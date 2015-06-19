@@ -344,10 +344,8 @@ object ConcurrentSHMapMVC3T {
     def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
   }
 
-  final class ClosureTransition {
-    def execute() {
-
-    }
+  final class ClosureTransition(preds: List[Predicate[_,_]], closure:() => List[DeltaVersion[_,_]])(implicit val xact:Transaction) {
+    val outputVersions = closure()
   }
 
   final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
@@ -369,22 +367,23 @@ object ConcurrentSHMapMVC3T {
     final def project(part: Int) = getMap.projs(part).apply(getKey, getImage)
 
     // @inline //inlining is disabled during development
-    final def setEntryValue(newValue: V)(implicit xact:Transaction): Unit = entry.synchronized {
+    final def setEntryValue(newValue: V)(implicit xact:Transaction): DeltaVersion[K,V] = entry.synchronized {
       var insertOrUpdate = false
-      if(op == DELETE_OP) {
-        entry.setTheValue(newValue, INSERT_OP)
+      val dv = if(op == DELETE_OP) {
         insertOrUpdate = true
+        entry.setTheValue(newValue, INSERT_OP)
       } else if(newValue == null) {
         entry.setTheValue(newValue, DELETE_OP)
       } else {
-        entry.setTheValue(newValue, UPDATE_OP, getModifiedColIds(newValue, img))
         insertOrUpdate = true
+        entry.setTheValue(newValue, UPDATE_OP, getModifiedColIds(newValue, img))
       }
 
       if(insertOrUpdate) {
         val map = getMap
         if (map.idxs!=Nil) map.idxs.foreach(_.set(entry.value))
       }
+      dv
     }
 
     // @inline //inlining is disabled during development
@@ -528,7 +527,7 @@ object ConcurrentSHMapMVC3T {
     }
 
     // @inline //inlining is disabled during development
-    final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): Unit = this.synchronized {
+    final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): DeltaVersion[K,V] = this.synchronized {
       // val oldValue: V = NULL_VALUE
       if(value == null) {
         // debug("setting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
@@ -554,6 +553,7 @@ object ConcurrentSHMapMVC3T {
         }
       }
       // oldValue
+      value
     }
 
     final override def hashCode: Int = {
@@ -1913,29 +1913,30 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
     //      to that key
     putVal(key, value, false)
   }
-  def +=(key: K, value: V)(implicit xact:Transaction): Unit = {
+  def +=(key: K, value: V)(implicit xact:Transaction): DeltaVersion[K,V] = {
     putVal(key, value, true)
   }
 
-  def update(key: K, value: V)(implicit xact:Transaction): Unit = {
+  def update(key: K, value: V)(implicit xact:Transaction): DeltaVersion[K,V] = {
     putVal(key, value, false)
   }
 
-  def update(key: K, updateFunc:V=>V)(implicit xact:Transaction): Unit = {
+  def update(key: K, updateFunc:V=>V)(implicit xact:Transaction): DeltaVersion[K,V] = {
     val dv = getEntry(key)
     dv.setEntryValue(updateFunc(dv.getImage))
   }
 
-  def updateEntry(key: K, updateFunc:DeltaVersion[K,V]=>V)(implicit xact:Transaction): Unit = {
+  def updateEntry(key: K, updateFunc:DeltaVersion[K,V]=>V)(implicit xact:Transaction): DeltaVersion[K,V] = {
     val dv = getEntry(key)
     dv.setEntryValue(updateFunc(dv))
   }
 
   /** Implementation for put and putIfAbsent */
-  final def putVal(key: K, value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): Unit = {
+  final def putVal(key: K, value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): DeltaVersion[K,V] = {
     var isAdded = false
     var oldVal: DeltaVersion[K,V] = null
     var oldValImg: V = NULL_VALUE
+    var newVal: DeltaVersion[K,V] = null
     var entry: Node[K, V] = null
 
     if (key == null || value == null) throw new NullPointerException
@@ -1954,6 +1955,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
       } else if ({f = tabAt(tab, {i = ((n - 1) & hash); i}); f} == null) {
         entry = new Node[K, V](this, hash, key, value, null)
         if (casTabAt(tab, i, null, entry)) {
+          newVal = entry.value
           isAdded = true
           break = true //todo: break is not supported
         }
@@ -1973,10 +1975,10 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
                   entry = e
                   oldVal = e.getTheValue
                   if(oldVal == null || oldVal.isDeleted) {
-                    e.setTheValue(value, INSERT_OP)
+                    newVal = e.setTheValue(value, INSERT_OP)
                   } else if (!onlyIfAbsent) {
                     oldValImg = oldVal.getImage
-                    e.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
+                    newVal = e.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
                   }
                   break = true //todo: break is not supported
                 }
@@ -1985,6 +1987,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
                   if ({e = e.next; e} == null) {
                     entry = new Node[K, V](this, hash, key, value, null)
                     pred.next = entry
+                    newVal = entry.value
                     isAdded = true
                     break = true //todo: break is not supported
                   }
@@ -1998,15 +2001,16 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
               p = (f.asInstanceOf[TreeBin[K, V]]).putTreeVal(hash, key, value, { insertedEntry =>
                 isAdded = true
                 entry = insertedEntry
+                newVal = entry.value
               })
               if (p != null) {
                 entry = p
                 oldVal = p.getTheValue
                 if(oldVal == null || oldVal.isDeleted) {
-                  p.setTheValue(value, INSERT_OP)
+                  newVal = p.setTheValue(value, INSERT_OP)
                 } else if (!onlyIfAbsent) {
                   oldValImg = oldVal.getImage
-                  p.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
+                  newVal = p.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
                 }
               }
             }
@@ -2026,7 +2030,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
     if(isAdded) addCount(1L, binCount)
 
     if(oldVal == null) {
-      if (idxs != Nil) idxs.foreach(_.set(entry.getTheValue))
+      if (idxs != Nil) idxs.foreach(_.set(newVal))
     } else {
       if(onlyIfAbsent && !oldVal.isDeleted) {
         //We ensure the uniqueness of primary keys by aborting a
@@ -2053,11 +2057,12 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
                                         // during garbage collection.
           // we need to always index both the old and new value,
           // as the old value will become invisible to the future xacts
-          idx.set(entry.getTheValue)
+          idx.set(newVal)
         // }
       }
     }
     // oldVal
+    newVal
   }
 
   /**
