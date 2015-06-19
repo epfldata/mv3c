@@ -65,35 +65,36 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV0 with IDeliveryInMem {
         }
         d_id += 1
       }
-
-      val output: StringBuilder = new StringBuilder
-      output.append("\n+---------------------------- DELIVERY ---------------------------+\n")
-      output.append(" Date: ").append(datetime)
-      output.append("\n\n Warehouse: ").append(w_id)
-      output.append("\n Carrier:   ").append(o_carrier_id)
-      output.append("\n\n Delivered Orders\n")
-      var skippedDeliveries: Int = 0
-      var i: Int = 1
-      while (i <= 10) {
-        if (orderIDs(i - 1) >= 0) {
-          output.append("  District ")
-          output.append(if (i < 10) " " else "")
-          output.append(i)
-          output.append(": Order number ")
-          output.append(orderIDs(i - 1))
-          output.append(" was delivered.\n")
+      if(SHOW_OUTPUT) {
+        val output: StringBuilder = new StringBuilder
+        output.append("\n+---------------------------- DELIVERY ---------------------------+\n")
+        output.append(" Date: ").append(datetime)
+        output.append("\n\n Warehouse: ").append(w_id)
+        output.append("\n Carrier:   ").append(o_carrier_id)
+        output.append("\n\n Delivered Orders\n")
+        var skippedDeliveries: Int = 0
+        var i: Int = 1
+        while (i <= 10) {
+          if (orderIDs(i - 1) >= 0) {
+            output.append("  District ")
+            output.append(if (i < 10) " " else "")
+            output.append(i)
+            output.append(": Order number ")
+            output.append(orderIDs(i - 1))
+            output.append(" was delivered.\n")
+          }
+          else {
+            output.append("  District ")
+            output.append(if (i < 10) " " else "")
+            output.append(i)
+            output.append(": No orders to be delivered.\n")
+            skippedDeliveries += 1
+          }
+          i += 1
         }
-        else {
-          output.append("  District ")
-          output.append(if (i < 10) " " else "")
-          output.append(i)
-          output.append(": No orders to be delivered.\n")
-          skippedDeliveries += 1
-        }
-        i += 1
+        output.append("+-----------------------------------------------------------------+\n\n")
+        logger.info(output.toString)
       }
-      output.append("+-----------------------------------------------------------------+\n\n")
-      if(SHOW_OUTPUT) logger.info(output.toString)
       // skippedDeliveries
 
       ISharedData.commit
