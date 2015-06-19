@@ -336,7 +336,7 @@ object ConcurrentSHMapMVC3T {
   case class SlicePredicate[P,K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], part:Int, partKey:P) extends Predicate(tbl) {
     def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
     def slice(implicit xact:Transaction) = xact.findPredicateCachedResult(this) match {
-      case Some(res) => res.asInstanceOf[ConcurrentSHIndexMVC3T[P,K,V]]
+      case Some(res) => res.asInstanceOf[ConcurrentSHIndexMVC3TEntry[P,K,V]]
       case None => val res = tbl.slice(this); xact.cachePredicateResult(this, res); res
     }
   }
