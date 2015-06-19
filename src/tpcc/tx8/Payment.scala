@@ -73,56 +73,58 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV1 with IPaymentInMem {
           val h_data: String = {if (w_name.length > 10) w_name.substring(0, 10) else w_name} + "    " + {if (d_name.length > 10) d_name.substring(0, 10) else d_name}
           PaymentTxOps.insertHistory(found_c_id,c_d_id,c_w_id,d_id,w_id,datetime,h_amount,h_data)
 
-          val output: StringBuilder = new StringBuilder
-          output.append("\n+---------------------------- PAYMENT ----------------------------+")
-          .append("\n Date: " + datetime)
-          .append("\n\n Warehouse: ").append(w_id)
-          .append("\n   Street:  ").append(w_street_1)
-          .append("\n   Street:  ").append(w_street_2)
-          .append("\n   City:    ").append(w_city)
-          .append("   State: ").append(w_state)
-          .append("  Zip: ").append(w_zip)
-          .append("\n\n District:  ").append(d_id)
-          .append("\n   Street:  ").append(d_street_1)
-          .append("\n   Street:  ").append(d_street_2)
-          .append("\n   City:    ").append(d_city)
-          .append("   State: ").append(d_state)
-          .append("  Zip: ").append(d_zip)
-          .append("\n\n Customer:  ").append(c_id)
-          .append("\n   Name:    ").append(c_first).append(" ").append(c_middle).append(" ").append(c_last)
-          .append("\n   Street:  ").append(c_street_1)
-          .append("\n   Street:  ").append(c_street_2)
-          .append("\n   City:    ").append(c_city)
-          .append("   State: ").append(c_state)
-          .append("  Zip: ").append(c_zip)
-          .append("\n   Since:   ")
-          if (c_since != null) {
-            output.append(c_since)
-          }
-          else {
-            output.append("")
-          }
-          output.append("\n   Credit:  ").append(c_credit)
-          .append("\n   Disc:    ").append(c_discount * 100).append("%")
-          .append("\n   Phone:   ").append(c_phone)
-          .append("\n\n Amount Paid:      ").append(h_amount)
-          .append("\n Credit Limit:     ").append(c_credit_lim)
-          .append("\n New Cust-Balance: ").append(c_balance)
-          if (c_credit == "BC") {
-            if (c_data.length > 50) {
-              output.append("\n\n Cust-Data: ").append(c_data.substring(0, 50))
-              val data_chunks: Int = (if (c_data.length > 200) 4 else c_data.length / 50)
-              var n: Int = 1
-              while (n < data_chunks) {
-                output.append("\n            ").append(c_data.substring(n * 50, (n + 1) * 50))
-                n += 1
-              }
-            } else {
-              output.append("\n\n Cust-Data: " + c_data)
+          if(SHOW_OUTPUT) {
+            val output: StringBuilder = new StringBuilder
+            output.append("\n+---------------------------- PAYMENT ----------------------------+")
+            .append("\n Date: " + datetime)
+            .append("\n\n Warehouse: ").append(w_id)
+            .append("\n   Street:  ").append(w_street_1)
+            .append("\n   Street:  ").append(w_street_2)
+            .append("\n   City:    ").append(w_city)
+            .append("   State: ").append(w_state)
+            .append("  Zip: ").append(w_zip)
+            .append("\n\n District:  ").append(d_id)
+            .append("\n   Street:  ").append(d_street_1)
+            .append("\n   Street:  ").append(d_street_2)
+            .append("\n   City:    ").append(d_city)
+            .append("   State: ").append(d_state)
+            .append("  Zip: ").append(d_zip)
+            .append("\n\n Customer:  ").append(c_id)
+            .append("\n   Name:    ").append(c_first).append(" ").append(c_middle).append(" ").append(c_last)
+            .append("\n   Street:  ").append(c_street_1)
+            .append("\n   Street:  ").append(c_street_2)
+            .append("\n   City:    ").append(c_city)
+            .append("   State: ").append(c_state)
+            .append("  Zip: ").append(c_zip)
+            .append("\n   Since:   ")
+            if (c_since != null) {
+              output.append(c_since)
             }
+            else {
+              output.append("")
+            }
+            output.append("\n   Credit:  ").append(c_credit)
+            .append("\n   Disc:    ").append(c_discount * 100).append("%")
+            .append("\n   Phone:   ").append(c_phone)
+            .append("\n\n Amount Paid:      ").append(h_amount)
+            .append("\n Credit Limit:     ").append(c_credit_lim)
+            .append("\n New Cust-Balance: ").append(c_balance)
+            if (c_credit == "BC") {
+              if (c_data.length > 50) {
+                output.append("\n\n Cust-Data: ").append(c_data.substring(0, 50))
+                val data_chunks: Int = (if (c_data.length > 200) 4 else c_data.length / 50)
+                var n: Int = 1
+                while (n < data_chunks) {
+                  output.append("\n            ").append(c_data.substring(n * 50, (n + 1) * 50))
+                  n += 1
+                }
+              } else {
+                output.append("\n\n Cust-Data: " + c_data)
+              }
+            }
+            output.append("\n+-----------------------------------------------------------------+\n\n")
+            logger.info(output.toString)
           }
-          output.append("\n+-----------------------------------------------------------------+\n\n")
-          if(SHOW_OUTPUT) logger.info(output.toString)
           (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd+h_amount,d_next_o_id)
         }})
         (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd+h_amount)
