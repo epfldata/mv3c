@@ -323,9 +323,22 @@ object ConcurrentSHMapMVC3T {
   }
   case class GetPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], key:K) extends Predicate(tbl) {
     def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
+    def get(implicit xact:Transaction) = getEntry.row
+    def getEntry(implicit xact:Transaction) = xact.findPredicateCachedResult(this) match {
+      case Some(c) => val res = c.asInstanceOf[DeltaVersion[K,V]]; if(res.isVisible) res else {
+        val newRes = res.entry.getTheValue
+        xact.cachePredicateResult(this, newRes)
+        newRes
+      }
+      case None => val res = tbl.getEntry(this); xact.cachePredicateResult(this, res); res
+    }
   }
-  case class SlicePredicate[K,V <: Product,P](override val tbl: ConcurrentSHMapMVC3T[K,V], part:Int, partKey:P) extends Predicate(tbl) {
+  case class SlicePredicate[P,K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], part:Int, partKey:P) extends Predicate(tbl) {
     def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
+    def slice(implicit xact:Transaction) = xact.findPredicateCachedResult(this) match {
+      case Some(res) => res.asInstanceOf[ConcurrentSHIndexMVC3T[P,K,V]]
+      case None => val res = tbl.slice(this); xact.cachePredicateResult(this, res); res
+    }
   }
   case class ForeachPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V]) extends Predicate(tbl) {
     def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
@@ -1759,11 +1772,17 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    * @throws NullPointerException if the specified key is null
    */
   // @inline //inlining is disabled during development
+  final def getPred(key: K)(implicit xact:Transaction) = GetPredicate(this, key)
+  // @inline //inlining is disabled during development
   final def get(key: K)(implicit xact:Transaction): V = apply(key)
   // @inline //inlining is disabled during development
-  final def apply(key: K)(implicit xact:Transaction): V = {
+  final def get(getPred: GetPredicate[K,V])(implicit xact:Transaction): V = apply(getPred)
+  // @inline //inlining is disabled during development
+  final def apply(key: K)(implicit xact:Transaction): V = apply(getPred(key))
+  final def apply(getPred: GetPredicate[K,V])(implicit xact:Transaction): V = {
     // debug("finding " + key)
-    xact.addPredicate(GetPredicate(this, key))
+    xact.addPredicate(getPred)
+    val key = getPred.key
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -1819,9 +1838,12 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
     // debug("\t not found 7")
     NULL_VALUE
   }
-  def getEntry(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
-    xact.addPredicate(GetPredicate(this, key))
+  // @inline //inlining is disabled during development
+  def getEntry(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = getEntry(GetPredicate(this, key))
+  def getEntry(getPred: GetPredicate[K,V])(implicit xact:Transaction): DeltaVersion[K,V] = {
     // debug("finding entry for " + key)
+    xact.addPredicate(getPred)
+    val key = getPred.key
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
     var p: Node[K, V] = null
@@ -2712,8 +2734,9 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    * @since 1.8
    */
   // @inline //inlining is disabled during development
-  final private def forEach(parallelismThreshold: Long, action: (K,V) => Unit)(implicit xact:Transaction) {
-    xact.addPredicate(ForeachPredicate(this))
+  final private def forEach(parallelismThreshold: Long, action: (K,V) => Unit)(implicit xact:Transaction) = {
+    val foreachPred = ForeachPredicate(this)
+    xact.addPredicate(foreachPred)
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e => 
       val dv = e.getTheValue
@@ -2722,9 +2745,10 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
         if(img != null) action(e.key, dv.getImage)
       }
     }).invoke
+    foreachPred
   }
   // @inline //inlining is disabled during development
-  final def foreach(action: (K,V) => Unit)(implicit xact:Transaction) {
+  final def foreach(action: (K,V) => Unit)(implicit xact:Transaction) = {
     forEach(ONE_THREAD_NO_PARALLELISM, action)
   }
 
@@ -2737,16 +2761,18 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    * @since 1.8
    */
   // @inline //inlining is disabled during development
-  final private def forEachKey(parallelismThreshold: Long, action: K => Unit)(implicit xact:Transaction)  {
-    xact.addPredicate(ForeachPredicate(this))
+  final private def forEachKey(parallelismThreshold: Long, action: K => Unit)(implicit xact:Transaction) = {
+    val foreachPred = ForeachPredicate(this)
+    xact.addPredicate(foreachPred)
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
       val dv = e.getTheValue
       if((dv ne null) && (dv.getImage != null)) action(e.key)
     }).invoke
+    foreachPred
   }
   // @inline //inlining is disabled during development
-  final def foreachKey(action: K => Unit)(implicit xact:Transaction)  {
+  final def foreachKey(action: K => Unit)(implicit xact:Transaction) = {
     forEachKey(ONE_THREAD_NO_PARALLELISM, action)
   }
 
@@ -2759,17 +2785,19 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    * @since 1.8
    */
   // @inline //inlining is disabled during development
-  final private def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction)  {
-    xact.addPredicate(ForeachPredicate(this))
+  final private def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction) = {
+    val foreachPred = ForeachPredicate(this)
+    xact.addPredicate(foreachPred)
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
       val dv = e.getTheValue
       if((dv ne null) && (dv.getImage != null)) action(e)
     }).invoke
+    foreachPred
   }
 
   // @inline //inlining is disabled during development
-  final def foreachEntry(action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction) {
+  final def foreachEntry(action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction) = {
     forEachEntry(ONE_THREAD_NO_PARALLELISM, action)
   }
 
@@ -2782,9 +2810,13 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
     projs.toList.map{ p => idx(p , LOAD_FACTOR, DEFAULT_CAPACITY)}
   }
 
-  def slice[P](part:Int, partKey:P)(implicit xact:Transaction):ConcurrentSHIndexMVC3TEntry[P,K,V] = {
-    xact.addPredicate(SlicePredicate(this, part, partKey))
-    val ix=idxs(part)
-    ix.asInstanceOf[ConcurrentSHIndexMVC3T[P,K,V]].slice(partKey) // type information P is erased anyway
+  // @inline //inlining is disabled during development
+  def slicePred[P](part:Int, partKey:P)(implicit xact:Transaction) = SlicePredicate[P,K,V](this, part, partKey)
+  // @inline //inlining is disabled during development
+  def slice[P](part:Int, partKey:P)(implicit xact:Transaction):ConcurrentSHIndexMVC3TEntry[P,K,V] = slice[P](slicePred[P](part, partKey))
+  def slice[P](slicePred: SlicePredicate[P,K,V])(implicit xact:Transaction):ConcurrentSHIndexMVC3TEntry[P,K,V] = {
+    xact.addPredicate(slicePred)
+    val ix=idxs(slicePred.part)
+    ix.asInstanceOf[ConcurrentSHIndexMVC3T[P,K,V]].slice(slicePred.partKey) // type information P is erased anyway
   }
 }
