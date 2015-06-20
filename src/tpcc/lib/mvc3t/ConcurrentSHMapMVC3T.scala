@@ -364,6 +364,8 @@ object ConcurrentSHMapMVC3T {
     @inline
     final def getTable = getMap.tblName
     @inline
+    final def getCurrentValue = entry.getTheValue
+    @inline
     final def project(part: Int) = getMap.projs(part).apply(getKey, getImage)
 
     // @inline //inlining is disabled during development
