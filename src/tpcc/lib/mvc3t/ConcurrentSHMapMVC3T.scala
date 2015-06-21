@@ -316,10 +316,13 @@ object ConcurrentSHMapMVC3T {
 
   type Table = String
 
+  class ChangeHandler[K,V <: Product](pred: List[Predicate[K,V]], handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]])
+
   //TODO: the base implementation uses 64-bit comparison summaries for compacted predicate entries, should we do that, too?
   //TODO: predicate should know the accessed fields, too, in order to do the attribute-level validation
   abstract class Predicate[K,V <: Product](val tbl: ConcurrentSHMapMVC3T[K,V]) {
     def matches(dv: DeltaVersion[_,_]): Boolean
+    def onChange(handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]]) = new ChangeHandler[K,V](List(this), handler)
   }
   case class GetPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], key:K) extends Predicate(tbl) {
     def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
