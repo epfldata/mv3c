@@ -367,7 +367,7 @@ object ConcurrentSHMapMVC3T {
     @inline
     final def getTable = getMap.tblName
     @inline
-    final def getCurrentValue = entry.getTheValue
+    final def getCurrentValue(implicit xact:Transaction) = entry.getTheValue
     @inline
     final def project(part: Int) = getMap.projs(part).apply(getKey, getImage)
 
