@@ -20,6 +20,13 @@ object TpccTable {
 	val DISTRICTS_UNDER_A_WAREHOUSE:Int = 10
 
 	def testSpecialDs(implVersion:Int) = implVersion == 5
+
+	abstract class TpccCommand
+	case class DeliveryCommand(datetime:Date, w_id: Int, o_carrier_id: Int) extends TpccCommand
+	case class NewOrderCommand(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stocks:Array[Int], bg:Array[Char], amt:Array[Float]) extends TpccCommand
+	case class OrderStatusCommand(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String) extends TpccCommand
+	case class PaymentCommand(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float) extends TpccCommand
+	case class StockLevelCommand(t_num: Int, w_id: Int, d_id: Int, threshold: Int) extends TpccCommand
 }
 
 /**
@@ -28,6 +35,23 @@ object TpccTable {
  * @author Mohammad Dashti
  */
 class TpccTable(implVersion:Int) {
+
+	/**
+	 * This method should retun the list of committed TPC-C commands
+	 * by the serialization order
+	 */
+	def getListOfCommittedCommands: Seq[TpccCommand] = {
+		throw new UnsupportedOperationException("getListOfCommittedCommands is not implemented!")
+	}
+
+	var isUnitTestEnabled = false
+
+	def enableUnitTest: Unit = {
+		isUnitTestEnabled = true
+	}
+	def disableUnitTest: Unit = {
+		isUnitTestEnabled = false
+	}
 	def testSpecialDsUsed = TpccTable.testSpecialDs(implVersion)
 	//NewOrder: W
 	//Delivery: RW

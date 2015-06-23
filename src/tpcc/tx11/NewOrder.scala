@@ -6,6 +6,7 @@ import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import ddbt.tpcc.tx.MVCCTpccTableV4._
+import ddbt.tpcc.tx.TpccTable._
 import NewOrder._
 
 object NewOrder {
@@ -52,6 +53,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV4 with INewOrderInMem {
    */
   override def newOrderTx(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stocks:Array[Int], bg:Array[Char], amt:Array[Float]): Int = {
     implicit val xact = ISharedData.begin("neworder")
+    if(ISharedData.isUnitTestEnabled) xact.setCommand(NewOrderCommand(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stocks, bg, amt))
     try {
       if(SHOW_OUTPUT) logger.info("- Started NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id,d_id,c_id))
 

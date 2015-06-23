@@ -6,6 +6,7 @@ import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import ddbt.tpcc.tx.MVCCTpccTableV3._
+import ddbt.tpcc.tx.TpccTable._
 import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion
 import Delivery._
 
@@ -47,6 +48,7 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV3 with IDeliveryInMem {
    */
   override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int): Int = {
     implicit val xact = ISharedData.begin("delivery")
+    if(ISharedData.isUnitTestEnabled) xact.setCommand(DeliveryCommand(datetime, w_id, o_carrier_id))
     try {
       val DIST_PER_WAREHOUSE = 10
       val orderIDs = new Array[Int](10)

@@ -10,6 +10,7 @@ import java.sql.Timestamp
 import java.util.concurrent._
 import org.slf4j.LoggerFactory
 import org.slf4j.Logger
+import ddbt.tpcc.tx.TpccTable
 import ddbt.tpcc.itx._
 import Driver._
 import TpccConstants._
@@ -74,61 +75,72 @@ class Driver(var conn: java.sql.Connection,
 
   private var startTime = 0L
 
-  def runTransaction(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: (Int => Boolean)): Int = {
+  def runTransaction(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: (Int => Boolean), commandSeq:Seq[TpccTable.TpccCommand]=null): Int = {
     startTime = (System.currentTimeMillis() % 1000) * 1000
 
     num_ware = numWare
     num_conn = numConn
     var count = 0
-    var sequence = Util.seqGet()
-    while (loopConditionChecker(count)) {
-      try {
-        if (DEBUG) logger.debug("BEFORE runTransaction: sequence: " + sequence)
-        if (DETECT_LOCK_WAIT_TIMEOUTS) {
-          val _sequence = sequence
-          val t = new FutureTask[Any](new Callable[Any]() {
+    if(commandSeq == null) {
+      var sequence = Util.seqGet()
+      while (loopConditionChecker(count)) {
+        try {
+          if (DEBUG) logger.debug("BEFORE runTransaction: sequence: " + sequence)
+          if (DETECT_LOCK_WAIT_TIMEOUTS) {
+            val _sequence = sequence
+            val t = new FutureTask[Any](new Callable[Any]() {
 
-            def call(): AnyRef = {
-              doNextTransaction(t_num, _sequence)
-              return null
+              def call(): AnyRef = {
+                doNextTransaction(t_num, _sequence)
+                null
+              }
+            })
+            exec.execute(t)
+            try {
+              t.get(15, TimeUnit.SECONDS)
+            } catch {
+              case e: InterruptedException => {
+                logger.error("InterruptedException", e)
+                Tpcc.activate_transaction = 0
+              }
+              case e: ExecutionException => {
+                logger.error("Unhandled exception", e)
+                Tpcc.activate_transaction = 0
+              }
+              case e: TimeoutException => {
+                logger.error("Detected Lock Wait", e)
+                Tpcc.activate_transaction = 0
+              }
             }
-          })
-          exec.execute(t)
-          try {
-            t.get(15, TimeUnit.SECONDS)
-          } catch {
-            case e: InterruptedException => {
-              logger.error("InterruptedException", e)
-              Tpcc.activate_transaction = 0
-            }
-            case e: ExecutionException => {
-              logger.error("Unhandled exception", e)
-              Tpcc.activate_transaction = 0
-            }
-            case e: TimeoutException => {
-              logger.error("Detected Lock Wait", e)
-              Tpcc.activate_transaction = 0
-            }
+          } else {
+            doNextTransaction(t_num, sequence)
           }
-        } else {
-          doNextTransaction(t_num, sequence)
-        }
-        count += 1
-      } catch {
-        case th: Throwable => {
-          logger.error("FAILED", th)
-          Tpcc.activate_transaction = 0
-          try {
-            if(conn != null) conn.rollback()
-          } catch {
-            case e: SQLException => logger.error("", e)
+          count += 1
+        } catch {
+          case th: Throwable => {
+            logger.error("FAILED", th)
+            Tpcc.activate_transaction = 0
+            try {
+              if(conn != null) conn.rollback()
+            } catch {
+              case e: SQLException => logger.error("", e)
+            }
+            return -1
           }
-          return -1
+        } finally {
+          if (DEBUG) logger.debug("AFTER runTransaction: sequence: " + sequence)
         }
-      } finally {
-        if (DEBUG) logger.debug("AFTER runTransaction: sequence: " + sequence)
+        sequence = Util.seqGet()
       }
-      sequence = Util.seqGet()
+    } else {
+      commandSeq.foreach {
+        case TpccTable.DeliveryCommand(datetime, w_id, o_carrier_id) => delivery.deliveryTx(datetime, w_id, o_carrier_id)
+        case TpccTable.NewOrderCommand(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stocks, bg, amt) => newOrder.newOrderTx(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stocks, bg, amt)
+        case TpccTable.OrderStatusCommand(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last) => orderStat.orderStatusTx(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last)
+        case TpccTable.PaymentCommand(datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last_input, h_amount) => payment.paymentTx(datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last_input, h_amount)
+        case TpccTable.StockLevelCommand(t_num, w_id, d_id, threshold) => slev.stockLevelTx(t_num, w_id, d_id, threshold)
+      }
+      count += 1
     }
     logger.debug("Driver terminated after {} transactions", count)
     (0)

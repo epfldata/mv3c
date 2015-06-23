@@ -5,6 +5,7 @@ import java.util.Date
 import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
+import ddbt.tpcc.tx.TpccTable._
 import ddbt.tpcc.tx.MVCCTpccTableV3._
 import Payment._
 
@@ -45,6 +46,7 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV3 with IPaymentInMem {
    */
   override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float):Int = {
     implicit val xact = ISharedData.begin("payment")
+    if(ISharedData.isUnitTestEnabled) xact.setCommand(PaymentCommand(datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last_input, h_amount))
     try {
       PaymentTxOps.updateWarehouse(w_id, { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) => {
         PaymentTxOps.updateDistrict(w_id,d_id, { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) => { 

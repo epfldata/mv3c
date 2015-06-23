@@ -437,33 +437,85 @@ class TpccUnitTest {
     // } else {
     //   println("\n1- initialData is not equal to SharedDataScala")
     // }
-    val newOrderMix: INewOrder = new NewOrderMixedImpl(new ddbt.tpcc.loadtest.NewOrder(pStmts), newOrder)
-    val paymentMix: IPayment = new PaymentMixedImpl(new ddbt.tpcc.loadtest.Payment(pStmts), payment)
-    val orderStatMix: IOrderStatus = new OrderStatusMixedImpl(new ddbt.tpcc.loadtest.OrderStat(pStmts), orderStat)
-    val slevMix: IStockLevel = new StockLevelMixedImpl(new ddbt.tpcc.loadtest.Slev(pStmts), slev)
-    val deliveryMix: IDelivery = new DeliveryMixedImpl(new ddbt.tpcc.loadtest.Delivery(pStmts), delivery)
+    val number = NUMBER_OF_TX_TESTS
 
-    val driver = new Driver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
-      failure2, newOrderMix, paymentMix, orderStatMix, slevMix, deliveryMix)
+    if(numConn == 1) {
+      val newOrderMix: INewOrder = new NewOrderMixedImpl(new ddbt.tpcc.loadtest.NewOrder(pStmts), newOrder)
+      val paymentMix: IPayment = new PaymentMixedImpl(new ddbt.tpcc.loadtest.Payment(pStmts), payment)
+      val orderStatMix: IOrderStatus = new OrderStatusMixedImpl(new ddbt.tpcc.loadtest.OrderStat(pStmts), orderStat)
+      val slevMix: IStockLevel = new StockLevelMixedImpl(new ddbt.tpcc.loadtest.Slev(pStmts), slev)
+      val deliveryMix: IDelivery = new DeliveryMixedImpl(new ddbt.tpcc.loadtest.Delivery(pStmts), delivery)
 
-    val number = 100
+      val driver = new Driver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
+        failure2, newOrderMix, paymentMix, orderStatMix, slevMix, deliveryMix)
 
-    try {
-      if (DEBUG) {
-        logger.debug("Starting driver with: number: " + number + " num_ware: " + 
-          numWare + 
-          " num_conn: " + 
-          numConn)
+      try {
+        if (DEBUG) {
+          logger.debug("Starting driver with: number: " + number + " num_ware: " + 
+            numWare + 
+            " num_conn: " + 
+            numConn)
+        }
+        driver.runTransaction(number, numWare, numConn, transactionCountChecker)
+      } catch {
+        case e: Throwable => logger.error("Unhandled exception", e)
       }
-      driver.runTransaction(number, numWare, numConn, transactionCountChecker)
-    } catch {
-      case e: Throwable => logger.error("Unhandled exception", e)
+
+      if(implVersionUnderTest == -1) {
+        SharedDataScala = LMSDataLoader.moveDataToTpccTable(SharedDataLMS, implVersionUnderTest)
+      }
+    } else {
+      var listOfCommittedCommands: Seq[TpccTable.TpccCommand] = null
+
+      { // Running the parallel implementation with enabled unit-test
+        // in order to collect the committed transactions
+        SharedDataScala.enableUnitTest
+        val driver = new Driver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
+          failure2, newOrder, payment, orderStat, slev, delivery)
+
+        try {
+          if (DEBUG) {
+            logger.debug("Starting driver with: number: " + number + " num_ware: " + 
+              numWare + 
+              " num_conn: " + 
+              numConn)
+          }
+          driver.runTransaction(number, numWare, numConn, transactionCountChecker)
+          listOfCommittedCommands = SharedDataScala.getListOfCommittedCommands
+        } catch {
+          case e: Throwable => logger.error("Unhandled exception", e)
+        }
+      }
+
+      { // Running the transactions serially, in the same serial order
+        // against a database using only a single thread, to make sure
+        // that no transaction fails, in order to check the correctness
+        // of the execution
+        val newOrder: INewOrder = new ddbt.tpcc.loadtest.NewOrder(pStmts)
+        val payment: IPayment = new ddbt.tpcc.loadtest.Payment(pStmts)
+        val orderStat: IOrderStatus = new ddbt.tpcc.loadtest.OrderStat(pStmts)
+        val slev: IStockLevel = new ddbt.tpcc.loadtest.Slev(pStmts)
+        val delivery: IDelivery = new ddbt.tpcc.loadtest.Delivery(pStmts)
+
+        val driver = new Driver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
+          failure2, newOrder, payment, orderStat, slev, delivery)
+
+        val numConn = 1 //we want to avoid any unwanted rollback due to concurrency in the reference DB
+        try {
+          if (DEBUG) {
+            logger.debug("Starting driver with: number: " + number + " num_ware: " + 
+              numWare + 
+              " num_conn: " + 
+              numConn)
+          }
+          driver.runTransaction(number, numWare, numConn, transactionCountChecker, listOfCommittedCommands)
+        } catch {
+          case e: Throwable => logger.error("Unhandled exception", e)
+        }
+      }
     }
 
     {
-      if(!(implVersionUnderTest > 0)) {
-        SharedDataScala = LMSDataLoader.moveDataToTpccTable(SharedDataLMS, implVersionUnderTest)
-      }
       val newData = new TpccTable(if(implVersionUnderTest == 6) 5 else implVersionUnderTest)
       newData.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
 

@@ -88,6 +88,12 @@ object MVCCTpccTableV4 {
 		var predicates = new MutableMap[Table, HashSet[Predicate[_,_]]](TABLES.size * 2)
 		var predicateResultCache = new MutableMap[Predicate[_,_], AnyRef](TABLES.size * 2)
 
+		var command: TpccCommand = null
+
+		def setCommand(c: TpccCommand) {
+			command = c
+		}
+
 		def commitTS = xactId
 
 		def transactionId = startTS //if(xactId < TransactionManager.TRANSACTION_ID_GEN_START) xactId else (xactId - TransactionManager.TRANSACTION_ID_GEN_START)
@@ -157,7 +163,7 @@ object MVCCTpccTableV4 {
 		val TRANSACTION_STRAT_TS_GEN_START = 1L
 	}
 
-	class TransactionManager {
+	class TransactionManager(isUnitTestEnabled: =>Boolean) {
 
 
 		val transactionIdGen = new AtomicLong(TransactionManager.TRANSACTION_ID_GEN_START)
@@ -166,6 +172,7 @@ object MVCCTpccTableV4 {
 
 		val activeXacts = new LinkedHashMap[Long,Transaction]
 		val recentlyCommittedXacts = new ListBuffer[Transaction]()
+		val allCommittedXacts = new ListBuffer[Transaction]()
 
 		def begin(name: String) = activeXacts.synchronized {
 			val xactId = transactionIdGen.getAndIncrement()
@@ -186,6 +193,7 @@ object MVCCTpccTableV4 {
 					}
 					recentlyCommittedXacts.synchronized {
 						recentlyCommittedXacts += xact
+						if(isUnitTestEnabled) allCommittedXacts += xact
 					}
 					debug("(read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
 					true
@@ -201,6 +209,7 @@ object MVCCTpccTableV4 {
 					debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
 					recentlyCommittedXacts.synchronized {
 						recentlyCommittedXacts += xact
+						if(isUnitTestEnabled) allCommittedXacts += xact
 					}
 					garbageCollect
 					debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
@@ -370,12 +379,27 @@ class MVCCTpccTableV4 extends TpccTable(7) {
 	override val stockTbl = null
 	// override val customerWarehouseFinancialInfoMap = null
 
-	val tm = new TransactionManager
+	val tm = new TransactionManager(isUnitTestEnabled)
 
 	def begin = tm.begin("adhoc")
 	def begin(name: String) = tm.begin(name)
 	def commit(implicit xact:Transaction) = tm.commit
 	def rollback(implicit xact:Transaction) = tm.rollback
+
+	/**
+	 * This method should retun the list of committed TPC-C commands
+	 * by the serialization order
+	 */
+	override def getListOfCommittedCommands: Seq[TpccCommand] = {
+		if(tm.allCommittedXacts.isEmpty) {
+			if(isUnitTestEnabled)
+				throw new RuntimeException("No transaction is committed")
+			else
+				throw new RuntimeException("No committed transaction is collected because isUnitTestEnabled = " + isUnitTestEnabled)
+		} else {
+			tm.allCommittedXacts/*.filter(_.committed)*/.sortWith(_.commitTS < _.commitTS).map(_.command)
+		}
+	}
 
 	override def testSpecialDsUsed = MVCCTpccTableV4.testSpecialDsUsed
 

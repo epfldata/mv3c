@@ -5,6 +5,7 @@ import java.util.Date
 import ddbt.tpcc.itx._
 import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
+import ddbt.tpcc.tx.TpccTable._
 import ddbt.tpcc.tx.MVCCTpccTableV3._
 import OrderStatus._
 
@@ -42,6 +43,7 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTableV3 with IOrderStatusInMe
    */
   override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String):Int = {
     implicit val xact = ISharedData.begin("ordstat")
+    if(ISharedData.isUnitTestEnabled) xact.setCommand(OrderStatusCommand(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last))
     try {
       var c: (String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String,Int) = null
       if (c_by_name > 0) {
