@@ -5,7 +5,7 @@ ddbt.tpcc.tx4: implementation with indices on the combination of key and value (
 ddbt.tpcc.tx5: specific data-structures for Min-Max queries (using SortedSet instead of HashSet)
 ddbt.tpcc.tx6: using SharedData only through its interface
 ddbt.tpcc.tx7: again, using generic data structures for implementing MVCC. This version only contains the stubs for implementing MVCC.
-ddbt.tpcc.tx8: tx7 with MVCC implementation 
+ddbt.tpcc.tx8: tx7 with MVCC implementation - not complete yet
 ddbt.tpcc.tx9: tx7 with the initial version of ConcurrentSHMap implementation 
 ddbt.tpcc.tx10: tx9 with MVCC implementation 
-ddbt.tpcc.tx10: tx10 with MVC3T implementation 
+ddbt.tpcc.tx11: tx10 with MVC3T implementation 
