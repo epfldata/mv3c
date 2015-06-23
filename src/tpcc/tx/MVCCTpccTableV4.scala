@@ -31,6 +31,8 @@ object MVCCTpccTableV4 {
 	val DISABLE_GC = false
 	val PARALLEL_GC = true
 
+	val TRUE_TUPLE = Tuple1(true)
+
 	val NEWORDER_TBL = "newOrderTbl"
 	val HISTORY_TBL = "historyTbl"
 	val WAREHOUSE_TBL = "warehouseTbl"
