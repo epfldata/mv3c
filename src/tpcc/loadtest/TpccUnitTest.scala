@@ -93,6 +93,8 @@ object TpccUnitTest {
         println("-j [java driver]")
         println("-l [jdbc url]")
         println("-h [jdbc fetch size]")
+        println("-i [target implementation]")
+        println("-n [number of transactions to execute]")
         System.exit(-1)
       }
     }
@@ -102,6 +104,8 @@ object TpccUnitTest {
 }
 
 class TpccUnitTest {
+
+  private var numberOfTestTransactions = NUMBER_OF_TX_TESTS
 
   private var implVersionUnderTest = 0
 
@@ -236,6 +240,8 @@ class TpccUnitTest {
           fetchSize = Integer.parseInt(argv(i + 1))
         } else if (argv(i) == "-i") {
           implVersionUnderTest = Integer.parseInt(argv(i + 1))
+        } else if (argv(i) == "-n") {
+          numberOfTestTransactions = Integer.parseInt(argv(i + 1))
         } else {
           println("Incorrect Argument: " + argv(i))
           println("The possible arguments are as follows: ")
@@ -251,6 +257,7 @@ class TpccUnitTest {
           println("-l [jdbc url]")
           println("-h [jdbc fetch size]")
           println("-i [target implementation]")
+          println("-n [number of transactions to execute]")
           System.exit(-1)
         }
         i = i + 2
@@ -389,6 +396,8 @@ class TpccUnitTest {
     System.out.print(" [connection]: %d\n".format(numConn))
     System.out.print("     [rampup]: %d (sec.)\n".format(rampupTime))
     System.out.print("    [measure]: %d (sec.)\n".format(measureTime))
+    System.out.print("[implVersion]: %d\n".format(implVersionUnderTest))
+    System.out.print("   [numTests]: %d\n".format(numberOfTestTransactions))
     Util.seqInit(10, 10, 1, 1, 1)
     if (DEBUG) logger.debug("Creating TpccThread")
 
@@ -437,7 +446,6 @@ class TpccUnitTest {
     // } else {
     //   println("\n1- initialData is not equal to SharedDataScala")
     // }
-    val number = NUMBER_OF_TX_TESTS
 
     if(numConn == 1) {
       val newOrderMix: INewOrder = new NewOrderMixedImpl(new ddbt.tpcc.loadtest.NewOrder(pStmts), newOrder)
@@ -451,12 +459,12 @@ class TpccUnitTest {
 
       try {
         if (DEBUG) {
-          logger.debug("Starting driver with: number: " + number + " num_ware: " + 
+          logger.debug("Starting driver with: numberOfTestTransactions: " + numberOfTestTransactions + " num_ware: " + 
             numWare + 
             " num_conn: " + 
             numConn)
         }
-        driver.runTransaction(number, numWare, numConn, transactionCountChecker)
+        driver.runTransaction(numberOfTestTransactions, numWare, numConn, transactionCountChecker)
       } catch {
         case e: Throwable => logger.error("Unhandled exception", e)
       }
@@ -475,12 +483,12 @@ class TpccUnitTest {
 
         try {
           if (DEBUG) {
-            logger.debug("Starting driver with: number: " + number + " num_ware: " + 
+            logger.debug("Starting driver with: numberOfTestTransactions: " + numberOfTestTransactions + " num_ware: " + 
               numWare + 
               " num_conn: " + 
               numConn)
           }
-          driver.runTransaction(number, numWare, numConn, transactionCountChecker)
+          driver.runTransaction(numberOfTestTransactions, numWare, numConn, transactionCountChecker)
           listOfCommittedCommands = SharedDataScala.getListOfCommittedCommands
         } catch {
           case e: Throwable => logger.error("Unhandled exception", e)
@@ -503,13 +511,13 @@ class TpccUnitTest {
         val numConn = 1 //we want to avoid any unwanted rollback due to concurrency in the reference DB
         try {
           if (DEBUG) {
-            logger.debug("Starting driver with: number: " + number + " num_ware: " + 
+            logger.debug("Starting driver with: numberOfTestTransactions: " + numberOfTestTransactions + " num_ware: " + 
               numWare + 
               " num_conn: " + 
               numConn)
           }
           logger.info("Number of committed transactions in the reference implementation: " + listOfCommittedCommands.size)
-          driver.runTransaction(number, numWare, numConn, transactionCountChecker, listOfCommittedCommands)
+          driver.runTransaction(numberOfTestTransactions, numWare, numConn, transactionCountChecker, listOfCommittedCommands)
         } catch {
           case e: Throwable => logger.error("Unhandled exception", e)
         }
@@ -530,6 +538,6 @@ class TpccUnitTest {
     0
   }
 
-  def transactionCountChecker(counter:Int) = (counter < NUMBER_OF_TX_TESTS)
+  def transactionCountChecker(counter:Int) = (counter < numberOfTestTransactions)
 
 }
