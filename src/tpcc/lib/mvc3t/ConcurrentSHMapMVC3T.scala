@@ -351,7 +351,7 @@ object ConcurrentSHMapMVC3T {
     val outputVersions = closure()
   }
 
-  final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
+  final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null, @volatile var isRemoved:Boolean=false) {
     vXact.undoBuffer += this
     if(next != null) next.prev = this
     if(prev != null) prev.next = this
@@ -434,24 +434,29 @@ object ConcurrentSHMapMVC3T {
 
     // @inline //inlining is disabled during development
     def remove(implicit xact:Transaction): Unit = entry.synchronized {
-      val map = getMap
-      if(/*isDeleted &&*/ prev == null && next == null) {
-        // debug("removing node " + getKey + " from " + getTable)
-        map.replaceNode(getKey)
-      }
-      if(prev != null){
-        prev.next = next
-        // prev = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
-      } else {
-        if(entry.value ne this) throw new RuntimeException("Only the head element in version list can have a null previous pointer => this => " + this + " and entry.value = " + entry.value)
-        if(next != null) entry.value = next //this entry might still be in use
-      }
-      if(next != null) {
-        next.prev = prev
-        // next = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
-      }
+      if(!isRemoved) {
+        val map = getMap
+        if(/*isDeleted &&*/ prev == null && next == null) {
+          // debug("removing node " + getKey + " from " + getTable)
+          map.replaceNode(getKey)
+        }
+        if(prev != null){
+          prev.next = next
+          // prev = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
+        } else {
+          if(entry.value ne this) throw new RuntimeException("Only the head element in version list can have a null previous pointer => this => " + this + " and entry.value = " + entry.value)
+          if(next != null) entry.value = next //this entry might still be in use
+        }
+        if(next != null) {
+          next.prev = prev
+          // next = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
+        }
 
-      if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
+        if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
+        isRemoved = true
+      } else {
+        throw new RuntimeException("removing a version twice this => " + this + " in " + xact)
+      }
     }
 
     final override def toString = "<" + getTable +" {"+getKey+" -> "+img+"} with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " written by " + vXact + ">"
