@@ -2080,25 +2080,25 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    * @throws NullPointerException if the specified key is null
    */
   // @inline //inlining is disabled during development
-  final def remove(key: K)(implicit xact:Transaction): Unit = {
+  final def remove(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
     -=(key)
   }
   // @inline //inlining is disabled during development
-  final def -=(key: K)(implicit xact:Transaction): Unit = {
+  final def -=(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
     // debug("- started deleting " + key)
     val dv = getEntry(key)
     if(dv ne null) {
       dv.setEntryValue(NULL_VALUE)
-    }
+    } else null
     // debug("- finished deleting " + key)
     // replaceNode(key)
   }
   // @inline //inlining is disabled during development
-  final def -=(dv: DeltaVersion[K,V])(implicit xact:Transaction): Unit = {
+  final def -=(dv: DeltaVersion[K,V])(implicit xact:Transaction): DeltaVersion[K,V] = {
     // debug("- started deleting " + key)
     if(dv ne null) {
       dv.setEntryValue(NULL_VALUE)
-    }
+    } else null
     // debug("- finished deleting " + key)
     // replaceNode(key)
   }
