@@ -19,6 +19,10 @@ import DatabaseConnector._
 import TpccConstants._
 import tpcc.lmsgen._
 import tpcc.lms._
+import java.sql.Connection
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 object TpccUnitTest {
 
@@ -401,6 +405,8 @@ class TpccUnitTest {
     Util.seqInit(10, 10, 1, 1, 1)
     if (DEBUG) logger.debug("Creating TpccThread")
 
+    val executor = Executors.newFixedThreadPool(numConn, new NamedThreadFactory("tpcc-thread"))
+
     val conn = connectToDB(javaDriver, jdbcUrl, dbUser, dbPassword)
     val pStmts: TpccStatements = new TpccStatements(conn, fetchSize)
 
@@ -478,21 +484,34 @@ class TpccUnitTest {
       { // Running the parallel implementation with enabled unit-test
         // in order to collect the committed transactions
         SharedDataScala.enableUnitTest
-        val driver = new Driver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
-          failure2, newOrder, payment, orderStat, slev, delivery)
+        for (i <- 0 until numConn) {
+          val conn: Connection = null //connectToDB(javaDriver, jdbcUrl, dbUser, dbPassword)
+          // val pStmts: TpccStatements = new TpccStatements(conn, fetchSize)
+          // val newOrder: NewOrder = new NewOrder(pStmts)
+          // val payment: Payment = new Payment(pStmts)
+          // val orderStat: OrderStat = new OrderStat(pStmts)
+          // val slev: Slev = new Slev(pStmts)
+          // val delivery: Delivery = new Delivery(pStmts)
+          // val newOrder: INewOrder = new ddbt.tpcc.tx.NewOrder(SharedDataScala)
+          // val payment: IPayment = new ddbt.tpcc.tx.Payment(SharedDataScala)
+          // val orderStat: IOrderStatus = new ddbt.tpcc.tx.OrderStatus(SharedDataScala)
+          // val slev: IStockLevel = new ddbt.tpcc.tx.StockLevel(SharedDataScala)
+          // val delivery: IDelivery = new ddbt.tpcc.tx.Delivery(SharedDataScala)
 
-        try {
-          if (DEBUG) {
-            logger.debug("Starting driver with: numberOfTestTransactions: " + numberOfTestTransactions + " num_ware: " + 
-              numWare + 
-              " num_conn: " + 
-              numConn)
-          }
-          driver.runTransaction(numberOfTestTransactions, numWare, numConn, transactionCountChecker)
-          listOfCommittedCommands = SharedDataScala.getListOfCommittedCommands
-        } catch {
-          case e: Throwable => logger.error("Unhandled exception", e)
+          val worker = new TpccThread(i, port, 1, dbUser, dbPassword, numWare, numConn, javaDriver, jdbcUrl, 
+            fetchSize, success, late, retry, failure, success2, late2, retry2, failure2, conn, newOrder, payment, orderStat, slev, delivery, transactionCountChecker)
+          executor.execute(worker)
+
+          // conn.close
         }
+        executor.shutdown()
+        try {
+          executor.awaitTermination(3600, TimeUnit.SECONDS)
+        } catch {
+          case e: InterruptedException => throw new RuntimeException("Timed out waiting for executor to terminate")
+        }
+
+        listOfCommittedCommands = SharedDataScala.getListOfCommittedCommands
       }
 
       { // Running the transactions serially, in the same serial order
@@ -538,6 +557,7 @@ class TpccUnitTest {
     0
   }
 
-  def transactionCountChecker(counter:Int) = (counter < numberOfTestTransactions)
+  lazy val numberOfTestTransactionsPerThread = numberOfTestTransactions/numConn
+  def transactionCountChecker(counter:Int) = (counter < numberOfTestTransactionsPerThread)
 
 }
