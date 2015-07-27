@@ -55,43 +55,62 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV4 with IDeliveryInMem {
       while (d_id <= DIST_PER_WAREHOUSE) {
         var first_no_o_id = Integer.MAX_VALUE
         var first_newOrder:Option[DeltaVersion[NewOrderTblKey,NewOrderTblValue]] = None
-        var firstNewOrderPred = ISharedData.tm.newOrderTbl.slicePred(0, (d_id, w_id))
-        firstNewOrderPred.slice.foreachEntry { newOrder => newOrder.getKey.getKey match { case (no_o_id,_,_) =>
+        val firstNewOrderPred = ISharedData.tm.newOrderTbl.slicePred(0, (d_id, w_id))
+        val firstNewOrderSlice = firstNewOrderPred.slice
+        firstNewOrderSlice.foreachEntry { newOrder => newOrder.getKey.getKey match { case (no_o_id,_,_) =>
             if(no_o_id <= first_no_o_id) {
               first_no_o_id = no_o_id
               first_newOrder = Some(newOrder.getKey)
             }
           }
         }
-        first_newOrder match {
-          case Some(newOrder) => {
-            val no_o_id = newOrder.getKey._1
-            orderIDs(d_id - 1) = no_o_id
-            ISharedData.tm.newOrderTbl -= newOrder
-
-            var orderPred = ISharedData.tm.orderTbl.getPred((no_o_id,d_id,w_id))
-            val order = orderPred.getEntry
-            order.setEntryValue(order.row.copy(_3 = Some(o_carrier_id)))
-
-            var orderLines = List[DeltaVersion[OrderLineTblKey,OrderLineTblValue]]()
-            var orderLinePred = ISharedData.tm.orderLineTbl.slicePred(0, (no_o_id, d_id, w_id))
-            orderLinePred.slice.foreachEntry{ v => 
-              orderLines = v.getKey :: orderLines
+        new ClosureTransition(List(firstNewOrderPred.onChange{ outputVersions:List[DeltaVersion[_,_]] =>
+          var new_first_no_o_id = Integer.MAX_VALUE
+          var new_first_newOrder:Option[DeltaVersion[NewOrderTblKey,NewOrderTblValue]] = None
+          firstNewOrderSlice.foreachEntry { newOrder => newOrder.getKey.getKey match { case (no_o_id,_,_) =>
+              if(no_o_id <= new_first_no_o_id) {
+                new_first_no_o_id = no_o_id
+                new_first_newOrder = Some(newOrder.getKey)
+              }
             }
-            orderLines.foreach { orderLine =>
-              orderLine.setEntryValue(orderLine.row.copy(_3 = Some(datetime)))
-            }
-            val c_id = order.row._1
-            var ol_total = 0f
-            orderLines.foreach { orderLine =>
-              ol_total += orderLine.row._5
-            }
-            var customerPred = ISharedData.tm.customerTbl.getPred((c_id,d_id,w_id))
-            val customer = customerPred.getEntry
-            customer.setEntryValue(customer.row.copy(_14 = customer.row._14 + ol_total, _17 = customer.row._17 + 1))
           }
-          case None => orderIDs(d_id - 1) = 0
-        }
+          if(first_no_o_id != new_first_no_o_id) {
+            throw new RuntimeException("Change handler for firstNewOrderPred (because first_no_o_id<"+first_no_o_id+"> != new_first_no_o_id<"+new_first_no_o_id+">) is not fully implemented!")
+          }
+          Nil
+        }), () => {
+          var outputVersions = List[DeltaVersion[_,_]]()
+          first_newOrder match {
+            case Some(newOrder) => {
+              val no_o_id = newOrder.getKey._1
+              orderIDs(d_id - 1) = no_o_id
+              outputVersions = (ISharedData.tm.newOrderTbl -= newOrder) :: outputVersions
+
+              var orderPred = ISharedData.tm.orderTbl.getPred((no_o_id,d_id,w_id))
+              val order = orderPred.getEntry
+              outputVersions = order.setEntryValue(order.row.copy(_3 = Some(o_carrier_id))) :: outputVersions
+
+              var orderLines = List[DeltaVersion[OrderLineTblKey,OrderLineTblValue]]()
+              var orderLinePred = ISharedData.tm.orderLineTbl.slicePred(0, (no_o_id, d_id, w_id))
+              orderLinePred.slice.foreachEntry{ v => 
+                orderLines = v.getKey :: orderLines
+              }
+              orderLines.foreach { orderLine =>
+                outputVersions = orderLine.setEntryValue(orderLine.row.copy(_3 = Some(datetime))) :: outputVersions
+              }
+              val c_id = order.row._1
+              var ol_total = 0f
+              orderLines.foreach { orderLine =>
+                ol_total += orderLine.row._5
+              }
+              var customerPred = ISharedData.tm.customerTbl.getPred((c_id,d_id,w_id))
+              val customer = customerPred.getEntry
+              outputVersions = customer.setEntryValue(customer.row.copy(_14 = customer.row._14 + ol_total, _17 = customer.row._17 + 1)) :: outputVersions
+            }
+            case None => orderIDs(d_id - 1) = 0
+          }
+          (outputVersions,Nil)
+        })
         d_id += 1
       }
 

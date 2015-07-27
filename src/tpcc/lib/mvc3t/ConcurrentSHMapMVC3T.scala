@@ -316,7 +316,7 @@ object ConcurrentSHMapMVC3T {
 
   type Table = String
 
-  class ChangeHandler[K,V <: Product](pred: List[Predicate[K,V]], handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]])
+  class ChangeHandler[K,V <: Product](val preds: List[Predicate[K,V]], val handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]])
 
   //TODO: the base implementation uses 64-bit comparison summaries for compacted predicate entries, should we do that, too?
   //TODO: predicate should know the accessed fields, too, in order to do the attribute-level validation
@@ -347,8 +347,9 @@ object ConcurrentSHMapMVC3T {
     def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
   }
 
-  final class ClosureTransition(preds: List[Predicate[_,_]], closure:() => List[DeltaVersion[_,_]])(implicit val xact:Transaction) {
+  final class ClosureTransition(val handlers: List[ChangeHandler[_,_]], closure:() => (List[DeltaVersion[_,_]],List[ClosureTransition]))(implicit val xact:Transaction) {
     val outputVersions = closure()
+    xact.addClosureTransition(this)
   }
 
   final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null, @volatile var isRemoved:Boolean=false) {
@@ -2834,4 +2835,6 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
     val ix=idxs(slicePred.part)
     ix.asInstanceOf[ConcurrentSHIndexMVC3T[P,K,V]].slice(slicePred.partKey) // type information P is erased anyway
   }
+
+  override def toString = "Table<"+tblName+">"
 }

@@ -25,6 +25,9 @@ object MVCCTpccTableV4 {
 	type MutableMap[K,V] = ddbt.tpcc.lib.shm.SHMap[K,V]
 	type DeltaVersion[K,V<:Product] = ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion[K,V]
 	type ClosureTransition = ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.ClosureTransition
+	type ChangeHandler[K,V<:Product] = ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.ChangeHandler[K,V]
+	// type Conflict[K,V<:Product] = (Predicate[K,V],DeltaVersion[K,V])
+	type Conflict = (Predicate[_,_],DeltaVersion[_,_])
 
 	val DEBUG = false
 	val ERROR = false
@@ -89,6 +92,7 @@ object MVCCTpccTableV4 {
 		val undoBuffer = new HashSet[DeltaVersion[_,_]]()
 		var predicates = new MutableMap[Table, HashSet[Predicate[_,_]]](TABLES.size * 2)
 		var predicateResultCache = new MutableMap[Predicate[_,_], AnyRef](TABLES.size * 2)
+		val closureTransitions = new ListBuffer[ClosureTransition]()
 
 		var command: TpccCommand = null
 
@@ -128,35 +132,48 @@ object MVCCTpccTableV4 {
 
 		override def toString = "T"+transactionId+"<"+name+">"
 
-		def matchesPredicates(dv:DeltaVersion[_,_]): Boolean = {
+		def matchesPredicates(dv:DeltaVersion[_,_]): Set[Conflict] = {
 			if(dv == null) println("dv is null in matchesPredicates")
 			val preds = predicates.getNullOnNotFound(dv.getTable)
+			var res = Set[Conflict]()
 			if(preds != null) dv.op match {
-				case INSERT_OP => if(imageMatchesPredicates(dv, preds)) return true
+				case INSERT_OP => {
+					res = res ++ imageMatchesPredicates(dv, preds)
+				}
 				case DELETE_OP => {
 					val nextDv = dv.next
 					if(nextDv == null) throw new RuntimeException("A deleted version should always have the next pointer.")
-					else if(imageMatchesPredicates(nextDv, preds)) return true
+					else {
+						res = res ++ imageMatchesPredicates(nextDv, preds)
+					}
 				}
 				case UPDATE_OP => {
 					val nextDv = dv.next
 					// An updated version after GC might not have a next pointer
 					// if(nextDv == null) throw new RuntimeException("An updated version should always have the next pointer. The update version is " + dv + " and dv.next = " + dv.next + " and dv.prev = " + dv.prev)
 					// else 
-					if(imageMatchesPredicates(dv, preds) || ((nextDv ne null) && imageMatchesPredicates(nextDv, preds))) return true
+					res = res ++ imageMatchesPredicates(dv, preds)
+					if(nextDv ne null) res = res ++ imageMatchesPredicates(nextDv, preds)
 				}
 				case x => throw new IllegalStateException("DeltaVersion operation " + x + " does not exist.")
 			}
-			false
+			res
 		}
 
-		def imageMatchesPredicates(dv:DeltaVersion[_,_], preds: HashSet[Predicate[_,_]]): Boolean = {
-			preds.foreach { p => if(p.matches(dv)) {
+		def imageMatchesPredicates(dv:DeltaVersion[_,_], preds: HashSet[Predicate[_,_]]): Set[Conflict] = {
+			var res = Set[(Predicate[_,_], DeltaVersion[_,_])]()
+			preds.foreach { p => if((p.tbl == dv.getMap) && p.matches(dv)) {
 					debug("\t\t\t matched " + p + "!")(this)
-					return true
+					import scala.language.existentials
+					res = res + ((p.asInstanceOf[Predicate[_,Product]], dv.asInstanceOf[DeltaVersion[_,Product]]))
+					// return true
 				}
 			}
-			false
+			res
+		}
+
+		def addClosureTransition(ct: ClosureTransition) {
+			closureTransitions += ct
 		}
 	}
 
@@ -231,21 +248,47 @@ object MVCCTpccTableV4 {
 			debug("\tvalidation started")
 			val concurrentXacts = recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
 			debug("\t\tconcurrentXacts = " + concurrentXacts)
+			var conflicts = Set[Conflict]()
 			concurrentXacts.foreach { t =>
 				t.undoBuffer.foreach { dv =>
 					debug("\t\tchecking whether " + dv + " (in " + t + ") matches predicates in " + xact)
-					if(xact.matchesPredicates(dv)) {
-						debug("\tvalidation failed")
-						failedValidation += 1
-						return false
-					}
-					else {
-						debug("\t\t\t did not match!")
-					}
+					conflicts = conflicts ++ xact.matchesPredicates(dv)
 				}
 			}
-			debug("\tvalidation succeeded")
-			true
+
+			if(conflicts.isEmpty) {
+				debug("\tvalidation succeeded")
+				true
+			} else {
+				forceDebug("\tvalidation failed")
+				// forceDebug("\tconflicts are => " + conflicts)
+				// forceDebug("\tundoBuffer contains => " + xact.undoBuffer)
+				val conflictPreds = conflicts.map(_._1)
+				xact.closureTransitions.foreach{ ct =>
+					var activated = false
+					ct.handlers.foreach{ h =>
+						if(conflictPreds.exists( p => h.preds.contains(p))) {
+							forceDebug("\thandler activated for " + h.preds)
+							activated = true
+							h.handler(ct.outputVersions._1)
+						} else {
+							// forceDebug("\th.preds = " + h.preds)
+						}
+					}
+					if(activated) {
+						ct.outputVersions._2.foreach { innerCt =>
+							innerCt.handlers.foreach{ h =>
+								forceDebug("\t\tsub-handler activated")
+								h.handler(innerCt.outputVersions._1)
+							}
+						}
+					}
+				}
+
+				// failedValidation += 1
+				// false
+				true
+			}
 		}
 
 		def rollback(implicit xact:Transaction) = this.synchronized {

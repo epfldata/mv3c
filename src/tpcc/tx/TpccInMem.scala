@@ -488,6 +488,7 @@ class TpccInMem() {
         }
       }
       val actualTestTime = System.currentTimeMillis() - startTime
+      activate_transaction = 0
       println("---------------------------------------------------")
       println("<Raw Results>")
       for (i <- 0 until TRANSACTION_COUNT) {
@@ -575,7 +576,6 @@ class TpccInMem() {
       println("<TpmC>")
       println(tpcm + " TpmC")
       System.out.print("\nSTOPPING THREADS\n")
-      activate_transaction = 0
       if(implVersionUnderTest > 0) {
         logger.info(SharedDataScala.getAllMapsInfoStr)
       } else {
