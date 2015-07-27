@@ -7,10 +7,10 @@ import java.sql.Statement
 import java.sql.ResultSet
 import ddbt.tpcc.loadtest.Util._
 import ddbt.tpcc.loadtest.DatabaseConnector._
-import ddbt.tpcc.lib.shm.SHMap
-import ddbt.tpcc.lib.shm.SEntry
-import ddbt.tpcc.lib.shm.SHMapPooled
-import ddbt.tpcc.lib.BinaryHeap
+import ddbt.lib.shm.SHMap
+import ddbt.lib.shm.SEntry
+import ddbt.lib.shm.SHMapPooled
+import ddbt.lib.BinaryHeap
 import ddbt.tpcc.loadtest.TpccConstants._
 
 import TpccTable._

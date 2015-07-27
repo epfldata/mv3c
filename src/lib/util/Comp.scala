@@ -1,4 +1,4 @@
-package ddbt.tpcc.lib.util
+package ddbt.lib.util
 
 object Comp {
 

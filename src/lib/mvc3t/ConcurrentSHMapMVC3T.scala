@@ -1,4 +1,4 @@
-package ddbt.tpcc.lib.mvc3t
+package ddbt.lib.mvc3t
 
 import java.util.Map
 import java.util.NoSuchElementException
@@ -7,9 +7,9 @@ import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.CountedCompleter
 import java.util.concurrent.ForkJoinPool
-import ddbt.tpcc.lib.util.Comp._
+import ddbt.lib.util.Comp._
 import sun.misc.Unsafe
-import ddbt.tpcc.lib.concurrent.MyThreadLocalRandom
+import ddbt.lib.concurrent.MyThreadLocalRandom
 import ConcurrentSHMapMVC3T._
 import ddbt.tpcc.tx._
 import MVCCTpccTableV4.Transaction

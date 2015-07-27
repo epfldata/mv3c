@@ -1,4 +1,4 @@
-package ddbt.tpcc.lib.concurrent
+package ddbt.lib.concurrent
 
 import java.lang.reflect.Field
 import java.util.concurrent.atomic.{AtomicLong, AtomicInteger}

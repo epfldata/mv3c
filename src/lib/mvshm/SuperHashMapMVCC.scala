@@ -1,4 +1,4 @@
-package ddbt.tpcc.lib.mvshm
+package ddbt.lib.mvshm
 
 import ddbt.tpcc.tx._
 import MVCCTpccTableV1._

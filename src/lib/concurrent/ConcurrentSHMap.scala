@@ -1,4 +1,4 @@
-package ddbt.tpcc.lib.concurrent
+package ddbt.lib.concurrent
 
 import java.io.{ObjectInputStream, ObjectOutputStream, ObjectStreamField, Serializable}
 import java.lang.reflect.ParameterizedType
@@ -34,7 +34,7 @@ import java.util.stream.Stream
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountedCompleter;
 import java.util.concurrent.ForkJoinPool;
-import ddbt.tpcc.lib.util.Comp._
+import ddbt.lib.util.Comp._
 import sun.misc.Unsafe
 import ConcurrentSHMap._
 

@@ -7,10 +7,10 @@ import java.sql.Statement
 import java.sql.ResultSet
 import ddbt.tpcc.loadtest.Util._
 import ddbt.tpcc.loadtest.DatabaseConnector._
-import ddbt.tpcc.lib.concurrent.ConcurrentSHMap
-import ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T
-import ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.SEntryMVCC
-import ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion
+import ddbt.lib.concurrent.ConcurrentSHMap
+import ddbt.lib.mvc3t.ConcurrentSHMapMVC3T
+import ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.SEntryMVCC
+import ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion
 import ConcurrentSHMapMVC3T.{Predicate, Table, INSERT_OP, DELETE_OP, UPDATE_OP}
 import ddbt.tpcc.loadtest.TpccConstants._
 import scala.concurrent._
@@ -22,10 +22,10 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicBoolean
 
 object MVCCTpccTableV4 {
-	type MutableMap[K,V] = ddbt.tpcc.lib.shm.SHMap[K,V]
-	type DeltaVersion[K,V<:Product] = ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion[K,V]
-	type ClosureTransition = ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.ClosureTransition
-	type ChangeHandler[K,V<:Product] = ddbt.tpcc.lib.mvc3t.ConcurrentSHMapMVC3T.ChangeHandler[K,V]
+	type MutableMap[K,V] = ddbt.lib.shm.SHMap[K,V]
+	type DeltaVersion[K,V<:Product] = ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion[K,V]
+	type ClosureTransition = ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.ClosureTransition
+	type ChangeHandler[K,V<:Product] = ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.ChangeHandler[K,V]
 	// type Conflict[K,V<:Product] = (Predicate[K,V],DeltaVersion[K,V])
 	type Conflict = (Predicate[_,_],DeltaVersion[_,_])
 

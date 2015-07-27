@@ -1,4 +1,4 @@
-package ddbt.tpcc.lib.shm
+package ddbt.lib.shm
 
 import SIndex._
 

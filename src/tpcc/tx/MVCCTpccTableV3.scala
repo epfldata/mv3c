@@ -7,10 +7,10 @@ import java.sql.Statement
 import java.sql.ResultSet
 import ddbt.tpcc.loadtest.Util._
 import ddbt.tpcc.loadtest.DatabaseConnector._
-import ddbt.tpcc.lib.concurrent.ConcurrentSHMap
-import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC
-import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.SEntryMVCC
-import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion
+import ddbt.lib.concurrent.ConcurrentSHMap
+import ddbt.lib.mvconcurrent.ConcurrentSHMapMVCC
+import ddbt.lib.mvconcurrent.ConcurrentSHMapMVCC.SEntryMVCC
+import ddbt.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion
 import ConcurrentSHMapMVCC.{INSERT_OP, DELETE_OP, UPDATE_OP}
 import ddbt.tpcc.loadtest.TpccConstants._
 import scala.concurrent._
@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicBoolean
 
 object MVCCTpccTableV3 {
-	type MutableMap[K,V] = ddbt.tpcc.lib.shm.SHMap[K,V]
+	type MutableMap[K,V] = ddbt.lib.shm.SHMap[K,V]
 
 	val DEBUG = false
 	val ERROR = false

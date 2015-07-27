@@ -7,12 +7,12 @@ import java.sql.Statement
 import java.sql.ResultSet
 import ddbt.tpcc.loadtest.Util._
 import ddbt.tpcc.loadtest.DatabaseConnector._
-import ddbt.tpcc.lib.shm.SHMap
-import ddbt.tpcc.lib.mvshm.SHMapMVCC
-import ddbt.tpcc.lib.mvshm.SHMapMVCC._
-import ddbt.tpcc.lib.mvshm.SEntryMVCC
-import ddbt.tpcc.lib.mvshm.DeltaVersion
-import ddbt.tpcc.lib.BinaryHeap
+import ddbt.lib.shm.SHMap
+import ddbt.lib.mvshm.SHMapMVCC
+import ddbt.lib.mvshm.SHMapMVCC._
+import ddbt.lib.mvshm.SEntryMVCC
+import ddbt.lib.mvshm.DeltaVersion
+import ddbt.lib.BinaryHeap
 import ddbt.tpcc.loadtest.TpccConstants._
 
 import TpccTable._

@@ -1,4 +1,4 @@
-package ddbt.tpcc.lib.concurrent
+package ddbt.lib.concurrent
 
 import ConcurrentSHIndex._
 import ConcurrentSHMap.SEntry

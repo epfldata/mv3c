@@ -1,9 +1,9 @@
-package ddbt.tpcc.lib.mvconcurrent
+package ddbt.lib.mvconcurrent
 
 import ConcurrentSHIndexMVCC._
 import ConcurrentSHMapMVCC.DeltaVersion
-import ddbt.tpcc.lib.concurrent.ConcurrentSHMap
-import ddbt.tpcc.lib.concurrent.ConcurrentSHSet
+import ddbt.lib.concurrent.ConcurrentSHMap
+import ddbt.lib.concurrent.ConcurrentSHSet
 import ddbt.tpcc.tx._
 import MVCCTpccTableV3._
 

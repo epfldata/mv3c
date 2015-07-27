@@ -1,8 +1,8 @@
-package ddbt.tpcc.lib.mvshm
+package ddbt.lib.mvshm
 
 import SIndexMVCC._
-import ddbt.tpcc.lib.shm.SHMap
-import ddbt.tpcc.lib.shm.SHSet
+import ddbt.lib.shm.SHMap
+import ddbt.lib.shm.SHSet
 import ddbt.tpcc.tx._
 import MVCCTpccTableV1._
 

@@ -7,7 +7,7 @@ import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import ddbt.tpcc.tx.MVCCTpccTableV3._
 import ddbt.tpcc.tx.TpccTable._
-import ddbt.tpcc.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion
+import ddbt.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion
 import Delivery._
 
 object Delivery {
