@@ -1,4 +1,4 @@
-package ddbt.tpcc.lib.mvconcurrent
+package ddbt.lib.mvconcurrent
 
 import ddbt.tpcc.tx._
 import MVCCTpccTableV3._
