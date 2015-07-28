@@ -1,11 +1,9 @@
 package ddbt.lib.mvc3t
 
 import ConcurrentSHIndexMVC3T._
-import ConcurrentSHMapMVC3T.DeltaVersion
 import ddbt.lib.concurrent.ConcurrentSHMap
 import ddbt.lib.concurrent.ConcurrentSHSet
 import ddbt.tpcc.tx._
-import MVCCTpccTableV4._
 
 object ConcurrentSHIndexMVC3T {
   implicit val ord: math.Ordering[Any] = null

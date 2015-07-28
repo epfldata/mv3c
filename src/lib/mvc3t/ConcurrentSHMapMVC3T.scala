@@ -11,10 +11,7 @@ import ddbt.lib.util.Comp._
 import sun.misc.Unsafe
 import ddbt.lib.concurrent.MyThreadLocalRandom
 import ConcurrentSHMapMVC3T._
-import ddbt.tpcc.tx._
-import MVCCTpccTableV4.Transaction
-import MVCCTpccTableV4.MVCCConcurrentWriteException
-import MVCCTpccTableV4.MVCCRecordAlreadyExistsException
+import TransactionManager._
 
 /**
  * A hash table supporting full concurrency of retrievals and
@@ -217,13 +214,167 @@ import MVCCTpccTableV4.MVCCRecordAlreadyExistsException
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
  */
+
+class ChangeHandler[K,V <: Product](val preds: List[Predicate[K,V]], val handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]])
+
+//TODO: the base implementation uses 64-bit comparison summaries for compacted predicate entries, should we do that, too?
+//TODO: predicate should know the accessed fields, too, in order to do the attribute-level validation
+abstract class Predicate[K,V <: Product](val tbl: ConcurrentSHMapMVC3T[K,V]) {
+  def matches(dv: DeltaVersion[_,_]): Boolean
+  def onChange(handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]]) = new ChangeHandler[K,V](List(this), handler)
+}
+case class GetPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], key:K) extends Predicate(tbl) {
+  def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
+  def get(implicit xact:Transaction) = getEntry.row
+  def getEntry(implicit xact:Transaction) = xact.findPredicateCachedResult(this) match {
+    case Some(c) => val res = c.asInstanceOf[DeltaVersion[K,V]]; if(res.isVisible) res else {
+      val newRes = res.entry.getTheValue
+      xact.cachePredicateResult(this, newRes)
+      newRes
+    }
+    case None => val res = tbl.getEntry(this); xact.cachePredicateResult(this, res); res
+  }
+}
+case class SlicePredicate[P,K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], part:Int, partKey:P) extends Predicate(tbl) {
+  def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
+  def slice(implicit xact:Transaction) = xact.findPredicateCachedResult(this) match {
+    case Some(res) => res.asInstanceOf[ConcurrentSHIndexMVC3TEntry[P,K,V]]
+    case None => val res = tbl.slice(this); xact.cachePredicateResult(this, res); res
+  }
+}
+case class ForeachPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V]) extends Predicate(tbl) {
+  def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
+}
+
+final class ClosureTransition(val handlers: List[ChangeHandler[_,_]], closure:() => (List[DeltaVersion[_,_]],List[ClosureTransition]))(implicit val xact:Transaction) {
+  val outputVersions = closure()
+  xact.addClosureTransition(this)
+}
+
+final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null, @volatile var isRemoved:Boolean=false) {
+  vXact.undoBuffer += this
+  if(next != null) next.prev = this
+  if(prev != null) prev.next = this
+
+  @inline
+  final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
+  @inline
+  final def row: V = img
+  @inline
+  final def getKey: K = entry.key
+  @inline
+  final def getMap = entry.map
+  @inline
+  final def getTable = getMap.tblName
+  @inline
+  final def getCurrentValue(implicit xact:Transaction) = entry.getTheValue
+  @inline
+  final def project(part: Int) = getMap.projs(part).apply(getKey, getImage)
+
+  // @inline //inlining is disabled during development
+  final def setEntryValue(newValue: V)(implicit xact:Transaction): DeltaVersion[K,V] = entry.synchronized {
+    var insertOrUpdate = false
+    val dv = if(op == DELETE_OP) {
+      insertOrUpdate = true
+      entry.setTheValue(newValue, INSERT_OP)
+    } else if(newValue == null) {
+      entry.setTheValue(newValue, DELETE_OP)
+    } else {
+      insertOrUpdate = true
+      entry.setTheValue(newValue, UPDATE_OP, getModifiedColIds(newValue, img))
+    }
+
+    if(insertOrUpdate) {
+      val map = getMap
+      if (map.idxs!=Nil) map.idxs.foreach(_.set(entry.value))
+    }
+    dv
+  }
+
+  // @inline //inlining is disabled during development
+  final def isVisible(implicit xact:Transaction): Boolean = entry.synchronized {
+    /*val res = */(!isDeleted) && ((vXact eq xact) || 
+        (vXact.isCommitted && (vXact.xactId < xact.startTS)
+            && ((prev == null) || ((prev.vXact ne xact) && (prev.vXact.commitTS > xact.startTS)))
+        )
+      )
+    // if(res) {
+    //   debug("Is it visible => " + this)
+    //   debug("\tisDeleted = " + isDeleted)
+    //   debug("\tvXact eq xact = " + (vXact eq xact))
+    //   if(!(vXact eq xact)) {
+    //     debug("\tvXact.isCommitted = " + vXact.isCommitted)
+    //     debug("\tvXact.xactId < xact.startTS  = " + (vXact.xactId < xact.startTS ))
+    //     debug("\tprev = " + prev)
+    //     if(prev != null) {
+    //       debug("\tprev.vXact.commitTS > xact.startTS = " + (prev.vXact.commitTS > xact.startTS))
+    //     }
+    //   }
+    // }
+    // val res = entry.getTheValue eq this
+    // res
+  }
+
+  @inline
+  final def isDeleted = (op == DELETE_OP)
+
+  @inline
+  def opStr = op match {
+    case INSERT_OP => "INSERT"
+    case DELETE_OP => "DELETE"
+    case UPDATE_OP => "UPDATE"
+    case _ => "UNKNOWN"
+  }
+
+  // @inline //inlining is disabled during development
+  def gcRemove(implicit xact:Transaction): Unit = entry.synchronized {
+    if(next != null) throw new RuntimeException("There are more than one versions pending for a single garbage collection.")
+    remove
+  }
+
+  // @inline //inlining is disabled during development
+  def remove(implicit xact:Transaction): Unit = entry.synchronized {
+    if(!isRemoved) {
+      val map = getMap
+      if(/*isDeleted &&*/ prev == null && next == null) {
+        // debug("removing node " + getKey + " from " + getTable)
+        map.replaceNode(getKey)
+      }
+      if(prev != null){
+        prev.next = next
+        // prev = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
+      } else {
+        if(entry.value ne this) throw new RuntimeException("Only the head element in version list can have a null previous pointer => this => " + this + " and entry.value = " + entry.value)
+        if(next != null) entry.value = next //this entry might still be in use
+      }
+      if(next != null) {
+        next.prev = prev
+        // next = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
+      }
+
+      if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
+      isRemoved = true
+    } else {
+      throw new RuntimeException("removing a version twice this => " + this + " in " + xact)
+    }
+  }
+
+  final override def toString = "<" + getTable +" {"+getKey+" -> "+img+"} with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " written by " + vXact + ">"
+
+  // final override def hashCode: Int = {
+  //   entry.hashCode ^ img.hashCode
+  // }
+
+  final override def equals(o: Any): Boolean = {
+    this eq o.asInstanceOf[AnyRef]
+    // val e = o.asInstanceOf[DeltaVersion[K, V]]
+    // (refEquals(e.entry, entry) || (e.entry == entry)) &&
+    // (refEquals(e.img, img) || (e.img == img))
+  }
+}
+
 object ConcurrentSHMapMVC3T {
   type SEntryMVCC[K,V <: Product] = Node[K,V]
-  
-  type Operation = Int
-  val INSERT_OP:Operation = 1
-  val DELETE_OP:Operation = 2
-  val UPDATE_OP:Operation = 3
 
   val NO_TRANSACTION_AVAILABLE = null
 
@@ -311,168 +462,6 @@ object ConcurrentSHMapMVC3T {
   private val HASH_BITS: Int = 0x7fffffff
   /** Number of CPUS, to place bounds on some sizings */
   private val NCPU: Int = Runtime.getRuntime.availableProcessors
-
-  def debug(msg: => String)(implicit xact:Transaction) = MVCCTpccTableV4.debug(msg)
-
-  type Table = String
-
-  class ChangeHandler[K,V <: Product](val preds: List[Predicate[K,V]], val handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]])
-
-  //TODO: the base implementation uses 64-bit comparison summaries for compacted predicate entries, should we do that, too?
-  //TODO: predicate should know the accessed fields, too, in order to do the attribute-level validation
-  abstract class Predicate[K,V <: Product](val tbl: ConcurrentSHMapMVC3T[K,V]) {
-    def matches(dv: DeltaVersion[_,_]): Boolean
-    def onChange(handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]]) = new ChangeHandler[K,V](List(this), handler)
-  }
-  case class GetPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], key:K) extends Predicate(tbl) {
-    def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
-    def get(implicit xact:Transaction) = getEntry.row
-    def getEntry(implicit xact:Transaction) = xact.findPredicateCachedResult(this) match {
-      case Some(c) => val res = c.asInstanceOf[DeltaVersion[K,V]]; if(res.isVisible) res else {
-        val newRes = res.entry.getTheValue
-        xact.cachePredicateResult(this, newRes)
-        newRes
-      }
-      case None => val res = tbl.getEntry(this); xact.cachePredicateResult(this, res); res
-    }
-  }
-  case class SlicePredicate[P,K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], part:Int, partKey:P) extends Predicate(tbl) {
-    def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
-    def slice(implicit xact:Transaction) = xact.findPredicateCachedResult(this) match {
-      case Some(res) => res.asInstanceOf[ConcurrentSHIndexMVC3TEntry[P,K,V]]
-      case None => val res = tbl.slice(this); xact.cachePredicateResult(this, res); res
-    }
-  }
-  case class ForeachPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V]) extends Predicate(tbl) {
-    def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
-  }
-
-  final class ClosureTransition(val handlers: List[ChangeHandler[_,_]], closure:() => (List[DeltaVersion[_,_]],List[ClosureTransition]))(implicit val xact:Transaction) {
-    val outputVersions = closure()
-    xact.addClosureTransition(this)
-  }
-
-  final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null, @volatile var isRemoved:Boolean=false) {
-    vXact.undoBuffer += this
-    if(next != null) next.prev = this
-    if(prev != null) prev.next = this
-
-    @inline
-    final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
-    @inline
-    final def row: V = img
-    @inline
-    final def getKey: K = entry.key
-    @inline
-    final def getMap = entry.map
-    @inline
-    final def getTable = getMap.tblName
-    @inline
-    final def getCurrentValue(implicit xact:Transaction) = entry.getTheValue
-    @inline
-    final def project(part: Int) = getMap.projs(part).apply(getKey, getImage)
-
-    // @inline //inlining is disabled during development
-    final def setEntryValue(newValue: V)(implicit xact:Transaction): DeltaVersion[K,V] = entry.synchronized {
-      var insertOrUpdate = false
-      val dv = if(op == DELETE_OP) {
-        insertOrUpdate = true
-        entry.setTheValue(newValue, INSERT_OP)
-      } else if(newValue == null) {
-        entry.setTheValue(newValue, DELETE_OP)
-      } else {
-        insertOrUpdate = true
-        entry.setTheValue(newValue, UPDATE_OP, getModifiedColIds(newValue, img))
-      }
-
-      if(insertOrUpdate) {
-        val map = getMap
-        if (map.idxs!=Nil) map.idxs.foreach(_.set(entry.value))
-      }
-      dv
-    }
-
-    // @inline //inlining is disabled during development
-    final def isVisible(implicit xact:Transaction): Boolean = entry.synchronized {
-      /*val res = */(!isDeleted) && ((vXact eq xact) || 
-          (vXact.isCommitted && (vXact.xactId < xact.startTS)
-              && ((prev == null) || ((prev.vXact ne xact) && (prev.vXact.commitTS > xact.startTS)))
-          )
-        )
-      // if(res) {
-      //   debug("Is it visible => " + this)
-      //   debug("\tisDeleted = " + isDeleted)
-      //   debug("\tvXact eq xact = " + (vXact eq xact))
-      //   if(!(vXact eq xact)) {
-      //     debug("\tvXact.isCommitted = " + vXact.isCommitted)
-      //     debug("\tvXact.xactId < xact.startTS  = " + (vXact.xactId < xact.startTS ))
-      //     debug("\tprev = " + prev)
-      //     if(prev != null) {
-      //       debug("\tprev.vXact.commitTS > xact.startTS = " + (prev.vXact.commitTS > xact.startTS))
-      //     }
-      //   }
-      // }
-      // val res = entry.getTheValue eq this
-      // res
-    }
-
-    @inline
-    final def isDeleted = (op == DELETE_OP)
-
-    @inline
-    def opStr = op match {
-      case INSERT_OP => "INSERT"
-      case DELETE_OP => "DELETE"
-      case UPDATE_OP => "UPDATE"
-      case _ => "UNKNOWN"
-    }
-
-    // @inline //inlining is disabled during development
-    def gcRemove(implicit xact:Transaction): Unit = entry.synchronized {
-      if(next != null) throw new RuntimeException("There are more than one versions pending for a single garbage collection.")
-      remove
-    }
-
-    // @inline //inlining is disabled during development
-    def remove(implicit xact:Transaction): Unit = entry.synchronized {
-      if(!isRemoved) {
-        val map = getMap
-        if(/*isDeleted &&*/ prev == null && next == null) {
-          // debug("removing node " + getKey + " from " + getTable)
-          map.replaceNode(getKey)
-        }
-        if(prev != null){
-          prev.next = next
-          // prev = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
-        } else {
-          if(entry.value ne this) throw new RuntimeException("Only the head element in version list can have a null previous pointer => this => " + this + " and entry.value = " + entry.value)
-          if(next != null) entry.value = next //this entry might still be in use
-        }
-        if(next != null) {
-          next.prev = prev
-          // next = null //we want to avoid modifications in concurrent accessible objects, so this (unnecessary) cleanup is removed, as it will anyway get removed by GC.
-        }
-
-        if (map.idxs!=Nil) map.idxs.foreach(_.del(this))
-        isRemoved = true
-      } else {
-        throw new RuntimeException("removing a version twice this => " + this + " in " + xact)
-      }
-    }
-
-    final override def toString = "<" + getTable +" {"+getKey+" -> "+img+"} with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " written by " + vXact + ">"
-
-    // final override def hashCode: Int = {
-    //   entry.hashCode ^ img.hashCode
-    // }
-
-    final override def equals(o: Any): Boolean = {
-      this eq o.asInstanceOf[AnyRef]
-      // val e = o.asInstanceOf[DeltaVersion[K, V]]
-      // (refEquals(e.entry, entry) || (e.entry == entry)) &&
-      // (refEquals(e.img, img) || (e.img == img))
-    }
-  }
 
   /**
    * Key-value entry.  This class is never exported out as a

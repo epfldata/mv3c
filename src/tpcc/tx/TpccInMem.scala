@@ -416,7 +416,6 @@ class TpccInMem() {
           MVCCTpccTableV3.clear
           SharedDataScala = SharedDataScala.toMVCCTpccTableV3
         } else if(implVersionUnderTest == 11) {
-          MVCCTpccTableV4.clear
           SharedDataScala = SharedDataScala.toMVCCTpccTableV4
         }
         newOrder.setSharedData(SharedDataScala)

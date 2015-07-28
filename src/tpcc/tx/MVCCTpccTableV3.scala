@@ -377,7 +377,7 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 	 * This method should retun the list of committed TPC-C commands
 	 * by the serialization order
 	 */
-	override def getListOfCommittedCommands: Seq[TpccCommand] = {
+	override def getListOfCommittedCommands: Seq[ddbt.lib.util.XactCommand] = {
 		if(tm.allCommittedXacts.isEmpty) {
 			if(isUnitTestEnabled)
 				throw new RuntimeException("No transaction is committed")

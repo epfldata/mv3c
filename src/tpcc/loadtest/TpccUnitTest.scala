@@ -479,7 +479,7 @@ class TpccUnitTest {
         SharedDataScala = LMSDataLoader.moveDataToTpccTable(SharedDataLMS, implVersionUnderTest)
       }
     } else {
-      var listOfCommittedCommands: Seq[TpccTable.TpccCommand] = null
+      var listOfCommittedCommands: Seq[ddbt.lib.util.XactCommand] = null
 
       { // Running the parallel implementation with enabled unit-test
         // in order to collect the committed transactions

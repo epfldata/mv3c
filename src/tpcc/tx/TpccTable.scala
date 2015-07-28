@@ -21,7 +21,7 @@ object TpccTable {
 
 	def testSpecialDs(implVersion:Int) = implVersion == 5
 
-	abstract class TpccCommand
+	abstract class TpccCommand extends ddbt.lib.util.XactCommand
 	case class DeliveryCommand(datetime:Date, w_id: Int, o_carrier_id: Int) extends TpccCommand
 	case class NewOrderCommand(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stocks:Array[Int], bg:Array[Char], amt:Array[Float]) extends TpccCommand
 	case class OrderStatusCommand(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String) extends TpccCommand
@@ -40,7 +40,7 @@ class TpccTable(implVersion:Int) {
 	 * This method should retun the list of committed TPC-C commands
 	 * by the serialization order
 	 */
-	def getListOfCommittedCommands: Seq[TpccCommand] = {
+	def getListOfCommittedCommands: Seq[ddbt.lib.util.XactCommand] = {
 		throw new UnsupportedOperationException("getListOfCommittedCommands is not implemented!")
 	}
 

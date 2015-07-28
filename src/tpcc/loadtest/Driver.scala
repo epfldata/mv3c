@@ -75,7 +75,7 @@ class Driver(var conn: java.sql.Connection,
 
   private var startTime = 0L
 
-  def runTransaction(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: (Int => Boolean), commandSeq:Seq[TpccTable.TpccCommand]=null): Int = {
+  def runTransaction(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: (Int => Boolean), commandSeq:Seq[ddbt.lib.util.XactCommand]=null): Int = {
     startTime = (System.currentTimeMillis() % 1000) * 1000
 
     num_ware = numWare

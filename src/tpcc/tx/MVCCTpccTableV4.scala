@@ -8,32 +8,15 @@ import java.sql.ResultSet
 import ddbt.tpcc.loadtest.Util._
 import ddbt.tpcc.loadtest.DatabaseConnector._
 import ddbt.lib.concurrent.ConcurrentSHMap
-import ddbt.lib.mvc3t.ConcurrentSHMapMVC3T
+import ddbt.lib.mvc3t._
 import ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.SEntryMVCC
-import ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion
-import ConcurrentSHMapMVC3T.{Predicate, Table, INSERT_OP, DELETE_OP, UPDATE_OP}
 import ddbt.tpcc.loadtest.TpccConstants._
-import scala.concurrent._
-import ExecutionContext.Implicits.global
 
+import TransactionManager._
 import TpccTable._
 import MVCCTpccTableV4._
-import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.atomic.AtomicBoolean
 
 object MVCCTpccTableV4 {
-	type MutableMap[K,V] = ddbt.lib.shm.SHMap[K,V]
-	type DeltaVersion[K,V<:Product] = ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.DeltaVersion[K,V]
-	type ClosureTransition = ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.ClosureTransition
-	type ChangeHandler[K,V<:Product] = ddbt.lib.mvc3t.ConcurrentSHMapMVC3T.ChangeHandler[K,V]
-	// type Conflict[K,V<:Product] = (Predicate[K,V],DeltaVersion[K,V])
-	type Conflict = (Predicate[_,_],DeltaVersion[_,_])
-
-	val DEBUG = false
-	val ERROR = false
-	val DISABLE_GC = false
-	val PARALLEL_GC = true
-
 	val TRUE_TUPLE = Tuple1(true)
 
 	val NEWORDER_TBL = "newOrderTbl"
@@ -68,343 +51,36 @@ object MVCCTpccTableV4 {
 	type StockTblKey = (Int,Int)
 	type StockTblValue = (Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)
 
-	var forcedRollback = 0 // is the rollback requested by transaction program (and it’s a part of benchmark)
-	var failedValidation = 0 // is the rollback due to the validation failure
-	var failedConcurrentUpdate = 0 // is the rollback due to a concurrent update (for the same object), which is not allowed in the reference impl.
-	var failedConcurrentInsert = 0 // is the rollback due to a concurrent insert (for the same object), which is not allowed in the reference impl.
-
-	def clear = {
-		forcedRollback = 0
-		failedValidation = 0
-		failedConcurrentUpdate = 0
-		failedConcurrentInsert = 0
-	}
-
-	//@inline //TODO FIX IT: it should be inlined for production use
-	def forceDebug(msg: => String)(implicit xact:Transaction) = println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
-	def debug(msg: => String)(implicit xact:Transaction) = if(DEBUG) println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
-	def error(msg: => String)(implicit xact:Transaction): Unit = if(ERROR) System.err.println("Thread"+Thread.currentThread().getId()+" :> "+xact+": " + msg)
-	def error(e: Throwable)(implicit xact:Transaction): Unit = if(ERROR) { error(e.toString); e.getStackTrace.foreach(st => error(st.toString))}
-
-	class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
-		val DEFAULT_UNDO_BUFFER_SIZE = 64
-
-		val undoBuffer = new HashSet[DeltaVersion[_,_]]()
-		var predicates = new MutableMap[Table, HashSet[Predicate[_,_]]](TABLES.size * 2)
-		var predicateResultCache = new MutableMap[Predicate[_,_], AnyRef](TABLES.size * 2)
-		val closureTransitions = new ListBuffer[ClosureTransition]()
-
-		var command: TpccCommand = null
-
-		def setCommand(c: TpccCommand) {
-			command = c
-		}
-
-		def commitTS = xactId
-
-		def transactionId = startTS //if(xactId < TransactionManager.TRANSACTION_ID_GEN_START) xactId else (xactId - TransactionManager.TRANSACTION_ID_GEN_START)
-
-		def isCommitted = (xactId < TransactionManager.TRANSACTION_ID_GEN_START)
-
-		def isReadOnly = undoBuffer.isEmpty
-
-		def addPredicate(p:Predicate[_,_]) = {
-			val pList = predicates.getNullOnNotFound(p.tbl.tblName)
-			if(pList != null) pList += p
-			else {
-				val pBuf = new HashSet[Predicate[_,_]]
-				pBuf += p
-				predicates += (p.tbl.tblName, pBuf)
-			}
-		}
-
-		def findPredicateCachedResult(p:Predicate[_,_]):Option[AnyRef] = {
-			val res = predicateResultCache.getNullOnNotFound(p)
-			if(res == null) None else Some(res)
-		}
-
-		def cachePredicateResult(p:Predicate[_,_], res: AnyRef) {
-			predicateResultCache += (p, res)
-		}
-
-		def commit = tm.commit(this)
-		def rollback = tm.rollback(this)
-
-		override def toString = "T"+transactionId+"<"+name+">"
-
-		def matchesPredicates(dv:DeltaVersion[_,_]): Set[Conflict] = {
-			if(dv == null) println("dv is null in matchesPredicates")
-			val preds = predicates.getNullOnNotFound(dv.getTable)
-			var res = Set[Conflict]()
-			if(preds != null) dv.op match {
-				case INSERT_OP => {
-					res = res ++ imageMatchesPredicates(dv, preds)
-				}
-				case DELETE_OP => {
-					val nextDv = dv.next
-					if(nextDv == null) throw new RuntimeException("A deleted version should always have the next pointer.")
-					else {
-						res = res ++ imageMatchesPredicates(nextDv, preds)
-					}
-				}
-				case UPDATE_OP => {
-					val nextDv = dv.next
-					// An updated version after GC might not have a next pointer
-					// if(nextDv == null) throw new RuntimeException("An updated version should always have the next pointer. The update version is " + dv + " and dv.next = " + dv.next + " and dv.prev = " + dv.prev)
-					// else 
-					res = res ++ imageMatchesPredicates(dv, preds)
-					if(nextDv ne null) res = res ++ imageMatchesPredicates(nextDv, preds)
-				}
-				case x => throw new IllegalStateException("DeltaVersion operation " + x + " does not exist.")
-			}
-			res
-		}
-
-		def imageMatchesPredicates(dv:DeltaVersion[_,_], preds: HashSet[Predicate[_,_]]): Set[Conflict] = {
-			var res = Set[(Predicate[_,_], DeltaVersion[_,_])]()
-			preds.foreach { p => if((p.tbl == dv.getMap) && p.matches(dv)) {
-					debug("\t\t\t matched " + p + "!")(this)
-					import scala.language.existentials
-					res = res + ((p.asInstanceOf[Predicate[_,Product]], dv.asInstanceOf[DeltaVersion[_,Product]]))
-					// return true
-				}
-			}
-			res
-		}
-
-		def addClosureTransition(ct: ClosureTransition) {
-			closureTransitions += ct
-		}
-	}
-
-	object TransactionManager {
-		val TRANSACTION_ID_GEN_START = (1L << 32)
-		val TRANSACTION_STRAT_TS_GEN_START = 1L
-	}
-
-	class TransactionManager(isUnitTestEnabled: =>Boolean) {
-
-
-		val transactionIdGen = new AtomicLong(TransactionManager.TRANSACTION_ID_GEN_START)
-		val startAndCommitTimestampGen = new AtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
-		val isGcActive = new AtomicBoolean(DISABLE_GC)
-
-		val activeXacts = new LinkedHashMap[Long,Transaction]
-		val recentlyCommittedXacts = new ListBuffer[Transaction]()
-		val allCommittedXacts = new ListBuffer[Transaction]()
-
-		def begin(name: String) = activeXacts.synchronized {
-			val xactId = transactionIdGen.getAndIncrement()
-			val startTS = startAndCommitTimestampGen.getAndIncrement()
-			implicit val xact = new Transaction(this, name, startTS, xactId)
-			activeXacts.put(xactId, xact)
-			debug("started at %d".format(startTS))
-			xact
-		}
-		def commit(implicit xact:Transaction):Boolean = this.synchronized {
-			debug("commit started")
-			val xactId = xact.xactId
-			if(activeXacts.contains(xactId)){
-				if(xact.isReadOnly) {
-					xact.xactId = xact.startTS
-					activeXacts.synchronized {
-						activeXacts -= xactId
-					}
-					recentlyCommittedXacts.synchronized {
-						recentlyCommittedXacts += xact
-						if(isUnitTestEnabled) allCommittedXacts += xact
-					}
-					debug("(read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
-					true
-				} else if(!validate) {
-					debug("commit failed: transaction validation failed! We have to roll it back...")
-					rollback
-					false
-				} else {
-					activeXacts.synchronized {
-						xact.xactId = startAndCommitTimestampGen.getAndIncrement()
-						activeXacts -= xactId
-					}
-					debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
-					recentlyCommittedXacts.synchronized {
-						recentlyCommittedXacts += xact
-						if(isUnitTestEnabled) allCommittedXacts += xact
-					}
-					garbageCollect
-					debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
-					true
-				}
-			} else {
-				debug("commit failed: transaction does not exist! We have to roll it back...")
-				rollback
-				false
-			}
-		}
-		//TODO: should be implemented completely
-		// missing:
-		//  - validation can run in parallel for the transactions that are in this stage (we do not have to synchronize it)
-		//  - attribute-level validation should be supported
-		def validate(implicit xact:Transaction): Boolean = {
-			debug("\tvalidation started")
-			val concurrentXacts = recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
-			debug("\t\tconcurrentXacts = " + concurrentXacts)
-			var conflicts = Set[Conflict]()
-			concurrentXacts.foreach { t =>
-				t.undoBuffer.foreach { dv =>
-					debug("\t\tchecking whether " + dv + " (in " + t + ") matches predicates in " + xact)
-					conflicts = conflicts ++ xact.matchesPredicates(dv)
-				}
-			}
-
-			if(conflicts.isEmpty) {
-				debug("\tvalidation succeeded")
-				true
-			} else {
-				forceDebug("\tvalidation failed")
-				// forceDebug("\tconflicts are => " + conflicts)
-				// forceDebug("\tundoBuffer contains => " + xact.undoBuffer)
-				val conflictPreds = conflicts.map(_._1)
-				xact.closureTransitions.foreach{ ct =>
-					var activated = false
-					ct.handlers.foreach{ h =>
-						if(conflictPreds.exists( p => h.preds.contains(p))) {
-							forceDebug("\thandler activated for " + h.preds)
-							activated = true
-							h.handler(ct.outputVersions._1)
-						} else {
-							// forceDebug("\th.preds = " + h.preds)
-						}
-					}
-					if(activated) {
-						ct.outputVersions._2.foreach { innerCt =>
-							innerCt.handlers.foreach{ h =>
-								forceDebug("\t\tsub-handler activated")
-								h.handler(innerCt.outputVersions._1)
-							}
-						}
-					}
-				}
-
-				// failedValidation += 1
-				// false
-				true
-			}
-		}
-
-		def rollback(implicit xact:Transaction) = this.synchronized {
-			debug("rollback started")
-			activeXacts.synchronized {
-				activeXacts -= xact.xactId
-			}
-			debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
-			xact.undoBuffer.foreach{ dv => 
-				debug("\t\tremoved => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
-				dv.remove
-			}
-			garbageCollect
-			debug("rollback finished")
-		}
-
-		private def garbageCollect(implicit xact:Transaction) {
-			if(isGcActive.compareAndSet(false,true)) {
-				if(PARALLEL_GC) {
-					Future {
-						gcInternal
-						isGcActive.set(false)
-					}
-				} else {
-					gcInternal
-					isGcActive.set(false)
-				}
-			}
-		}
-
-		private def gcInternal(implicit xact:Transaction) {
-			debug("GC started")
-			if(!recentlyCommittedXacts.isEmpty) {
-				var oldestActiveXactStartTS = TransactionManager.TRANSACTION_ID_GEN_START
-				activeXacts.synchronized {
-					activeXacts.foreach{ a => if(a._2.startTS < oldestActiveXactStartTS) oldestActiveXactStartTS = a._2.startTS }
-					debug("\tactiveXacts = " + activeXacts)
-					debug("\toldestActiveXactStartTS = " + oldestActiveXactStartTS)
-				}
-
-				var reachedLimit = false
-				while(!reachedLimit && !recentlyCommittedXacts.isEmpty) {
-					val xact = recentlyCommittedXacts.head
-					implicit val theXact = xact
-					if(xact.commitTS < oldestActiveXactStartTS) {
-						debug("\tremoving xact = " + xact.transactionId)
-						xact.undoBuffer.foreach{ dv =>
-							val nextDV = dv.next
-							dv.next = null
-							if(nextDV != null) {
-								debug("\t\tremoved version => (" + nextDV.getTable+"," + nextDV.getKey + ", " + nextDV + ")")
-								nextDV.gcRemove
-							}
-							else if(dv.op == DELETE_OP){
-								debug("\t\tcould not remove version because of no next => (" + nextDV.getTable+"," + nextDV.getKey + ", " + nextDV + ")")
-							}
-							if(dv.isDeleted) {
-								debug("\t\tand also removed itself => (" + nextDV.getTable+"," + dv.getKey + ", " + dv + ")")
-								dv.remove
-							}
-							else if(nextDV != null){
-								debug("\t\t, and current version is => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
-							}
-						}
-						recentlyCommittedXacts.synchronized {
-							recentlyCommittedXacts.remove(0)
-						}
-					} else {
-						debug("\treached gc limit T"+xact.transactionId+" vs. oldestActiveXactStartTS=" + oldestActiveXactStartTS)
-						reachedLimit = true
-					}
-				}
-			}
-			else {
-				debug("\tnothing to be done!")
-			}
-			debug("GC finished")
-		}
-
-		/////// TABLES \\\\\\\
-		val newOrderTbl = new ConcurrentSHMapMVC3T[NewOrderTblKey,NewOrderTblValue](NEWORDER_TBL,/*0.9f, 262144,*/ (k:NewOrderTblKey,v:NewOrderTblValue) => ((k._2, k._3)) )
-
-		val historyTbl = new ConcurrentSHMapMVC3T[HistoryTblKey,HistoryTblValue](HISTORY_TBL/*0.9f, 4194304)*/)
-
-		val warehouseTbl = new ConcurrentSHMapMVC3T[WarehouseTblKey,WarehouseTblValue](WAREHOUSE_TBL)
-
-		val itemPartialTbl = new ConcurrentSHMapMVC3T[ItemTblKey,ItemTblValue](ITEM_TBL/*1f, 262144*/)
-
-		val orderTbl = new ConcurrentSHMapMVC3T[OrderTblKey,OrderTblValue](ORDER_TBL,/*0.9f, 4194304,*/ (k:OrderTblKey, v:OrderTblValue) => ((k._2, k._3, v._1)) )
-
-		val districtTbl = new ConcurrentSHMapMVC3T[DistrictTblKey,DistrictTblValue](DISTRICT_TBL/*1f, 32*/)
-
-		val orderLineTbl = new ConcurrentSHMapMVC3T[OrderLineTblKey,OrderLineTblValue](ORDERLINE_TBL,/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:OrderLineTblKey, v:OrderLineTblValue) => ((k._1, k._2, k._3)) )
-
-		val customerTbl = new ConcurrentSHMapMVC3T[CustomerTblKey,CustomerTblValue] (CUSTOMER_TBL,/*1f, 65536, List((1f, 16384)),*/ (k:CustomerTblKey, v:CustomerTblValue) => ((k._2, k._3, v._3)) )
-
-		val stockTbl = new ConcurrentSHMapMVC3T[StockTblKey,StockTblValue](STOCK_TBL/*1f, 262144*/)
-
-		// val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVC3T[(Int,Int,Int),(Float,String,String,Float)](CUSTOMERWAREHOUSE_TBL/*1f, 65536*/)
-	}
-
-	class MVCCException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends RuntimeException(message, cause) {
-		// xact.rollback //rollback the transaction upon any exception
-	}
-	class MVCCConcurrentWriteException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause) {
-		failedConcurrentUpdate += 1
-	}
-	class MVCCRecordAlreadyExistsException(message: String = null, cause: Throwable = null)(implicit xact:Transaction) extends MVCCException(message, cause) {
-		failedConcurrentInsert += 1
-	}
-
 	// this should not be modified
 	// it is set to false in order to make the inheritance
 	// from 
 	def testSpecialDsUsed = false
 }
+
+class TpccTransactionManager(isUnitTestEnabled: =>Boolean) extends TransactionManager(isUnitTestEnabled) {
+
+	/////// TABLES \\\\\\\
+	val newOrderTbl = new ConcurrentSHMapMVC3T[NewOrderTblKey,NewOrderTblValue](NEWORDER_TBL,/*0.9f, 262144,*/ (k:NewOrderTblKey,v:NewOrderTblValue) => ((k._2, k._3)) )
+
+	val historyTbl = new ConcurrentSHMapMVC3T[HistoryTblKey,HistoryTblValue](HISTORY_TBL/*0.9f, 4194304)*/)
+
+	val warehouseTbl = new ConcurrentSHMapMVC3T[WarehouseTblKey,WarehouseTblValue](WAREHOUSE_TBL)
+
+	val itemPartialTbl = new ConcurrentSHMapMVC3T[ItemTblKey,ItemTblValue](ITEM_TBL/*1f, 262144*/)
+
+	val orderTbl = new ConcurrentSHMapMVC3T[OrderTblKey,OrderTblValue](ORDER_TBL,/*0.9f, 4194304,*/ (k:OrderTblKey, v:OrderTblValue) => ((k._2, k._3, v._1)) )
+
+	val districtTbl = new ConcurrentSHMapMVC3T[DistrictTblKey,DistrictTblValue](DISTRICT_TBL/*1f, 32*/)
+
+	val orderLineTbl = new ConcurrentSHMapMVC3T[OrderLineTblKey,OrderLineTblValue](ORDERLINE_TBL,/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:OrderLineTblKey, v:OrderLineTblValue) => ((k._1, k._2, k._3)) )
+
+	val customerTbl = new ConcurrentSHMapMVC3T[CustomerTblKey,CustomerTblValue] (CUSTOMER_TBL,/*1f, 65536, List((1f, 16384)),*/ (k:CustomerTblKey, v:CustomerTblValue) => ((k._2, k._3, v._3)) )
+
+	val stockTbl = new ConcurrentSHMapMVC3T[StockTblKey,StockTblValue](STOCK_TBL/*1f, 262144*/)
+
+	// val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVC3T[(Int,Int,Int),(Float,String,String,Float)](CUSTOMERWAREHOUSE_TBL/*1f, 65536*/)
+}
+
 /**
  * Tables for TPC-C Benchmark (with all operations reflected through its API
  * (and not directly via internal tables)
@@ -424,7 +100,7 @@ class MVCCTpccTableV4 extends TpccTable(7) {
 	override val stockTbl = null
 	// override val customerWarehouseFinancialInfoMap = null
 
-	val tm = new TransactionManager(isUnitTestEnabled)
+	val tm = new TpccTransactionManager(isUnitTestEnabled)
 
 	def begin = tm.begin("adhoc")
 	def begin(name: String) = tm.begin(name)
@@ -435,7 +111,7 @@ class MVCCTpccTableV4 extends TpccTable(7) {
 	 * This method should retun the list of committed TPC-C commands
 	 * by the serialization order
 	 */
-	override def getListOfCommittedCommands: Seq[TpccCommand] = {
+	override def getListOfCommittedCommands: Seq[ddbt.lib.util.XactCommand] = {
 		if(tm.allCommittedXacts.isEmpty) {
 			if(isUnitTestEnabled)
 				throw new RuntimeException("No transaction is committed")
@@ -653,10 +329,10 @@ class MVCCTpccTableV4 extends TpccTable(7) {
     }
 
     override def getAllMapsInfoStr:String = {
-    	("forcedRollback => " + forcedRollback + "\n") +
-		("failedValidation => " + failedValidation + "\n") +
-		("failedConcurrentUpdate => " + failedConcurrentUpdate + "\n") +
-		("failedConcurrentInsert => " + failedConcurrentInsert + "\n")
+    	("forcedRollback => " + tm.forcedRollback + "\n") +
+		("failedValidation => " + tm.failedValidation + "\n") +
+		("failedConcurrentUpdate => " + tm.failedConcurrentUpdate + "\n") +
+		("failedConcurrentInsert => " + tm.failedConcurrentInsert + "\n")
 		//+ (",%d\n,%d\n,%d\n,%d\n".format(forcedRollback,failedValidation,failedConcurrentUpdate,failedConcurrentInsert))
     }
 
