@@ -84,7 +84,7 @@ addCommandAlias("unit9",  ";unit -i 9; reloadDB") ++
 addCommandAlias("unit10", ";unit -i 10; reloadDB") ++
 addCommandAlias("unit11", ";unit -i 11; reloadDB")
 
-addCommandAlias("test-mvconcurrent", ";test-only ddbt.tpcc.lib.mvconcurrent.*")
+addCommandAlias("test-mvconcurrent", ";test-only ddbt.lib.mvconcurrent.*")
 
 // --------- LMS codegen, enabled with ddbt.lms = 1 in conf/config.properties
 {

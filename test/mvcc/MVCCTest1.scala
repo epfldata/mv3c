@@ -29,7 +29,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
     override def toString = (_1,_2).toString
   }
 
-  val tm = new TransactionManager
+  val tm = new TransactionManager(true)
   tm.isGcActive.set(disableGC)
   val tbl = new ConcurrentSHMapMVCC[Key,(Int,String)]("Test1Map", (k:Key,v:(Int,String)) => k._1 )
 
@@ -221,7 +221,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
     }
     sum should be (2227)
 
-    xact1.commit should be (false)
+    xact1.commit should be (true)
   }
 
   it should "handle cleanup correctly after rollback (including the removal of pointers in DeltaVersion)" in {
