@@ -12,141 +12,43 @@ import org.slf4j.LoggerFactory
 import org.slf4j.Logger
 import ddbt.tpcc.tx.TpccTable
 import ddbt.tpcc.itx._
-import Driver._
+import TpccDriver._
 import TpccConstants._
 
-object Driver {
+object TpccDriver {
 
-  private val logger = LoggerFactory.getLogger(classOf[Driver])
+  val logger = LoggerFactory.getLogger(classOf[TpccDriver])
 
-  private val DEBUG = logger.isDebugEnabled
+  val DEBUG = logger.isDebugEnabled
 
   /**
    * For debug use only.
    */
-  private val DETECT_LOCK_WAIT_TIMEOUTS = false
+  val DETECT_LOCK_WAIT_TIMEOUTS = false
 
   /**
    * Can be disabled for debug use only.
    */
-  private val ALLOW_MULTI_WAREHOUSE_TX = true
+  val ALLOW_MULTI_WAREHOUSE_TX = true
 }
 
-class Driver(var conn: java.sql.Connection, 
+class TpccDriver(conn: java.sql.Connection, 
     fetchSize: Int, 
-    val success: Array[Int], 
-    val late: Array[Int], 
-    val retry: Array[Int], 
-    val failure: Array[Int], 
-    val success2: Array[Array[Int]], 
-    val late2: Array[Array[Int]], 
-    val retry2: Array[Array[Int]], 
-    val failure2: Array[Array[Int]],
-    val newOrder: INewOrder,
-    val payment: IPayment,
-    val orderStat: IOrderStatus,
-    val slev: IStockLevel,
-    val delivery: IDelivery) {
+    success: Array[Int], 
+    late: Array[Int], 
+    retry: Array[Int], 
+    failure: Array[Int], 
+    success2: Array[Array[Int]], 
+    late2: Array[Array[Int]], 
+    retry2: Array[Array[Int]], 
+    failure2: Array[Array[Int]],
+    newOrder: INewOrder,
+    payment: IPayment,
+    orderStat: IOrderStatus,
+    slev: IStockLevel,
+    delivery: IDelivery) extends Driver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, failure2) {
 
-  var num_ware: Int = _
-
-  var num_conn: Int = _
-
-  var num_node: Int = _
-
-  var max_rt: Array[Float] = new Array[Float](TRANSACTION_COUNT)
-  for (i <- 0 until TRANSACTION_COUNT) {
-    max_rt(i) = 0f
-  }
-
-  private val MAX_RETRY = 2000
-
-  private val RTIME_NEWORD = 5 * 1000
-
-  private val RTIME_PAYMENT = 5 * 1000
-
-  private val RTIME_ORDSTAT = 5 * 1000
-
-  private val RTIME_DELIVERY = 5 * 1000
-
-  private val RTIME_SLEV = 20 * 1000
-
-  private val exec = Executors.newSingleThreadExecutor()
-
-  private var startTime = 0L
-
-  def runTransaction(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: (Int => Boolean), commandSeq:Seq[ddbt.lib.util.XactCommand]=null): Int = {
-    startTime = (System.currentTimeMillis() % 1000) * 1000
-
-    num_ware = numWare
-    num_conn = numConn
-    var count = 0
-    if(commandSeq == null) {
-      var sequence = Util.seqGet()
-      while (loopConditionChecker(count)) {
-        try {
-          if (DEBUG) logger.debug("BEFORE runTransaction: sequence: " + sequence)
-          if (DETECT_LOCK_WAIT_TIMEOUTS) {
-            val _sequence = sequence
-            val t = new FutureTask[Any](new Callable[Any]() {
-
-              def call(): AnyRef = {
-                doNextTransaction(t_num, _sequence)
-                null
-              }
-            })
-            exec.execute(t)
-            try {
-              t.get(15, TimeUnit.SECONDS)
-            } catch {
-              case e: InterruptedException => {
-                logger.error("InterruptedException", e)
-                Tpcc.activate_transaction = 0
-              }
-              case e: ExecutionException => {
-                logger.error("Unhandled exception", e)
-                Tpcc.activate_transaction = 0
-              }
-              case e: TimeoutException => {
-                logger.error("Detected Lock Wait", e)
-                Tpcc.activate_transaction = 0
-              }
-            }
-          } else {
-            doNextTransaction(t_num, sequence)
-          }
-          count += 1
-        } catch {
-          case th: Throwable => {
-            logger.error("FAILED", th)
-            Tpcc.activate_transaction = 0
-            try {
-              if(conn != null) conn.rollback()
-            } catch {
-              case e: SQLException => logger.error("", e)
-            }
-            return -1
-          }
-        } finally {
-          if (DEBUG) logger.debug("AFTER runTransaction: sequence: " + sequence)
-        }
-        sequence = Util.seqGet()
-      }
-    } else {
-      commandSeq.foreach {
-        case TpccTable.DeliveryCommand(datetime, w_id, o_carrier_id) => delivery.deliveryTx(datetime, w_id, o_carrier_id)
-        case TpccTable.NewOrderCommand(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stocks, bg, amt) => newOrder.newOrderTx(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stocks, bg, amt)
-        case TpccTable.OrderStatusCommand(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last) => orderStat.orderStatusTx(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last)
-        case TpccTable.PaymentCommand(datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last_input, h_amount) => payment.paymentTx(datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last_input, h_amount)
-        case TpccTable.StockLevelCommand(t_num, w_id, d_id, threshold) => slev.stockLevelTx(t_num, w_id, d_id, threshold)
-      }
-      count += 1
-    }
-    logger.debug("Driver terminated after {} transactions", count)
-    (0)
-  }
-
-  private def doNextTransaction(t_num: Int, sequence: Int) {
+  override def doNextTransaction(t_num: Int, sequence: Int) {
     if (sequence == 0) {
       doNeword(t_num)
     } else if (sequence == 1) {
@@ -412,11 +314,6 @@ class Driver(var conn: java.sql.Connection,
 
   private def doDelivery(t_num: Int): Int = {
     var c_num = 0
-    var i = 0
-    var ret = 0
-    var rt = 0f
-    var beginTime = 0L
-    var endTime = 0L
     var w_id = 0
     var o_carrier_id = 0
     if (num_node == 0) {
@@ -426,8 +323,12 @@ class Driver(var conn: java.sql.Connection,
       w_id = Util.randomNumber(1 + (num_ware * c_num) / num_node, (num_ware * (c_num + 1)) / num_node)
     }
     o_carrier_id = Util.randomNumber(1, 10)
-    beginTime = System.currentTimeMillis()
-    i = 0
+
+    var beginTime = System.currentTimeMillis()
+    var endTime = 0L
+    var ret = 0
+    var rt = 0f
+    var i = 0
     while (i < MAX_RETRY) {
       val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
       ret = delivery.deliveryTx(currentTimeStamp, w_id, o_carrier_id)
@@ -516,4 +417,120 @@ class Driver(var conn: java.sql.Connection,
     }
     (0)
   }
+
+  override def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand]) = commandSeq.foreach {
+    case TpccTable.DeliveryCommand(datetime, w_id, o_carrier_id) => delivery.deliveryTx(datetime, w_id, o_carrier_id)
+    case TpccTable.NewOrderCommand(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stocks, bg, amt) => newOrder.newOrderTx(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stocks, bg, amt)
+    case TpccTable.OrderStatusCommand(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last) => orderStat.orderStatusTx(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last)
+    case TpccTable.PaymentCommand(datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last_input, h_amount) => payment.paymentTx(datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last_input, h_amount)
+    case TpccTable.StockLevelCommand(t_num, w_id, d_id, threshold) => slev.stockLevelTx(t_num, w_id, d_id, threshold)
+  }
+}
+
+abstract class Driver(var conn: java.sql.Connection, 
+    fetchSize: Int, 
+    val success: Array[Int], 
+    val late: Array[Int], 
+    val retry: Array[Int], 
+    val failure: Array[Int], 
+    val success2: Array[Array[Int]], 
+    val late2: Array[Array[Int]], 
+    val retry2: Array[Array[Int]], 
+    val failure2: Array[Array[Int]]) {
+
+  var num_ware: Int = _
+
+  var num_conn: Int = _
+
+  var num_node: Int = _
+
+  var max_rt: Array[Float] = new Array[Float](TRANSACTION_COUNT)
+  for (i <- 0 until TRANSACTION_COUNT) {
+    max_rt(i) = 0f
+  }
+
+  val MAX_RETRY = 2000
+
+  val RTIME_NEWORD = 5 * 1000
+
+  val RTIME_PAYMENT = 5 * 1000
+
+  val RTIME_ORDSTAT = 5 * 1000
+
+  val RTIME_DELIVERY = 5 * 1000
+
+  val RTIME_SLEV = 20 * 1000
+
+  val exec = Executors.newSingleThreadExecutor()
+
+  var startTime = 0L
+
+  def runTransaction(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: (Int => Boolean), commandSeq:Seq[ddbt.lib.util.XactCommand]=null): Int = {
+    startTime = (System.currentTimeMillis() % 1000) * 1000
+
+    num_ware = numWare
+    num_conn = numConn
+    var count = 0
+    if(commandSeq == null) {
+      var sequence = Util.seqGet()
+      while (loopConditionChecker(count)) {
+        try {
+          if (DEBUG) logger.debug("BEFORE runTransaction: sequence: " + sequence)
+          if (DETECT_LOCK_WAIT_TIMEOUTS) {
+            val _sequence = sequence
+            val t = new FutureTask[Any](new Callable[Any]() {
+
+              def call(): AnyRef = {
+                doNextTransaction(t_num, _sequence)
+                null
+              }
+            })
+            exec.execute(t)
+            try {
+              t.get(15, TimeUnit.SECONDS)
+            } catch {
+              case e: InterruptedException => {
+                logger.error("InterruptedException", e)
+                Tpcc.activate_transaction = 0
+              }
+              case e: ExecutionException => {
+                logger.error("Unhandled exception", e)
+                Tpcc.activate_transaction = 0
+              }
+              case e: TimeoutException => {
+                logger.error("Detected Lock Wait", e)
+                Tpcc.activate_transaction = 0
+              }
+            }
+          } else {
+            doNextTransaction(t_num, sequence)
+          }
+          count += 1
+        } catch {
+          case th: Throwable => {
+            logger.error("FAILED", th)
+            Tpcc.activate_transaction = 0
+            try {
+              if(conn != null) conn.rollback()
+            } catch {
+              case e: SQLException => logger.error("", e)
+            }
+            return -1
+          }
+        } finally {
+          if (DEBUG) logger.debug("AFTER runTransaction: sequence: " + sequence)
+        }
+        sequence = Util.seqGet()
+      }
+    } else {
+      runCommandSeq(commandSeq)
+      count += 1
+    }
+    logger.debug("Driver terminated after {} transactions", count)
+    (0)
+  }
+
+  def doNextTransaction(t_num: Int, sequence: Int): Unit
+
+  def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand]): Unit
 }

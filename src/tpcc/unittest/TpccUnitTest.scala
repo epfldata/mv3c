@@ -460,7 +460,7 @@ class TpccUnitTest {
       val slevMix: IStockLevel = new StockLevelMixedImpl(new ddbt.tpcc.loadtest.Slev(pStmts), slev)
       val deliveryMix: IDelivery = new DeliveryMixedImpl(new ddbt.tpcc.loadtest.Delivery(pStmts), delivery)
 
-      val driver = new Driver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
+      val driver = new TpccDriver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
         failure2, newOrderMix, paymentMix, orderStatMix, slevMix, deliveryMix)
 
       try {
@@ -524,7 +524,7 @@ class TpccUnitTest {
         val slev: IStockLevel = new ddbt.tpcc.loadtest.Slev(pStmts)
         val delivery: IDelivery = new ddbt.tpcc.loadtest.Delivery(pStmts)
 
-        val driver = new Driver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
+        val driver = new TpccDriver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
           failure2, newOrder, payment, orderStat, slev, delivery)
 
         val numConn = 1 //we want to avoid any unwanted rollback due to concurrency in the reference DB

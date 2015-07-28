@@ -54,7 +54,7 @@ class TpccThread(val number: Int,
    */
   // var conn: Connection = connectToDatabase
 
-  var driver: Driver = new Driver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
+  var driver = new TpccDriver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
     failure2, newOrder, payment, orderStat, slev, delivery)
 
   override def run() {
