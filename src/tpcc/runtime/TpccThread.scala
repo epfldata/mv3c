@@ -65,7 +65,7 @@ class TpccThread(val number: Int,
           " num_conn: " + 
           num_conn)
       }
-      driver.runTransaction(number, num_ware, num_conn, loopConditionChecker)
+      driver.runAllTransactions(number, num_ware, num_conn, loopConditionChecker)
     } catch {
       case e: Throwable => logger.error("Unhandled exception", e)
     }

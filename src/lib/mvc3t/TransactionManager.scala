@@ -129,25 +129,25 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 			debug("\tvalidation succeeded")
 			true
 		} else {
-			forceDebug("\tvalidation failed")
-			// forceDebug("\tconflicts are => " + conflicts)
-			// forceDebug("\tundoBuffer contains => " + xact.undoBuffer)
+			// debug("\tvalidation failed")
+			// debug("\tconflicts are => " + conflicts)
+			// debug("\tundoBuffer contains => " + xact.undoBuffer)
 			val conflictPreds = conflicts.map(_._1)
 			xact.closureTransitions.foreach{ ct =>
 				var activated = false
 				ct.handlers.foreach{ h =>
 					if(conflictPreds.exists( p => h.preds.contains(p))) {
-						forceDebug("\thandler activated for " + h.preds)
+						// debug("\thandler activated for " + h.preds)
 						activated = true
 						h.handler(ct.outputVersions._1)
 					} else {
-						// forceDebug("\th.preds = " + h.preds)
+						// debug("\th.preds = " + h.preds)
 					}
 				}
 				if(activated) {
 					ct.outputVersions._2.foreach { innerCt =>
 						innerCt.handlers.foreach{ h =>
-							forceDebug("\t\tsub-handler activated")
+							// debug("\t\tsub-handler activated")
 							h.handler(innerCt.outputVersions._1)
 						}
 					}

@@ -66,11 +66,6 @@ class TpccDriver(conn: java.sql.Connection,
 
   private def doNeword(t_num: Int): Int = {
     var c_num = 0
-    var i = 0
-    var ret = 0
-    var rt = 0f
-    var beginTime = 0L
-    var endTime = 0L
     var w_id = 0
     var d_id = 0
     var c_id = 0
@@ -100,73 +95,77 @@ class TpccDriver(conn: java.sql.Connection,
     c_id = Util.nuRand(1023, 1, CUST_PER_DIST)
     ol_cnt = Util.randomNumber(5, 15)
     rbk = Util.randomNumber(1, 100)
-    i = 0
-    while (i < ol_cnt) {
-      itemid(i) = Util.nuRand(8191, 1, MAXITEMS)
-      if ((i == ol_cnt - 1) && (rbk == 1)) {
-        itemid(i) = notfound
+
+    var j = 0
+    while (j < ol_cnt) {
+      itemid(j) = Util.nuRand(8191, 1, MAXITEMS)
+      if ((j == ol_cnt - 1) && (rbk == 1)) {
+        itemid(j) = notfound
       }
       if (ALLOW_MULTI_WAREHOUSE_TX) {
         if (Util.randomNumber(1, 100) != 1) {
-          supware(i) = w_id
+          supware(j) = w_id
         } else {
-          supware(i) = otherWare(w_id)
+          supware(j) = otherWare(w_id)
           all_local = 0
         }
       } else {
-        supware(i) = w_id
+        supware(j) = w_id
       }
-      qty(i) = Util.randomNumber(1, 10)
-      i += 1
+      qty(j) = Util.randomNumber(1, 10)
+      j += 1
     }
-    beginTime = System.currentTimeMillis()
-    i = 0
-    while (i < MAX_RETRY) {
-      if (DEBUG) logger.debug("t_num: " + t_num + " w_id: " + w_id + " c_id: " + c_id + 
-        " ol_cnt: " + 
-        ol_cnt + 
-        " all_local: " + 
-        all_local + 
-        " qty: " + 
-        Arrays.toString(qty))
 
-      val time = new java.sql.Timestamp({startTime += 1000; startTime})
-      ret = newOrder.newOrderTx(time, t_num, w_id, d_id, c_id, ol_cnt, all_local, itemid, supware, qty, price, iname, stock, bg, amt)
-      endTime = System.currentTimeMillis()
-      if (ret == 1) {
-        rt = (endTime - beginTime).toFloat
-        if (DEBUG) logger.debug("BEFORE rt value: " + rt + " max_rt[0] value: " + max_rt(0))
-        if (rt > max_rt(0)) max_rt(0) = rt
-        if (DEBUG) logger.debug("AFTER rt value: " + rt + " max_rt[0] value: " + max_rt(0))
-        RtHist.histInc(0, rt)
-        if (Tpcc.counting_on) {
-          if (DEBUG) logger.debug(" rt: " + rt + " RTIME_NEWORD " + RTIME_NEWORD)
-          if (rt < RTIME_NEWORD) {
-            if (DEBUG) logger.debug("Rt < RTIME_NEWORD")
-            success(0) += 1
-            success2(0)(t_num) += 1
-          } else {
-            if (DEBUG) logger.debug("Rt > RTIME_NEWORD")
-            late(0) += 1
-            late2(0)(t_num) += 1
-          }
-        }
-        return (1)
-      } else {
-        if (Tpcc.counting_on) {
-          retry(0) += 1
-          retry2(0)(t_num) += 1
-        }
-      }
-      i += 1
+    
+    val timeout = RTIME_NEWORD
+    val xactId = 0
+    execTransaction(t_num, xactId, timeout) {
+      val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
+      newOrder.newOrderTx(currentTimeStamp, t_num, w_id, d_id, c_id, ol_cnt, all_local, itemid, supware, qty, price, iname, stock, bg, amt)
     }
-    if (Tpcc.counting_on) {
-      retry(0) -= 1
-      retry2(0)(t_num) -= 1
-      failure(0) += 1
-      failure2(0)(t_num) += 1
-    }
-    (0)
+    // var i = 0
+    // var rt = 0f
+    // var ret = 0
+    // var endTime = 0L
+    // var beginTime = System.currentTimeMillis()
+    // while (i < MAX_RETRY) {
+    //   if (DEBUG) logger.debug("t_num: " + t_num + " w_id: " + w_id + " c_id: " + c_id + 
+    //     " ol_cnt: " + ol_cnt + " all_local: " + all_local + " qty: " + Arrays.toString(qty))
+
+    //   ret = {
+    //     val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
+    //     newOrder.newOrderTx(currentTimeStamp, t_num, w_id, d_id, c_id, ol_cnt, all_local, itemid, supware, qty, price, iname, stock, bg, amt)
+    //   }
+    //   endTime = System.currentTimeMillis()
+    //   if (ret >= 1) {
+    //     rt = (endTime - beginTime).toFloat
+    //     if (rt > max_rt(xactId)) max_rt(xactId) = rt
+    //     RtHist.histInc(xactId, rt)
+    //     if (Tpcc.counting_on) {
+    //       if (rt < timeout) {
+    //         success(xactId) += 1
+    //         success2(xactId)(t_num) += 1
+    //       } else {
+    //         late(xactId) += 1
+    //         late2(xactId)(t_num) += 1
+    //       }
+    //     }
+    //     return (1)
+    //   } else {
+    //     if (Tpcc.counting_on) {
+    //       retry(xactId) += 1
+    //       retry2(xactId)(t_num) += 1
+    //     }
+    //   }
+    //   i += 1
+    // }
+    // if (Tpcc.counting_on) {
+    //   retry(xactId) -= 1
+    //   retry2(xactId)(t_num) -= 1
+    //   failure(xactId) += 1
+    //   failure2(xactId)(t_num) += 1
+    // }
+    // (0)
   }
 
   private def otherWare(home_ware: Int): Int = {
@@ -181,11 +180,6 @@ class TpccDriver(conn: java.sql.Connection,
   private def doPayment(t_num: Int): Int = {
     var c_num = 0
     var byname = 0
-    var i = 0
-    var ret = 0
-    var rt = 0f
-    var beginTime = 0L
-    var endTime = 0L
     var w_id = 0
     var d_id = 0
     var c_w_id = 0
@@ -216,51 +210,60 @@ class TpccDriver(conn: java.sql.Connection,
       c_w_id = w_id
       c_d_id = d_id
     }
-    beginTime = System.currentTimeMillis()
-    i = 0
-    while (i < MAX_RETRY) {
+
+    
+
+    val timeout = RTIME_PAYMENT
+    val xactId = 1
+    execTransaction(t_num, xactId, timeout) {
       val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
-      ret = payment.paymentTx(currentTimeStamp, t_num, w_id, d_id, byname, c_w_id, c_d_id, c_id, c_last, h_amount)
-      endTime = System.currentTimeMillis()
-      if (ret >= 1) {
-        rt = (endTime - beginTime).toFloat
-        if (rt > max_rt(1)) max_rt(1) = rt
-        RtHist.histInc(1, rt)
-        if (Tpcc.counting_on) {
-          if (rt < RTIME_PAYMENT) {
-            success(1) += 1
-            success2(1)(t_num) += 1
-          } else {
-            late(1) += 1
-            late2(1)(t_num) += 1
-          }
-        }
-        return (1)
-      } else {
-        if (Tpcc.counting_on) {
-          retry(1) += 1
-          retry2(1)(t_num) += 1
-        }
-      }
-      i += 1
+      payment.paymentTx(currentTimeStamp, t_num, w_id, d_id, byname, c_w_id, c_d_id, c_id, c_last, h_amount)
     }
-    if (Tpcc.counting_on) {
-      retry(1) -= 1
-      retry2(1)(t_num) -= 1
-      failure(1) += 1
-      failure2(1)(t_num) += 1
-    }
-    (0)
+    // var i = 0
+    // var rt = 0f
+    // var ret = 0
+    // var endTime = 0L
+    // var beginTime = System.currentTimeMillis()
+    // while (i < MAX_RETRY) {
+    //   ret = {
+    //     val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
+    //     payment.paymentTx(currentTimeStamp, t_num, w_id, d_id, byname, c_w_id, c_d_id, c_id, c_last, h_amount)
+    //   }
+    //   endTime = System.currentTimeMillis()
+    //   if (ret >= 1) {
+    //     rt = (endTime - beginTime).toFloat
+    //     if (rt > max_rt(xactId)) max_rt(xactId) = rt
+    //     RtHist.histInc(xactId, rt)
+    //     if (Tpcc.counting_on) {
+    //       if (rt < timeout) {
+    //         success(xactId) += 1
+    //         success2(xactId)(t_num) += 1
+    //       } else {
+    //         late(xactId) += 1
+    //         late2(xactId)(t_num) += 1
+    //       }
+    //     }
+    //     return (1)
+    //   } else {
+    //     if (Tpcc.counting_on) {
+    //       retry(xactId) += 1
+    //       retry2(xactId)(t_num) += 1
+    //     }
+    //   }
+    //   i += 1
+    // }
+    // if (Tpcc.counting_on) {
+    //   retry(xactId) -= 1
+    //   retry2(xactId)(t_num) -= 1
+    //   failure(xactId) += 1
+    //   failure2(xactId)(t_num) += 1
+    // }
+    // (0)
   }
 
   private def doOrdstat(t_num: Int): Int = {
     var c_num = 0
     var byname = 0
-    var i = 0
-    var ret = 0
-    var rt = 0f
-    var beginTime = 0L
-    var endTime = 0L
     var w_id = 0
     var d_id = 0
     var c_id = 0
@@ -275,41 +278,54 @@ class TpccDriver(conn: java.sql.Connection,
     c_id = Util.nuRand(1023, 1, CUST_PER_DIST)
     c_last = Util.lastName(Util.nuRand(255, 0, 999))
     byname = if (Util.randomNumber(1, 100) <= 60) 1 else 0
-    beginTime = System.currentTimeMillis()
-    i = 0
-    while (i < MAX_RETRY) {
+
+    
+    val timeout = RTIME_ORDSTAT
+    val xactId = 2
+    execTransaction(t_num, xactId, timeout) {
       val datetime = new java.util.Date({startTime += 1000; startTime})
-      ret = orderStat.orderStatusTx(datetime, t_num, w_id, d_id, byname, c_id, c_last)
-      endTime = System.currentTimeMillis()
-      if (ret >= 1) {
-        rt = (endTime - beginTime).toFloat
-        if (rt > max_rt(2)) max_rt(2) = rt
-        RtHist.histInc(2, rt)
-        if (Tpcc.counting_on) {
-          if (rt < RTIME_ORDSTAT) {
-            success(2) += 1
-            success2(2)(t_num) += 1
-          } else {
-            late(2) += 1
-            late2(2)(t_num) += 1
-          }
-        }
-        return (1)
-      } else {
-        if (Tpcc.counting_on) {
-          retry(2) += 1
-          retry2(2)(t_num) += 1
-        }
-      }
-      i += 1
+      orderStat.orderStatusTx(datetime, t_num, w_id, d_id, byname, c_id, c_last)
     }
-    if (Tpcc.counting_on) {
-      retry(2) -= 1
-      retry2(2)(t_num) -= 1
-      failure(2) += 1
-      failure2(2)(t_num) += 1
-    }
-    (0)
+    // var i = 0
+    // var rt = 0f
+    // var ret = 0
+    // var endTime = 0L
+    // var beginTime = System.currentTimeMillis()
+    // while (i < MAX_RETRY) {
+    //   ret = {
+    //     val datetime = new java.util.Date({startTime += 1000; startTime})
+    //     orderStat.orderStatusTx(datetime, t_num, w_id, d_id, byname, c_id, c_last)
+    //   }
+    //   endTime = System.currentTimeMillis()
+    //   if (ret >= 1) {
+    //     rt = (endTime - beginTime).toFloat
+    //     if (rt > max_rt(xactId)) max_rt(xactId) = rt
+    //     RtHist.histInc(xactId, rt)
+    //     if (Tpcc.counting_on) {
+    //       if (rt < timeout) {
+    //         success(xactId) += 1
+    //         success2(xactId)(t_num) += 1
+    //       } else {
+    //         late(xactId) += 1
+    //         late2(xactId)(t_num) += 1
+    //       }
+    //     }
+    //     return (1)
+    //   } else {
+    //     if (Tpcc.counting_on) {
+    //       retry(xactId) += 1
+    //       retry2(xactId)(t_num) += 1
+    //     }
+    //   }
+    //   i += 1
+    // }
+    // if (Tpcc.counting_on) {
+    //   retry(xactId) -= 1
+    //   retry2(xactId)(t_num) -= 1
+    //   failure(xactId) += 1
+    //   failure2(xactId)(t_num) += 1
+    // }
+    // (0)
   }
 
   private def doDelivery(t_num: Int): Int = {
@@ -324,53 +340,57 @@ class TpccDriver(conn: java.sql.Connection,
     }
     o_carrier_id = Util.randomNumber(1, 10)
 
-    var beginTime = System.currentTimeMillis()
-    var endTime = 0L
-    var ret = 0
-    var rt = 0f
-    var i = 0
-    while (i < MAX_RETRY) {
+    
+    val timeout = RTIME_DELIVERY
+    val xactId = 3
+    execTransaction(t_num, xactId, timeout) {
       val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
-      ret = delivery.deliveryTx(currentTimeStamp, w_id, o_carrier_id)
-      endTime = System.currentTimeMillis()
-      if (ret >= 1) {
-        rt = (endTime - beginTime).toFloat
-        if (rt > max_rt(3)) max_rt(3) = rt
-        RtHist.histInc(3, rt)
-        if (Tpcc.counting_on) {
-          if (rt < RTIME_DELIVERY) {
-            success(3) += 1
-            success2(3)(t_num) += 1
-          } else {
-            late(3) += 1
-            late2(3)(t_num) += 1
-          }
-        }
-        return (1)
-      } else {
-        if (Tpcc.counting_on) {
-          retry(3) += 1
-          retry2(3)(t_num) += 1
-        }
-      }
-      i += 1
+      delivery.deliveryTx(currentTimeStamp, w_id, o_carrier_id)
     }
-    if (Tpcc.counting_on) {
-      retry(3) -= 1
-      retry2(3)(t_num) -= 1
-      failure(3) += 1
-      failure2(3)(t_num) += 1
-    }
-    (0)
+    // var i = 0
+    // var rt = 0f
+    // var ret = 0
+    // var endTime = 0L
+    // var beginTime = System.currentTimeMillis()
+    // while (i < MAX_RETRY) {
+    //   ret = {
+    //     val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
+    //     delivery.deliveryTx(currentTimeStamp, w_id, o_carrier_id)
+    //   }
+    //   endTime = System.currentTimeMillis()
+    //   if (ret >= 1) {
+    //     rt = (endTime - beginTime).toFloat
+    //     if (rt > max_rt(xactId)) max_rt(xactId) = rt
+    //     RtHist.histInc(xactId, rt)
+    //     if (Tpcc.counting_on) {
+    //       if (rt < timeout) {
+    //         success(xactId) += 1
+    //         success2(xactId)(t_num) += 1
+    //       } else {
+    //         late(xactId) += 1
+    //         late2(xactId)(t_num) += 1
+    //       }
+    //     }
+    //     return (1)
+    //   } else {
+    //     if (Tpcc.counting_on) {
+    //       retry(xactId) += 1
+    //       retry2(xactId)(t_num) += 1
+    //     }
+    //   }
+    //   i += 1
+    // }
+    // if (Tpcc.counting_on) {
+    //   retry(xactId) -= 1
+    //   retry2(xactId)(t_num) -= 1
+    //   failure(xactId) += 1
+    //   failure2(xactId)(t_num) += 1
+    // }
+    // (0)
   }
 
   private def doSlev(t_num: Int): Int = {
     var c_num = 0
-    var i = 0
-    var ret = 0
-    var rt = 0f
-    var beginTime = 0L
-    var endTime = 0L
     var w_id = 0
     var d_id = 0
     var level = 0
@@ -382,40 +402,52 @@ class TpccDriver(conn: java.sql.Connection,
     }
     d_id = Util.randomNumber(1, DIST_PER_WARE)
     level = Util.randomNumber(10, 20)
-    beginTime = System.currentTimeMillis()
-    i = 0
-    while (i < MAX_RETRY) {
-      ret = slev.stockLevelTx(t_num, w_id, d_id, level)
-      endTime = System.currentTimeMillis()
-      if (ret >= 1) {
-        rt = (endTime - beginTime).toFloat
-        if (rt > max_rt(4)) max_rt(4) = rt
-        RtHist.histInc(4, rt)
-        if (Tpcc.counting_on) {
-          if (rt < RTIME_SLEV) {
-            success(4) += 1
-            success2(4)(t_num) += 1
-          } else {
-            late(4) += 1
-            late2(4)(t_num) += 1
-          }
-        }
-        return (1)
-      } else {
-        if (Tpcc.counting_on) {
-          retry(4) += 1
-          retry2(4)(t_num) += 1
-        }
-      }
-      i += 1
+
+    
+    val timeout = RTIME_SLEV
+    val xactId = 4
+    execTransaction(t_num, xactId, timeout) {
+      slev.stockLevelTx(t_num, w_id, d_id, level)
     }
-    if (Tpcc.counting_on) {
-      retry(4) -= 1
-      retry2(4)(t_num) -= 1
-      failure(4) += 1
-      failure2(4)(t_num) += 1
-    }
-    (0)
+    // var i = 0
+    // var rt = 0f
+    // var ret = 0
+    // var endTime = 0L
+    // var beginTime = System.currentTimeMillis()
+    // while (i < MAX_RETRY) {
+    //   ret = {
+    //     slev.stockLevelTx(t_num, w_id, d_id, level)
+    //   }
+    //   endTime = System.currentTimeMillis()
+    //   if (ret >= 1) {
+    //     rt = (endTime - beginTime).toFloat
+    //     if (rt > max_rt(xactId)) max_rt(xactId) = rt
+    //     RtHist.histInc(xactId, rt)
+    //     if (Tpcc.counting_on) {
+    //       if (rt < timeout) {
+    //         success(xactId) += 1
+    //         success2(xactId)(t_num) += 1
+    //       } else {
+    //         late(xactId) += 1
+    //         late2(xactId)(t_num) += 1
+    //       }
+    //     }
+    //     return (1)
+    //   } else {
+    //     if (Tpcc.counting_on) {
+    //       retry(xactId) += 1
+    //       retry2(xactId)(t_num) += 1
+    //     }
+    //   }
+    //   i += 1
+    // }
+    // if (Tpcc.counting_on) {
+    //   retry(xactId) -= 1
+    //   retry2(xactId)(t_num) -= 1
+    //   failure(xactId) += 1
+    //   failure2(xactId)(t_num) += 1
+    // }
+    // (0)
   }
 
   override def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand]) = commandSeq.foreach {
@@ -465,7 +497,7 @@ abstract class Driver(var conn: java.sql.Connection,
 
   var startTime = 0L
 
-  def runTransaction(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: (Int => Boolean), commandSeq:Seq[ddbt.lib.util.XactCommand]=null): Int = {
+  def runAllTransactions(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: (Int => Boolean), commandSeq:Seq[ddbt.lib.util.XactCommand]=null): Int = {
     startTime = (System.currentTimeMillis() % 1000) * 1000
 
     num_ware = numWare
@@ -475,7 +507,7 @@ abstract class Driver(var conn: java.sql.Connection,
       var sequence = Util.seqGet()
       while (loopConditionChecker(count)) {
         try {
-          if (DEBUG) logger.debug("BEFORE runTransaction: sequence: " + sequence)
+          if (DEBUG) logger.debug("BEFORE runAllTransactions: sequence: " + sequence)
           if (DETECT_LOCK_WAIT_TIMEOUTS) {
             val _sequence = sequence
             val t = new FutureTask[Any](new Callable[Any]() {
@@ -518,7 +550,7 @@ abstract class Driver(var conn: java.sql.Connection,
             return -1
           }
         } finally {
-          if (DEBUG) logger.debug("AFTER runTransaction: sequence: " + sequence)
+          if (DEBUG) logger.debug("AFTER runAllTransactions: sequence: " + sequence)
         }
         sequence = Util.seqGet()
       }
@@ -533,4 +565,44 @@ abstract class Driver(var conn: java.sql.Connection,
   def doNextTransaction(t_num: Int, sequence: Int): Unit
 
   def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand]): Unit
+
+  def execTransaction(t_num:Int, xactId:Int, timeout: Int)(xact: =>Int): Int = {
+    var i = 0
+    var rt = 0f
+    var ret = 0
+    var endTime = 0L
+    var beginTime = System.currentTimeMillis()
+    while (i < MAX_RETRY) {
+      ret = xact
+      endTime = System.currentTimeMillis()
+      if (ret >= 1) {
+        rt = (endTime - beginTime).toFloat
+        if (rt > max_rt(xactId)) max_rt(xactId) = rt
+        RtHist.histInc(xactId, rt)
+        if (Tpcc.counting_on) {
+          if (rt < timeout) {
+            success(xactId) += 1
+            success2(xactId)(t_num) += 1
+          } else {
+            late(xactId) += 1
+            late2(xactId)(t_num) += 1
+          }
+        }
+        return (1)
+      } else {
+        if (Tpcc.counting_on) {
+          retry(xactId) += 1
+          retry2(xactId)(t_num) += 1
+        }
+      }
+      i += 1
+    }
+    if (Tpcc.counting_on) {
+      retry(xactId) -= 1
+      retry2(xactId)(t_num) -= 1
+      failure(xactId) += 1
+      failure2(xactId)(t_num) += 1
+    }
+    (0)
+  }
 }

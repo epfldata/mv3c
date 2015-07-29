@@ -470,7 +470,7 @@ class TpccUnitTest {
             " num_conn: " + 
             numConn)
         }
-        driver.runTransaction(numberOfTestTransactions, numWare, numConn, transactionCountChecker)
+        driver.runAllTransactions(numberOfTestTransactions, numWare, numConn, transactionCountChecker)
       } catch {
         case e: Throwable => logger.error("Unhandled exception", e)
       }
@@ -536,7 +536,7 @@ class TpccUnitTest {
               numConn)
           }
           logger.info("Number of committed transactions in the reference implementation: " + listOfCommittedCommands.size)
-          driver.runTransaction(numberOfTestTransactions, numWare, numConn, transactionCountChecker, listOfCommittedCommands)
+          driver.runAllTransactions(numberOfTestTransactions, numWare, numConn, transactionCountChecker, listOfCommittedCommands)
         } catch {
           case e: Throwable => logger.error("Unhandled exception", e)
         }
