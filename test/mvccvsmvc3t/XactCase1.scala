@@ -1,4 +1,5 @@
-package ddbt.lib.mvc3t
+//MVCC vs. MVC3T
+package ddbt.lib.mvccvsmvc3t
 
 import ddbt.lib.util.XactImpl
 import ddbt.lib.util.XactImplSelector
@@ -43,6 +44,7 @@ object XactCase1Selector extends XactImplSelector {
 }
 
 object XactCase1MVCC extends XactImpl {
+	import ddbt.lib.mvconcurrent._
 	def runXact(driver: Driver, t_num: Int, sequence: Int){
 		if (sequence == 0) {
 			val timeout = TIMEOUT_T1
@@ -79,6 +81,7 @@ object XactCase1MVCC extends XactImpl {
 }
 
 object XactCase1MVC3T extends XactImpl {
+	import ddbt.lib.mvc3t._
 	def runXact(driver: Driver, t_num: Int, sequence: Int){
 		if (sequence == 0) {
 			val timeout = TIMEOUT_T1
