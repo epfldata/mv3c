@@ -119,7 +119,7 @@ class TpccDriver(conn: java.sql.Connection,
     
     val timeout = RTIME_NEWORD
     val xactId = 0
-    execTransaction(t_num, xactId, timeout) {
+    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
       val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
       newOrder.newOrderTx(currentTimeStamp, t_num, w_id, d_id, c_id, ol_cnt, all_local, itemid, supware, qty, price, iname, stock, bg, amt)
     }
@@ -215,7 +215,7 @@ class TpccDriver(conn: java.sql.Connection,
 
     val timeout = RTIME_PAYMENT
     val xactId = 1
-    execTransaction(t_num, xactId, timeout) {
+    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
       val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
       payment.paymentTx(currentTimeStamp, t_num, w_id, d_id, byname, c_w_id, c_d_id, c_id, c_last, h_amount)
     }
@@ -282,7 +282,7 @@ class TpccDriver(conn: java.sql.Connection,
     
     val timeout = RTIME_ORDSTAT
     val xactId = 2
-    execTransaction(t_num, xactId, timeout) {
+    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
       val datetime = new java.util.Date({startTime += 1000; startTime})
       orderStat.orderStatusTx(datetime, t_num, w_id, d_id, byname, c_id, c_last)
     }
@@ -343,7 +343,7 @@ class TpccDriver(conn: java.sql.Connection,
     
     val timeout = RTIME_DELIVERY
     val xactId = 3
-    execTransaction(t_num, xactId, timeout) {
+    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
       val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
       delivery.deliveryTx(currentTimeStamp, w_id, o_carrier_id)
     }
@@ -406,7 +406,7 @@ class TpccDriver(conn: java.sql.Connection,
     
     val timeout = RTIME_SLEV
     val xactId = 4
-    execTransaction(t_num, xactId, timeout) {
+    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
       slev.stockLevelTx(t_num, w_id, d_id, level)
     }
     // var i = 0
@@ -566,7 +566,7 @@ abstract class Driver(var conn: java.sql.Connection,
 
   def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand]): Unit
 
-  def execTransaction(t_num:Int, xactId:Int, timeout: Int)(xact: =>Int): Int = {
+  def execTransaction(t_num:Int, xactId:Int, timeout: Int, counting_on: =>Boolean)(xact: =>Int): Int = {
     var i = 0
     var rt = 0f
     var ret = 0
@@ -579,7 +579,7 @@ abstract class Driver(var conn: java.sql.Connection,
         rt = (endTime - beginTime).toFloat
         if (rt > max_rt(xactId)) max_rt(xactId) = rt
         RtHist.histInc(xactId, rt)
-        if (Tpcc.counting_on) {
+        if (counting_on) {
           if (rt < timeout) {
             success(xactId) += 1
             success2(xactId)(t_num) += 1
@@ -590,14 +590,14 @@ abstract class Driver(var conn: java.sql.Connection,
         }
         return (1)
       } else {
-        if (Tpcc.counting_on) {
+        if (counting_on) {
           retry(xactId) += 1
           retry2(xactId)(t_num) += 1
         }
       }
       i += 1
     }
-    if (Tpcc.counting_on) {
+    if (counting_on) {
       retry(xactId) -= 1
       retry2(xactId)(t_num) -= 1
       failure(xactId) += 1
