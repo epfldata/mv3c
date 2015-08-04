@@ -89,11 +89,11 @@ object Util{
     }
   }
 
-  def seqInit(n: Int, 
-      p: Int, 
-      o: Int, 
-      d: Int, 
-      s: Int) {
+  def seqInit(n: Int = 0, 
+      p: Int = 0, 
+      o: Int = 0, 
+      d: Int = 0, 
+      s: Int = 0) {
     no = n
     py = p
     os = o
