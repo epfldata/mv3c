@@ -42,12 +42,12 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	var failedConcurrentUpdate = 0 // is the rollback due to a concurrent update (for the same object), which is not allowed in the reference impl.
 	var failedConcurrentInsert = 0 // is the rollback due to a concurrent insert (for the same object), which is not allowed in the reference impl.
 
-	def clear = {
-		forcedRollback = 0
-		failedValidation = 0
-		failedConcurrentUpdate = 0
-		failedConcurrentInsert = 0
-	}
+	// def clear = {
+	// 	forcedRollback = 0
+	// 	failedValidation = 0
+	// 	failedConcurrentUpdate = 0
+	// 	failedConcurrentInsert = 0
+	// }
 
 	val transactionIdGen = new AtomicLong(TransactionManager.TRANSACTION_ID_GEN_START)
 	val startAndCommitTimestampGen = new AtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
