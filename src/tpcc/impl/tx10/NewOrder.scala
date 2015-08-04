@@ -7,6 +7,8 @@ import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import ddbt.tpcc.tx.MVCCTpccTableV3._
 import ddbt.tpcc.tx.TpccTable._
+import ddbt.lib.mvconcurrent._
+import TransactionManager._
 import NewOrder._
 
 object NewOrder {
@@ -138,7 +140,7 @@ class NewOrder extends InMemoryTxImplViaMVCCTpccTableV3 with INewOrderInMem {
           }
         }
         if(failed) {
-          MVCCTpccTableV3.forcedRollback += 1
+          xact.tm.forcedRollback += 1
           ISharedData.rollback
           return 1
         }

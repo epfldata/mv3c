@@ -7,6 +7,8 @@ import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import ddbt.tpcc.tx.TpccTable._
 import ddbt.tpcc.tx.MVCCTpccTableV3._
+import ddbt.lib.mvconcurrent._
+import TransactionManager._
 import Payment._
 
 object Payment {
@@ -50,7 +52,7 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV3 with IPaymentInMem {
     try {
       PaymentTxOps.updateWarehouse(w_id, { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) => {
         PaymentTxOps.updateDistrict(w_id,d_id, { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) => { 
-          var c: ddbt.lib.mvconcurrent.ConcurrentSHMapMVCC.DeltaVersion[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] = null
+          var c: DeltaVersion[(Int,Int,Int),(String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String)] = null
           if (c_by_name > 0) {
             c = ISharedData.findCustomerEntryByName(c_w_id, c_d_id, c_last_input)
           } else {

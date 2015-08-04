@@ -7,6 +7,8 @@ import ddbt.tpcc.tx._
 import org.slf4j.LoggerFactory
 import ddbt.tpcc.tx.TpccTable._
 import ddbt.tpcc.tx.MVCCTpccTableV3._
+import ddbt.lib.mvconcurrent._
+import TransactionManager._
 import OrderStatus._
 
 object OrderStatus {

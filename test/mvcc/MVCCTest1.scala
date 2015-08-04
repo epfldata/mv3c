@@ -1,12 +1,11 @@
 package ddbt.lib.mvconcurrent
 
 import ddbt.tpcc.tx._
-import MVCCTpccTableV3._
 import org.scalatest._
 import MVCCTestParams._
 
 object MVCCTestParams {
-  val disableGC = MVCCTpccTableV3.DISABLE_GC
+  val disableGC = TransactionManager.DISABLE_GC
 }
 class MVCCSpec1 extends FlatSpec with Matchers {
 

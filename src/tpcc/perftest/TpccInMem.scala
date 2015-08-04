@@ -413,7 +413,6 @@ class TpccInMem() {
         } else if(implVersionUnderTest == 9) {
           SharedDataScala = SharedDataScala.toMVCCTpccTableV2
         } else if(implVersionUnderTest == 10) {
-          MVCCTpccTableV3.clear
           SharedDataScala = SharedDataScala.toMVCCTpccTableV3
         } else if(implVersionUnderTest == 11) {
           SharedDataScala = SharedDataScala.toMVCCTpccTableV4

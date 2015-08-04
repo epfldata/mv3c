@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory
 import StockLevel._
 import ddbt.tpcc.tx.TpccTable._
 import ddbt.tpcc.tx.MVCCTpccTableV3._
+import ddbt.lib.mvconcurrent._
+import TransactionManager._
 
 object StockLevel {
 

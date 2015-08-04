@@ -1,7 +1,6 @@
 package ddbt.lib.mvconcurrent
 
 import ConcurrentSHIndexMVCC._
-import ConcurrentSHMapMVCC.DeltaVersion
 import ddbt.lib.concurrent.ConcurrentSHMap
 import ddbt.lib.concurrent.ConcurrentSHSet
 import ddbt.tpcc.tx._

@@ -1,7 +1,6 @@
 package ddbt.lib.mvconcurrent
 
 import ddbt.tpcc.tx._
-import MVCCTpccTableV3._
 import org.scalatest._
 import MVCCTestParams._
 
