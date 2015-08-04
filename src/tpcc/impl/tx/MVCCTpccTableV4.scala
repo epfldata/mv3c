@@ -51,34 +51,34 @@ object MVCCTpccTableV4 {
 	type StockTblKey = (Int,Int)
 	type StockTblValue = (Int,String,String,String,String,String,String,String,String,String,String,Int,Int,Int,String)
 
+	class TpccTransactionManager(isUnitTestEnabled: =>Boolean) extends TransactionManager(isUnitTestEnabled) {
+
+		/////// TABLES \\\\\\\
+		val newOrderTbl = new ConcurrentSHMapMVC3T[NewOrderTblKey,NewOrderTblValue](NEWORDER_TBL,/*0.9f, 262144,*/ (k:NewOrderTblKey,v:NewOrderTblValue) => ((k._2, k._3)) )
+
+		val historyTbl = new ConcurrentSHMapMVC3T[HistoryTblKey,HistoryTblValue](HISTORY_TBL/*0.9f, 4194304)*/)
+
+		val warehouseTbl = new ConcurrentSHMapMVC3T[WarehouseTblKey,WarehouseTblValue](WAREHOUSE_TBL)
+
+		val itemPartialTbl = new ConcurrentSHMapMVC3T[ItemTblKey,ItemTblValue](ITEM_TBL/*1f, 262144*/)
+
+		val orderTbl = new ConcurrentSHMapMVC3T[OrderTblKey,OrderTblValue](ORDER_TBL,/*0.9f, 4194304,*/ (k:OrderTblKey, v:OrderTblValue) => ((k._2, k._3, v._1)) )
+
+		val districtTbl = new ConcurrentSHMapMVC3T[DistrictTblKey,DistrictTblValue](DISTRICT_TBL/*1f, 32*/)
+
+		val orderLineTbl = new ConcurrentSHMapMVC3T[OrderLineTblKey,OrderLineTblValue](ORDERLINE_TBL,/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:OrderLineTblKey, v:OrderLineTblValue) => ((k._1, k._2, k._3)) )
+
+		val customerTbl = new ConcurrentSHMapMVC3T[CustomerTblKey,CustomerTblValue] (CUSTOMER_TBL,/*1f, 65536, List((1f, 16384)),*/ (k:CustomerTblKey, v:CustomerTblValue) => ((k._2, k._3, v._3)) )
+
+		val stockTbl = new ConcurrentSHMapMVC3T[StockTblKey,StockTblValue](STOCK_TBL/*1f, 262144*/)
+
+		// val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVC3T[(Int,Int,Int),(Float,String,String,Float)](CUSTOMERWAREHOUSE_TBL/*1f, 65536*/)
+	}
+
 	// this should not be modified
 	// it is set to false in order to make the inheritance
 	// from 
 	def testSpecialDsUsed = false
-}
-
-class TpccTransactionManager(isUnitTestEnabled: =>Boolean) extends TransactionManager(isUnitTestEnabled) {
-
-	/////// TABLES \\\\\\\
-	val newOrderTbl = new ConcurrentSHMapMVC3T[NewOrderTblKey,NewOrderTblValue](NEWORDER_TBL,/*0.9f, 262144,*/ (k:NewOrderTblKey,v:NewOrderTblValue) => ((k._2, k._3)) )
-
-	val historyTbl = new ConcurrentSHMapMVC3T[HistoryTblKey,HistoryTblValue](HISTORY_TBL/*0.9f, 4194304)*/)
-
-	val warehouseTbl = new ConcurrentSHMapMVC3T[WarehouseTblKey,WarehouseTblValue](WAREHOUSE_TBL)
-
-	val itemPartialTbl = new ConcurrentSHMapMVC3T[ItemTblKey,ItemTblValue](ITEM_TBL/*1f, 262144*/)
-
-	val orderTbl = new ConcurrentSHMapMVC3T[OrderTblKey,OrderTblValue](ORDER_TBL,/*0.9f, 4194304,*/ (k:OrderTblKey, v:OrderTblValue) => ((k._2, k._3, v._1)) )
-
-	val districtTbl = new ConcurrentSHMapMVC3T[DistrictTblKey,DistrictTblValue](DISTRICT_TBL/*1f, 32*/)
-
-	val orderLineTbl = new ConcurrentSHMapMVC3T[OrderLineTblKey,OrderLineTblValue](ORDERLINE_TBL,/*0.9f, 33554432, List((0.9f, 4194304)),*/ (k:OrderLineTblKey, v:OrderLineTblValue) => ((k._1, k._2, k._3)) )
-
-	val customerTbl = new ConcurrentSHMapMVC3T[CustomerTblKey,CustomerTblValue] (CUSTOMER_TBL,/*1f, 65536, List((1f, 16384)),*/ (k:CustomerTblKey, v:CustomerTblValue) => ((k._2, k._3, v._3)) )
-
-	val stockTbl = new ConcurrentSHMapMVC3T[StockTblKey,StockTblValue](STOCK_TBL/*1f, 262144*/)
-
-	// val customerWarehouseFinancialInfoMap = new ConcurrentSHMapMVC3T[(Int,Int,Int),(Float,String,String,Float)](CUSTOMERWAREHOUSE_TBL/*1f, 65536*/)
 }
 
 /**
