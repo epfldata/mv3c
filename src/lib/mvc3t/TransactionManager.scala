@@ -20,15 +20,15 @@ object TransactionManager {
 	type Table = String
 	type MutableMap[K,V] = ddbt.lib.shm.SHMap[K,V]
 	// type Conflict[K,V<:Product] = (Predicate[K,V],DeltaVersion[K,V])
-	type Conflict = (Predicate[_,_],DeltaVersion[_,_])
+	// type Conflict = (Predicate[_,_],Transaction)
   
 	type Operation = Int
-	val INSERT_OP:Operation = 1
-	val DELETE_OP:Operation = 2
-	val UPDATE_OP:Operation = 3
+	val INSERT_OP:Operation = 1 << 0 // 001
+	val DELETE_OP:Operation = 1 << 1 // 010
+	val UPDATE_OP:Operation = 1 << 2 // 100
 
 	val DEBUG = false
-	val ERROR = false
+	val ERROR = true
 	val DISABLE_GC = false
 	val PARALLEL_GC = true
 
@@ -58,6 +58,8 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	val isGcActive = new AtomicBoolean(DISABLE_GC)
 
 	val activeXacts = new LinkedHashMap[Long,Transaction]
+	//List of recently committed transactions consists of
+	//the most recent committed transaction in its head
 	val recentlyCommittedXacts = new ListBuffer[Transaction]()
 	val allCommittedXacts = new ListBuffer[Transaction]()
 
@@ -78,10 +80,11 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 				activeXacts.synchronized {
 					activeXacts -= xactId
 				}
-				recentlyCommittedXacts.synchronized {
-					recentlyCommittedXacts += xact
-					if(isUnitTestEnabled) allCommittedXacts += xact
-				}
+				// recentlyCommittedXacts.synchronized {
+				// 	//prepend the transaction to the recently commmitted transactions list
+				// 	recentlyCommittedXacts.+=:(xact)
+				// 	if(isUnitTestEnabled) allCommittedXacts += xact
+				// }
 				debug("(read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
 				true
 			} else if(!validate) {
@@ -89,13 +92,15 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 				rollback
 				false
 			} else {
+				xact.moveCommittedRecordsToFront
 				activeXacts.synchronized {
 					xact.xactId = startAndCommitTimestampGen.getAndIncrement()
 					activeXacts -= xactId
 				}
 				debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
 				recentlyCommittedXacts.synchronized {
-					recentlyCommittedXacts += xact
+					//prepend the transaction to the recently commmitted transactions list
+					recentlyCommittedXacts.+=:(xact)
 					if(isUnitTestEnabled) allCommittedXacts += xact
 				}
 				garbageCollect
@@ -113,48 +118,74 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	//  - validation can run in parallel for the transactions that are in this stage (we do not have to synchronize it)
 	//  - attribute-level validation should be supported
 	def validate(implicit xact:Transaction): Boolean = {
-		debug("\tvalidation started")
-		val concurrentXacts = recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
-		debug("\t\tconcurrentXacts = " + concurrentXacts)
-		var conflicts = Set[Conflict]()
-		concurrentXacts.foreach { t =>
-			t.undoBuffer.foreach { dv =>
-				debug("\t\tchecking whether " + dv + " (in " + t + ") matches predicates in " + xact)
-				conflicts = conflicts ++ xact.matchesPredicates(dv)
-			}
-		}
+		if(!xact.undoBuffer.isEmpty) {
+			debug("\tvalidation started")
+			//1- Find all the transaction that ran concurrenctly with the current xact
+			val concurrentXacts = recentlyCommittedXacts.filter(t => t.commitTS > xact.startTS)
+			debug("\t\tconcurrentXacts = " + concurrentXacts)
+			//2- For each concurrent transaction, check if any version created/updated/deleted
+			//   produced by that, has a conflict with any predicate in the current transaction
+			//   and collect the conflicting predicates
+			// var conflicts = Set[Conflict]()
+			// concurrentXacts.foreach { t =>
+			// 	t.undoBuffer.foreach { dv =>
+			// 		debug("\t\tchecking whether " + dv + " (in " + t + ") matches predicates in " + xact)
+			// 		conflicts = conflicts ++ xact.matchesPredicates(dv)
+			// 	}
+			// }
 
-		if(conflicts.isEmpty) {
-			debug("\tvalidation succeeded")
-			true
+			val (conflicts, newTS) = xact.findConflictsWith(concurrentXacts)
+
+			if(conflicts.isEmpty) {
+				//3- If there's no conflict, then there is no validation error
+				debug("\tvalidation succeeded")
+				true
+			} else {
+				//4- If there is a conflict, then we will try to resolve it
+				debug("\tvalidation failed")
+				debug("\tconflicts are => " + conflicts)
+				debug("\tundoBuffer contains => " + xact.undoBuffer)
+
+				//5- Find the new timestamp for the transaction, that won't
+				//   introduce the current conflicts and collect the confluct predicates
+				//   at the same time
+				// var newTS = TRANSACTION_STRAT_TS_GEN_START
+				// val conflictPreds = conflicts.map{ c =>
+				// 	if(c._2.commitTS > newTS) newTS = c._2.commitTS
+				// 	c._1
+				// }
+
+				//6- Set the new timestamp for the current transaction
+				xact.startTS = newTS + 1
+
+				// xact.closureTransitions.foreach{ ct =>
+				// 	var activated = false
+				// 	ct.handlers.foreach{ h =>
+				// 		if(conflictPreds.exists( p => h.preds.contains(p))) {
+				// 			debug("\thandler activated for " + h.preds)
+				// 			activated = true
+				// 			h.handler(ct.outputVersions._1)
+				// 		} else {
+				// 			debug("\th.preds = " + h.preds)
+				// 		}
+				// 	}
+				// 	if(activated) {
+				// 		ct.outputVersions._2.foreach { innerCt =>
+				// 			innerCt.handlers.foreach{ h =>
+				// 				debug("\t\tsub-handler activated")
+				// 				h.handler(innerCt.outputVersions._1)
+				// 			}
+				// 		}
+				// 	}
+				// }
+				conflicts.foreach(_.compensateAction)
+
+				// failedValidation += 1
+				// false
+				true
+			}
 		} else {
-			// debug("\tvalidation failed")
-			// debug("\tconflicts are => " + conflicts)
-			// debug("\tundoBuffer contains => " + xact.undoBuffer)
-			val conflictPreds = conflicts.map(_._1)
-			xact.closureTransitions.foreach{ ct =>
-				var activated = false
-				ct.handlers.foreach{ h =>
-					if(conflictPreds.exists( p => h.preds.contains(p))) {
-						// debug("\thandler activated for " + h.preds)
-						activated = true
-						h.handler(ct.outputVersions._1)
-					} else {
-						// debug("\th.preds = " + h.preds)
-					}
-				}
-				if(activated) {
-					ct.outputVersions._2.foreach { innerCt =>
-						innerCt.handlers.foreach{ h =>
-							// debug("\t\tsub-handler activated")
-							h.handler(innerCt.outputVersions._1)
-						}
-					}
-				}
-			}
-
-			// failedValidation += 1
-			// false
+			debug("\tno validation required for read-only xact.")
 			true
 		}
 	}
@@ -192,9 +223,15 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 		if(!recentlyCommittedXacts.isEmpty) {
 			var oldestActiveXactStartTS = TransactionManager.TRANSACTION_ID_GEN_START
 			activeXacts.synchronized {
-				activeXacts.foreach{ a => if(a._2.startTS < oldestActiveXactStartTS) oldestActiveXactStartTS = a._2.startTS }
-				debug("\tactiveXacts = " + activeXacts)
-				debug("\toldestActiveXactStartTS = " + oldestActiveXactStartTS)
+				// activeXacts.foreach{ a => if(a._2.startTS < oldestActiveXactStartTS) oldestActiveXactStartTS = a._2.startTS }
+				oldestActiveXactStartTS = activeXacts.last._2.startTS
+				// if(oldestActiveXactStartTS != activeXacts.last._2.startTS) {
+				// 	throw new RuntimeException("oldestActiveXactStartTS = %d while activeXacts.last._2.startTS = %d".format(oldestActiveXactStartTS, activeXacts.last._2.startTS))
+				// } else {
+				// 	println("fine")
+				// }
+				// debug("\tactiveXacts = " + activeXacts)
+				// debug("\toldestActiveXactStartTS = " + oldestActiveXactStartTS)
 			}
 
 			var reachedLimit = false
@@ -202,36 +239,36 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 				val xact = recentlyCommittedXacts.head
 				implicit val theXact = xact
 				if(xact.commitTS < oldestActiveXactStartTS) {
-					debug("\tremoving xact = " + xact.transactionId)
+					// debug("\tremoving xact = " + xact)
 					xact.undoBuffer.foreach{ dv =>
 						val nextDV = dv.next
 						dv.next = null
 						if(nextDV != null) {
-							debug("\t\tremoved version => (" + nextDV.getTable+"," + nextDV.getKey + ", " + nextDV + ")")
+							// debug("\t\tremoved version => (" + nextDV.getTable+"," + nextDV.getKey + ", " + nextDV + ")")
 							nextDV.gcRemove
 						}
 						else if(dv.op == DELETE_OP){
-							debug("\t\tcould not remove version because of no next => (" + nextDV.getTable+"," + nextDV.getKey + ", " + nextDV + ")")
+							// debug("\t\tcould not remove version because of no next => (" + nextDV.getTable+"," + nextDV.getKey + ", " + nextDV + ")")
 						}
 						if(dv.isDeleted) {
-							debug("\t\tand also removed itself => (" + nextDV.getTable+"," + dv.getKey + ", " + dv + ")")
+							// debug("\t\tand also removed itself => (" + nextDV.getTable+"," + dv.getKey + ", " + dv + ")")
 							dv.remove
 						}
 						else if(nextDV != null){
-							debug("\t\t, and current version is => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
+							// debug("\t\t, and current version is => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
 						}
 					}
 					recentlyCommittedXacts.synchronized {
 						recentlyCommittedXacts.remove(0)
 					}
 				} else {
-					debug("\treached gc limit T"+xact.transactionId+" vs. oldestActiveXactStartTS=" + oldestActiveXactStartTS)
+					// debug("\treached gc limit "+xact+" vs. oldestActiveXactStartTS=" + oldestActiveXactStartTS)
 					reachedLimit = true
 				}
 			}
 		}
 		else {
-			debug("\tnothing to be done!")
+			// debug("\tnothing to be done!")
 		}
 		debug("GC finished")
 	}

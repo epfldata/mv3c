@@ -218,41 +218,183 @@ import TransactionManager._
  * @param <V> the type of mapped values
  */
 
-class ChangeHandler[K,V <: Product](val preds: List[Predicate[K,V]], val handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]])
+// class ChangeHandler[K,V <: Product](val preds: List[Predicate[K,V]], val handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]])
 
 //TODO: the base implementation uses 64-bit comparison summaries for compacted predicate entries, should we do that, too?
 //TODO: predicate should know the accessed fields, too, in order to do the attribute-level validation
-abstract class Predicate[K,V <: Product](val tbl: ConcurrentSHMapMVC3T[K,V]) {
-  def matches(dv: DeltaVersion[_,_]): Boolean
-  def onChange(handler:List[DeltaVersion[_,_]] => List[DeltaVersion[_,_]]) = new ChangeHandler[K,V](List(this), handler)
+object Predicate {
+  var predicateSeq = 1
 }
-case class GetPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], key:K) extends Predicate(tbl) {
-  def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
-  def get(implicit xact:Transaction) = getEntry.row
-  def getEntry(implicit xact:Transaction) = xact.findPredicateCachedResult(this) match {
-    case Some(c) => val res = c.asInstanceOf[DeltaVersion[K,V]]; if(res.isVisible) res else {
-      val newRes = res.entry.getTheValue
-      xact.cachePredicateResult(this, newRes)
-      newRes
+abstract class Predicate[K,V <: Product](val tbl: ConcurrentSHMapMVC3T[K,V], val pid:Int={Predicate.predicateSeq += 1; Predicate.predicateSeq}) { self =>
+  var hasConflict = false
+  var parents = List[Predicate[_,_]]()
+  var children = List[Predicate[_,_]]()
+  def dependsOn(parent: Predicate[_,_]): self.type = {
+    this.parents = parent :: this.parents
+    parent.children = this :: parent.children
+    this
+  }
+  def dependsOn(parentsList: List[Predicate[_,_]]): self.type = {
+    this.parents = this.parents ++ parentsList
+    parentsList.foreach{ parent =>
+      parent.children = this :: parent.children
     }
-    case None => val res = tbl.getEntry(this); xact.cachePredicateResult(this, res); res
+    this
   }
-}
-case class SlicePredicate[P,K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], part:Int, partKey:P) extends Predicate(tbl) {
-  def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
-  def slice(implicit xact:Transaction) = xact.findPredicateCachedResult(this) match {
-    case Some(res) => res.asInstanceOf[ConcurrentSHIndexMVC3TEntry[P,K,V]]
-    case None => val res = tbl.slice(this); xact.cachePredicateResult(this, res); res
+
+  def addDependency(child: Predicate[_,_]): self.type = {
+    this.children = child :: this.children
+    child.parents = this :: child.parents
+    this
   }
-}
-case class ForeachPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V]) extends Predicate(tbl) {
-  def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
+
+  def matches(dvSet: Set[DeltaVersion[_,_]]): Boolean = {
+    dvSet.exists{ dv =>
+      if(this.tbl eq dv.getMap) matches(dv)
+      else false
+    }
+  }
+  def matches(dv: DeltaVersion[_,_]): Boolean
+  // def onChange(handler:List[DeltaVersi1on[_,_]] => List[DeltaVersion[_,_]]) = new ChangeHandler[K,V](List(this), handler)
+  def compensateAction(implicit xact:Transaction): Unit = {
+    removeProducedVersions
+    debug("compensating " + this)
+    compensate
+  }
+  def removeProducedVersions(implicit xact:Transaction): Unit = {
+    children.foreach(_.removeProducedVersions)
+  }
+  def compensate(implicit xact:Transaction): Unit = { throw new UnsupportedOperationException("compensate in " + this) }
 }
 
-final class ClosureTransition(val handlers: List[ChangeHandler[_,_]], closure:() => (List[DeltaVersion[_,_]],List[ClosureTransition]))(implicit val xact:Transaction) {
-  val outputVersions = closure()
-  xact.addClosureTransition(this)
+abstract class KeyPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], val key:K) extends Predicate[K,V](tbl)
+// case class OrPredicate(p1: Predicate[_,_<: Product], p2: Predicate[_,_<: Product]) extends Predicate(null) {
+//   def matches(dv: DeltaVersion[_,_]): Boolean = p1.matches(dv) || p2.matches(dv)
+// }
+case class GetPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], override val key:K) extends KeyPredicate[K,V](tbl, key) {
+  var cached: DeltaVersion[K,V] = null
+  var getEntryHandlers = List[(DeltaVersion[K,V],Predicate[K,V])=>Unit]()
+  def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
+  def get(handler:(V,Predicate[K,V])=>Unit, fromPreds:List[Predicate[_,_]], isCompensating:Boolean=false)(implicit xact:Transaction) = {
+    getEntry({ case (dv,_) => handler(dv.row, this) }, fromPreds, isCompensating)
+  }
+  def getEntry(handler:(DeltaVersion[K,V],Predicate[K,V])=>Unit, fromPreds:List[Predicate[_,_]], isCompensating:Boolean=false)(implicit xact:Transaction) = {
+    // debug(this+".getEntry started")
+    xact.addPredicate(this, fromPreds)
+    if(!isCompensating) getEntryHandlers = handler :: getEntryHandlers
+    if(cached == null) {
+      // debug(" there is no cached value for " + this)
+      cached = tbl.getEntry(this)
+      // debug(" updated cached -> " + cached)
+    }
+    else if(!cached.isVisible) {
+      // debug(" the cached value for " + this + " is not visible -> " + cached)
+      cached = cached.entry.getTheValue
+      // debug(" updated cached -> " + cached)
+    } else {
+      // debug(" the cached value for " + this + " is visible -> " + cached)
+    }
+    // debug(this+".getEntry finished")
+    handler(cached, this)
+    cached
+  }
+  override def compensate(implicit xact:Transaction) {
+    getEntryHandlers.foreach( h => getEntry(h, this.parents, true))
+  }
 }
+case class SlicePredicate[P,K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], part:Int, partKey:P) extends Predicate[K,V](tbl) {
+  var cached: ConcurrentSHIndexMVC3TEntry[P,K,V] = null
+  var sliceHandlers = List[(ConcurrentSHIndexMVC3TEntry[P,K,V],Predicate[K,V])=>Unit]()
+  def matches(dv: DeltaVersion[_,_]): Boolean = dv.project(part) == partKey
+  def slice(handler: (ConcurrentSHIndexMVC3TEntry[P,K,V],Predicate[K,V])=>Unit, fromPreds:List[Predicate[_,_]], isCompensating:Boolean=false)(implicit xact:Transaction) = {
+    xact.addPredicate(this, fromPreds)
+    if(!isCompensating) sliceHandlers = handler :: sliceHandlers
+    if(cached == null) cached = tbl.slice(this)
+    handler(cached,this)
+  }
+  override def compensate(implicit xact:Transaction) {
+    sliceHandlers.foreach( h => slice(h, this.parents, true))
+  }
+}
+case class ForeachPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V]) extends Predicate[K,V](tbl) {
+  var foreachHandler: (DeltaVersion[K,V], Predicate[K,V])=>Unit = null
+  def matches(dv: DeltaVersion[_,_]): Boolean = true //it's a full scan on the table
+  def apply(handler: (DeltaVersion[K,V], Predicate[K,V])=>Unit, fromPreds:List[Predicate[_,_]], isCompensating:Boolean=false)(implicit xact:Transaction) {
+    xact.addPredicate(this, fromPreds)
+    if(!isCompensating) foreachHandler = handler
+    tbl.foreach(this)
+  }
+}
+abstract class SingleRecActionPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], override val key:K) extends KeyPredicate[K,V](tbl, key) {
+  var outputVersion: DeltaVersion[K,V] = null
+
+  override def removeProducedVersions(implicit xact:Transaction): Unit = {
+    outputVersion.remove
+  }
+}
+case class InsertSingleRecPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], override val key:K) extends SingleRecActionPredicate[K,V](tbl, key) {
+  def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
+  def action(value:V, fromPreds:List[Predicate[_,_]] = Nil)(implicit xact:Transaction):DeltaVersion[K,V] = {
+    xact.addPredicate(this, fromPreds)
+    outputVersion = tbl.putVal(this, value, true)
+    outputVersion
+  }
+}
+case class UpdateSingleRecPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], override val key:K) extends SingleRecActionPredicate[K,V](tbl, key) {
+  def matches(dv: DeltaVersion[_,_]): Boolean = dv.getKey == key
+  def action(newValue:V, fromPreds:List[Predicate[_,_]])(implicit xact:Transaction):DeltaVersion[K,V] = {
+    xact.addPredicate(this, fromPreds)
+    outputVersion = tbl.putVal(this, newValue, false)
+    outputVersion
+  }
+  def action(selectedVersion:DeltaVersion[K,V], newValue:V, fromPreds:List[Predicate[_,_]])(implicit xact:Transaction):DeltaVersion[K,V] = {
+    xact.addPredicate(this, fromPreds)
+    outputVersion = selectedVersion.setEntryValue(newValue)
+    outputVersion
+  }
+  def action(updateFunc:(V, Predicate[K,V])=>(V, List[Predicate[_,_]]), fromPreds:List[Predicate[_,_]])(implicit xact:Transaction):DeltaVersion[K,V] = {
+    action2({ case (dv, parentPred) => updateFunc(dv.row, parentPred) }, fromPreds)
+  }
+  def action2(updateFunc:(DeltaVersion[K,V], Predicate[K,V])=>(V, List[Predicate[_,_]]), fromPreds:List[Predicate[_,_]])(implicit xact:Transaction):DeltaVersion[K,V] = {
+    val getPred = tbl.getPred(key)
+    getPred.getEntry({ case (dv, parentPred) => 
+      val res = updateFunc(dv, this)
+      this.dependsOn(res._2)
+      outputVersion = dv.setEntryValue(res._1)
+    },fromPreds)
+    xact.addPredicate(this, List(getPred))
+    outputVersion
+  }
+}
+
+// object DeleteSingleRecPredicate {
+//   def apply[K,V <: Product](tbl: ConcurrentSHMapMVC3T[K,V], key:K)(implicit xact:Transaction) = new DeleteSingleRecPredicate(tbl, key)(xact)
+// }
+case class DeleteSingleRecPredicate[K,V <: Product](override val tbl: ConcurrentSHMapMVC3T[K,V], dv:DeltaVersion[K,V], override val key: K) extends SingleRecActionPredicate[K,V](tbl, dv.getKey) {
+  // def this(tbl: ConcurrentSHMapMVC3T[K,V], key:K)(implicit xact:Transaction) {
+  //   this(tbl, {
+  //     val getPred = tbl.getPred(key)
+  //     val dv = getPred.getEntry(xact)
+  //     dv
+  //   }, key)
+  //   dependsOn(tbl.getPred(key))
+  //   xact.addPredicate(this)
+  // }
+  def matches(testDV: DeltaVersion[_,_]): Boolean = testDV.getKey == dv.getKey
+  def action(fromPreds:List[Predicate[_,_]])(implicit xact:Transaction):DeltaVersion[K,V] = {
+    xact.addPredicate(this,fromPreds)
+    if(dv ne null) {
+      outputVersion = dv.setEntryValue(tbl.NULL_VALUE)
+      outputVersion
+    } else null
+    //tbl.putVal(this, newValue, true)
+  }
+}
+
+// final class ClosureTransition(val handlers: List[ChangeHandler[_,_]], closure:() => (List[DeltaVersion[_,_]],List[ClosureTransition]))(implicit val xact:Transaction) {
+//   val outputVersions = closure()
+//   xact.addClosureTransition(this)
+// }
 
 final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null, @volatile var isRemoved:Boolean=false) {
   vXact.undoBuffer += this
@@ -297,7 +439,7 @@ final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var en
   // @inline //inlining is disabled during development
   final def isVisible(implicit xact:Transaction): Boolean = entry.synchronized {
     /*val res = */(!isDeleted) && ((vXact eq xact) || 
-        (vXact.isCommitted && (vXact.xactId < xact.startTS)
+        (vXact.isCommitted && (vXact.xactId <= xact.startTS)
             && ((prev == null) || ((prev.vXact ne xact) && (prev.vXact.commitTS > xact.startTS)))
         )
       )
@@ -312,10 +454,37 @@ final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var en
     //     if(prev != null) {
     //       debug("\tprev.vXact.commitTS > xact.startTS = " + (prev.vXact.commitTS > xact.startTS))
     //     }
+    //     var iter = this
+    //     while(iter.prev ne null) iter = iter.prev
+    //     var i = 1
+    //     while(iter ne null) {
+    //       debug("\t v%d = %s".format(i, iter))
+    //       i += 1
+    //       iter = iter.next
+    //     }
     //   }
     // }
-    // val res = entry.getTheValue eq this
+    // // val res = entry.getTheValue eq this
     // res
+  }
+
+  final def whyVisibleOrNot(implicit xact:Transaction) {
+    val res = (!isDeleted) && ((vXact eq xact) || 
+        (vXact.isCommitted && (vXact.xactId <= xact.startTS)
+            && ((prev == null) || ((prev.vXact ne xact) && (prev.vXact.commitTS > xact.startTS)))
+        )
+      )
+    forceDebug("Is " + this + " visible => " + res)
+    forceDebug("\tisDeleted = " + isDeleted)
+    forceDebug("\tvXact eq xact = " + (vXact eq xact))
+    if(!(vXact eq xact)) {
+      forceDebug("\tvXact.isCommitted = " + vXact.isCommitted)
+      forceDebug("\tvXact.xactId < xact.startTS  = " + (vXact.xactId < xact.startTS ))
+      forceDebug("\tprev = " + prev)
+      if(prev != null) {
+        forceDebug("\tprev.vXact.commitTS > xact.startTS = " + (prev.vXact.commitTS > xact.startTS))
+      }
+    }
   }
 
   @inline
@@ -362,6 +531,33 @@ final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var en
     }
   }
 
+  /**
+   * After committing a record, we might move it
+   * beside the latest committed record
+   * This will help in order to facilitate checking
+   * whether a version is visible or not
+   */
+  def moveToFront(implicit xact:Transaction):Unit = entry.synchronized {
+    if(next != null && !next.vXact.isCommitted) {
+      var preCommit = next
+      var lastCommitted = if(preCommit eq null) null else preCommit.next
+      while((lastCommitted != null) && !lastCommitted.vXact.isCommitted) {
+        preCommit = lastCommitted
+        lastCommitted = lastCommitted.next
+      }
+      val tmpNext = next
+      val tmpPrev = prev
+      next = lastCommitted
+      prev = preCommit
+      preCommit.next = this
+      if(lastCommitted != null) lastCommitted.prev = this
+      /*if(tmpNext != null)*/ tmpNext.prev = tmpPrev
+      if(tmpPrev != null) tmpPrev.next = tmpNext
+      else entry.value = tmpNext
+      debug("moving %s between %s and %s".format(this,preCommit, lastCommitted))
+    }
+  }
+
   final override def toString = "<" + getTable +" {"+getKey+" -> "+img+"} with op="+opStr+(if(op == UPDATE_OP) " on cols="+cols else "") + " written by " + vXact + ">"
 
   // final override def hashCode: Int = {
@@ -379,7 +575,9 @@ final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var en
 object ConcurrentSHMapMVC3T {
   type SEntryMVCC[K,V <: Product] = Node[K,V]
 
-  val NO_TRANSACTION_AVAILABLE = null
+  val ALLOW_MULTIPLE_WRITERS = true
+
+  // val NO_TRANSACTION_AVAILABLE = null
 
   val ONE_THREAD_NO_PARALLELISM = Long.MaxValue
   /**
@@ -509,19 +707,25 @@ object ConcurrentSHMapMVC3T {
     // final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
 
     final def getTheValue(implicit xact:Transaction) = this.synchronized {
-      // debug("getting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
+      // debug(" > \n\ngetting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
+      // var i = 0
       var res: DeltaVersion[K,V] = value
       var found = false
       do {
+        // i += 1
         if(res == null) {
-          debug("getting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
-          debug("\tchecking >> " + res)
+          // debug("getting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
+          // debug("\tchecking >> " + res)
         }
         val resXact = res.vXact
         if((resXact eq xact) || 
            (resXact.isCommitted && resXact.xactId < xact.startTS)) {
           found = true
+          // debug(" found v" + i + " -> " + res)
         }
+        // else {
+        //   debug("       v" + i + " -> " + res)
+        // }
         if(!found) {
           res = res.next
         }
@@ -532,31 +736,36 @@ object ConcurrentSHMapMVC3T {
     // @inline //inlining is disabled during development
     final def setTheValue(newValue: V, op: Operation, cols:List[Int]=Nil)(implicit xact:Transaction): DeltaVersion[K,V] = this.synchronized {
       // val oldValue: V = NULL_VALUE
-      if(value == null) {
+      val localValue = value
+      if(localValue == null) {
         // debug("setting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
         value = new DeltaVersion(xact,this,newValue,cols,op)
-        // debug("\t case 1 => " + value)
+        // debug("\t case 1 => " + localValue)
       } else {
         // debug("setting the value for " + key + " in " + Integer.toHexString(System.identityHashCode(this)))
-        if(value.vXact eq xact) {
-          value.img = newValue
-          if((value.op == UPDATE_OP) && (op == UPDATE_OP)) {
-            value.cols = value.cols.union(cols).sorted
-            value.op = op
-            // debug("\t case 2 => " + value)
+        if(localValue.vXact eq xact) {
+          localValue.img = newValue
+          if((localValue.op == UPDATE_OP) && (op == UPDATE_OP)) {
+            localValue.cols = localValue.cols.union(cols).sorted
+            localValue.op = op
+            // debug("\t case 2 => " + localValue)
           } else {
-            value.cols = cols
-            value.op = op
-            // debug("\t case 3 => " + value)
+            localValue.cols = cols
+            localValue.op = op
+            // debug("\t case 3 => " + localValue)
           }
         } else {
-          if(!value.vXact.isCommitted || !value.isVisible) throw new MVCCConcurrentWriteException("%s has already written on this object (%s<%s>), so %s should get aborted.".format(value, map.tblName, key, xact))
-          value = new DeltaVersion(xact,this,newValue,cols,op,value)
-          // debug("\t case 4 => " + value)
+          if(!ALLOW_MULTIPLE_WRITERS && (!value.vXact.isCommitted || !localValue.isVisible)) throw new MVCCConcurrentWriteException("%s has already written on this object (%s<%s>), so %s should get aborted.".format(localValue, map.tblName, key, xact))
+          value = new DeltaVersion(xact,this,newValue,cols,op,localValue)
+          // debug("\t case 4 => " + localValue)
         }
       }
       // oldValue
       value
+    }
+
+    final def casTheValue(oldValue: DeltaVersion[K,V], newValue: DeltaVersion[K,V]) {
+      U.compareAndSwapObject(this,NODE_VALUE_OFFSET,oldValue,newValue)
     }
 
     final override def hashCode: Int = {
@@ -1627,6 +1836,7 @@ object ConcurrentSHMapMVC3T {
   val scale: Int = U.arrayIndexScale(ak)
   if ((scale & (scale - 1)) != 0) throw new Error("data type scale not a power of two")
   private val ASHIFT: Int = 31 - Integer.numberOfLeadingZeros(scale)
+  private val NODE_VALUE_OFFSET = U.objectFieldOffset(classOf[Node[_, _]].getDeclaredField("value"));
 }
 
 @SerialVersionUID(7249069246763182397L)
@@ -1775,16 +1985,15 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    * @throws NullPointerException if the specified key is null
    */
   // @inline //inlining is disabled during development
-  final def getPred(key: K)(implicit xact:Transaction) = GetPredicate(this, key)
-  // @inline //inlining is disabled during development
-  final def get(key: K)(implicit xact:Transaction): V = apply(key)
-  // @inline //inlining is disabled during development
-  final def get(getPred: GetPredicate[K,V])(implicit xact:Transaction): V = apply(getPred)
-  // @inline //inlining is disabled during development
-  final def apply(key: K)(implicit xact:Transaction): V = apply(getPred(key))
+  final def getPred(key: K) = GetPredicate(this, key)
+  // // @inline //inlining is disabled during development
+  // final def get(key: K, fromPreds:List[Predicate[_,_]])(implicit xact:Transaction): V = apply(key)
+  // // @inline //inlining is disabled during development
+  // final def get(getPred: GetPredicate[K,V], fromPreds:List[Predicate[_,_]])(implicit xact:Transaction): V = apply(getPred)
+  // // @inline //inlining is disabled during development
+  // final def apply(key: K, fromPreds:List[Predicate[_,_]])(implicit xact:Transaction): V = apply(getPred(key))
   final def apply(getPred: GetPredicate[K,V])(implicit xact:Transaction): V = {
     // debug("finding " + key)
-    xact.addPredicate(getPred)
     val key = getPred.key
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
@@ -1845,7 +2054,6 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
   def getEntry(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = getEntry(GetPredicate(this, key))
   def getEntry(getPred: GetPredicate[K,V])(implicit xact:Transaction): DeltaVersion[K,V] = {
     // debug("finding entry for " + key)
-    xact.addPredicate(getPred)
     val key = getPred.key
     var tab: Array[Node[K, V]] = null
     var e: Node[K, V] = null
@@ -1909,33 +2117,41 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    *                                                    { @code null} if there was no mapping for { @code key}
    * @throws NullPointerException if the specified key or value is null
    */
-  def put(key: K, value: V)(implicit xact:Transaction): Unit = {
-    //TODO: For foreign key constraints we need to detect the case
-    //      when an active transaction deletes a primary key and a
-    //      concurrent transaction inserts a foreign key reference
-    //      to that key
-    putVal(key, value, false)
-  }
+  // def put(key: K, value: V)(implicit xact:Transaction): Unit = {
+  //   //TODO: For foreign key constraints we need to detect the case
+  //   //      when an active transaction deletes a primary key and a
+  //   //      concurrent transaction inserts a foreign key reference
+  //   //      to that key
+  //   putVal(key, value, false)
+  // }
   def +=(key: K, value: V)(implicit xact:Transaction): DeltaVersion[K,V] = {
-    putVal(key, value, true)
+    InsertSingleRecPredicate(this, key).action(value)
   }
 
-  def update(key: K, value: V)(implicit xact:Transaction): DeltaVersion[K,V] = {
-    putVal(key, value, false)
+  def updatePred(key: K)(implicit xact:Transaction) = UpdateSingleRecPredicate(this, key)
+  def insertPred(key: K)(implicit xact:Transaction) = InsertSingleRecPredicate(this, key)
+  // def deletePred(key: K)(implicit xact:Transaction) = DeleteSingleRecPredicate(this, dv, key)
+
+  def update(key: K, value: V, fromPreds:List[Predicate[_,_]])(implicit xact:Transaction): DeltaVersion[K,V] = {
+    UpdateSingleRecPredicate(this, key).action(value, fromPreds)
   }
 
-  def update(key: K, updateFunc:V=>V)(implicit xact:Transaction): DeltaVersion[K,V] = {
-    val dv = getEntry(key)
-    dv.setEntryValue(updateFunc(dv.getImage))
+  def update(key: K, updateFunc:(V,Predicate[_,_])=>(V,List[Predicate[_,_]]), fromPreds:List[Predicate[_,_]])(implicit xact:Transaction): DeltaVersion[K,V] = {
+    update(UpdateSingleRecPredicate(this, key), updateFunc, fromPreds)
   }
 
-  def updateEntry(key: K, updateFunc:DeltaVersion[K,V]=>V)(implicit xact:Transaction): DeltaVersion[K,V] = {
-    val dv = getEntry(key)
-    dv.setEntryValue(updateFunc(dv))
+  def update(updatePred: UpdateSingleRecPredicate[K,V], updateFunc:(V,Predicate[_,_])=>(V,List[Predicate[_,_]]), fromPreds:List[Predicate[_,_]])(implicit xact:Transaction): DeltaVersion[K,V] = {
+    updatePred.action(updateFunc, fromPreds)
+  }
+
+  def updateEntry(key: K, updateFunc:(DeltaVersion[K,V],Predicate[_,_])=>(V,List[Predicate[_,_]]), fromPreds:List[Predicate[_,_]])(implicit xact:Transaction): DeltaVersion[K,V] = {
+    UpdateSingleRecPredicate(this, key).action2(updateFunc, fromPreds)
   }
 
   /** Implementation for put and putIfAbsent */
-  final def putVal(key: K, value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): DeltaVersion[K,V] = {
+  final def putVal(updatePred: KeyPredicate[K,V], value: V, onlyIfAbsent: Boolean)(implicit xact:Transaction): DeltaVersion[K,V] = {
+    val key = updatePred.key
+
     var isAdded = false
     var oldVal: DeltaVersion[K,V] = null
     var oldValImg: V = NULL_VALUE
@@ -2078,28 +2294,31 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    * @throws NullPointerException if the specified key is null
    */
   // @inline //inlining is disabled during development
-  final def remove(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
-    -=(key)
-  }
-  // @inline //inlining is disabled during development
-  final def -=(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
-    // debug("- started deleting " + key)
-    val dv = getEntry(key)
-    if(dv ne null) {
-      dv.setEntryValue(NULL_VALUE)
-    } else null
-    // debug("- finished deleting " + key)
-    // replaceNode(key)
-  }
-  // @inline //inlining is disabled during development
-  final def -=(dv: DeltaVersion[K,V])(implicit xact:Transaction): DeltaVersion[K,V] = {
-    // debug("- started deleting " + key)
-    if(dv ne null) {
-      dv.setEntryValue(NULL_VALUE)
-    } else null
-    // debug("- finished deleting " + key)
-    // replaceNode(key)
-  }
+  // final def remove(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
+  //   -=(key)
+  // }
+  // // @inline //inlining is disabled during development
+  // final def -=(key: K)(implicit xact:Transaction): DeltaVersion[K,V] = {
+  //   // debug("- started deleting " + key)
+  //   xact.addPredicate(UpdateSingleRecPredicate(this, key))
+
+  //   val dv = getEntry(key)
+  //   if(dv ne null) {
+  //     dv.setEntryValue(NULL_VALUE)
+  //   } else null
+  //   // debug("- finished deleting " + key)
+  //   // replaceNode(key)
+  // }
+  // // @inline //inlining is disabled during development
+  // final def -=(dv: DeltaVersion[K,V])(implicit xact:Transaction): DeltaVersion[K,V] = {
+  //   // debug("- started deleting " + key)
+  //   xact.addPredicate(UpdateSingleRecPredicate(this, dv.getKey))
+  //   if(dv ne null) {
+  //     dv.setEntryValue(NULL_VALUE)
+  //   } else null
+  //   // debug("- finished deleting " + key)
+  //   // replaceNode(key)
+  // }
 
   /**
    * Implementation for the four public remove/replace methods:
@@ -2742,72 +2961,89 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    * @since 1.8
    */
   // @inline //inlining is disabled during development
-  final private def forEach(parallelismThreshold: Long, action: (K,V) => Unit)(implicit xact:Transaction) = {
-    val foreachPred = ForeachPredicate(this)
-    xact.addPredicate(foreachPred)
-    if (action == null) throw new NullPointerException
+  final private def forEach(parallelismThreshold: Long, foreachPred:ForeachPredicate[K,V])(implicit xact:Transaction) = {
+    if (foreachPred == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e => 
       val dv = e.getTheValue
       if(dv ne null) {
-        val img = dv.getImage
-        if(img != null) action(e.key, dv.getImage)
+        val img = dv.row
+        if(img != null) foreachPred.foreachHandler(dv, foreachPred)
       }
     }).invoke
-    foreachPred
   }
   // @inline //inlining is disabled during development
-  final def foreach(action: (K,V) => Unit)(implicit xact:Transaction) = {
-    forEach(ONE_THREAD_NO_PARALLELISM, action)
+  final def foreach(foreachPred:ForeachPredicate[K,V])(implicit xact:Transaction) = {
+    forEach(ONE_THREAD_NO_PARALLELISM, foreachPred)
   }
+  // @inline //inlining is disabled during development
+  final def foreachPred = ForeachPredicate(this)
+  // // @inline //inlining is disabled during development
+  // final private def forEach(parallelismThreshold: Long, action: (K,V) => Unit)(implicit xact:Transaction) = {
+  //   val foreachPred = ForeachPredicate(this)
+  //   xact.addPredicate(foreachPred)
+  //   if (action == null) throw new NullPointerException
+  //   new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e => 
+  //     val dv = e.getTheValue
+  //     if(dv ne null) {
+  //       val img = dv.row
+  //       if(img != null) action(e.key, dv.row)
+  //     }
+  //   }).invoke
+  //   foreachPred
+  // }
+  // // @inline //inlining is disabled during development
+  // final def foreach(action: (K,V) => Unit)(implicit xact:Transaction) = {
+  //   forEach(ONE_THREAD_NO_PARALLELISM, action)
+  // }
 
-  /**
-   * Performs the given action for each key.
-   *
-   * @param parallelismThreshold the (estimated) number of elements
-   *                             needed for this operation to be executed in parallel
-   * @param action the action
-   * @since 1.8
-   */
-  // @inline //inlining is disabled during development
-  final private def forEachKey(parallelismThreshold: Long, action: K => Unit)(implicit xact:Transaction) = {
-    val foreachPred = ForeachPredicate(this)
-    xact.addPredicate(foreachPred)
-    if (action == null) throw new NullPointerException
-    new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
-      val dv = e.getTheValue
-      if((dv ne null) && (dv.getImage != null)) action(e.key)
-    }).invoke
-    foreachPred
-  }
-  // @inline //inlining is disabled during development
-  final def foreachKey(action: K => Unit)(implicit xact:Transaction) = {
-    forEachKey(ONE_THREAD_NO_PARALLELISM, action)
-  }
+  // /**
+  //  * Performs the given action for each key.
+  //  *
+  //  * @param parallelismThreshold the (estimated) number of elements
+  //  *                             needed for this operation to be executed in parallel
+  //  * @param action the action
+  //  * @since 1.8
+  //  */
+  // // @inline //inlining is disabled during development
+  // final private def forEachKey(parallelismThreshold: Long, action: K => Unit)(implicit xact:Transaction) = {
+  //   val foreachPred = ForeachPredicate(this)
+  //   xact.addPredicate(foreachPred)
+  //   if (action == null) throw new NullPointerException
+  //   new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
+  //     val dv = e.getTheValue
+  //     if((dv ne null) && (dv.row != null)) action(e.key)
+  //   }).invoke
+  //   foreachPred
+  // }
+  // // @inline //inlining is disabled during development
+  // final def foreachKey(action: K => Unit)(implicit xact:Transaction) = {
+  //   forEachKey(ONE_THREAD_NO_PARALLELISM, action)
+  // }
 
-  /**
-   * Performs the given action for each entry.
-   *
-   * @param parallelismThreshold the (estimated) number of elements
-   *                             needed for this operation to be executed in parallel
-   * @param action the action
-   * @since 1.8
-   */
-  // @inline //inlining is disabled during development
-  final private def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction) = {
-    val foreachPred = ForeachPredicate(this)
-    xact.addPredicate(foreachPred)
-    if (action == null) throw new NullPointerException
-    new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
-      val dv = e.getTheValue
-      if((dv ne null) && (dv.getImage != null)) action(e)
-    }).invoke
-    foreachPred
-  }
+  // /**
+  //  * Performs the given action for each entry.
+  //  *
+  //  * @param parallelismThreshold the (estimated) number of elements
+  //  *                             needed for this operation to be executed in parallel
+  //  * @param action the action
+  //  * @since 1.8
+  //  */
+  // // @inline //inlining is disabled during development
+  // final private def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit, fromPreds:List[Predicate[_,_]]=Nil)(implicit xact:Transaction) = {
+  //   val foreachPred = ForeachPredicate(this)
+  //   xact.addPredicate(foreachPred, fromPreds)
+  //   if (action == null) throw new NullPointerException
+  //   new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
+  //     val dv = e.getTheValue
+  //     if((dv ne null) && (dv.row != null)) action(e)
+  //   }).invoke
+  //   foreachPred
+  // }
 
-  // @inline //inlining is disabled during development
-  final def foreachEntry(action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction) = {
-    forEachEntry(ONE_THREAD_NO_PARALLELISM, action)
-  }
+  // // @inline //inlining is disabled during development
+  // final def foreachEntry(action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction) = {
+  //   forEachEntry(ONE_THREAD_NO_PARALLELISM, action)
+  // }
 
   val idxs:List[ConcurrentSHIndexMVC3T[_,K,V]] = {
     def idx[P](f:(K,V)=>P, lf:Float, initC:Int) = new ConcurrentSHIndexMVC3T[P,K,V](f,lf,initC)(new Ordering[P] {
@@ -2821,9 +3057,8 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
   // @inline //inlining is disabled during development
   def slicePred[P](part:Int, partKey:P)(implicit xact:Transaction) = SlicePredicate[P,K,V](this, part, partKey)
   // @inline //inlining is disabled during development
-  def slice[P](part:Int, partKey:P)(implicit xact:Transaction):ConcurrentSHIndexMVC3TEntry[P,K,V] = slice[P](slicePred[P](part, partKey))
+  // def slice[P](part:Int, partKey:P)(implicit xact:Transaction):ConcurrentSHIndexMVC3TEntry[P,K,V] = slice[P](slicePred[P](part, partKey))
   def slice[P](slicePred: SlicePredicate[P,K,V])(implicit xact:Transaction):ConcurrentSHIndexMVC3TEntry[P,K,V] = {
-    xact.addPredicate(slicePred)
     val ix=idxs(slicePred.part)
     ix.asInstanceOf[ConcurrentSHIndexMVC3T[P,K,V]].slice(slicePred.partKey) // type information P is erased anyway
   }

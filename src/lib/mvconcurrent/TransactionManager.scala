@@ -54,6 +54,8 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	val isGcActive = new AtomicBoolean(DISABLE_GC)
 
 	val activeXacts = new LinkedHashMap[Long,Transaction]
+	//List of recently committed transactions consists of
+	//the most recent committed transaction in its head
 	val recentlyCommittedXacts = new ListBuffer[Transaction]()
 	val allCommittedXacts = new ListBuffer[Transaction]()
 
@@ -74,10 +76,11 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 				activeXacts.synchronized {
 					activeXacts -= xactId
 				}
-				recentlyCommittedXacts.synchronized {
-					recentlyCommittedXacts += xact
-					if(isUnitTestEnabled) allCommittedXacts += xact
-				}
+				// recentlyCommittedXacts.synchronized {
+				// 	//prepend the transaction to the recently commmitted transactions list
+				// 	recentlyCommittedXacts.+=:(xact)
+				// 	if(isUnitTestEnabled) allCommittedXacts += xact
+				// }
 				debug("(read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
 				true
 			} else if(!validate) {
@@ -91,7 +94,8 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 				}
 				debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
 				recentlyCommittedXacts.synchronized {
-					recentlyCommittedXacts += xact
+					//prepend the transaction to the recently commmitted transactions list
+					recentlyCommittedXacts.+=:(xact)
 					if(isUnitTestEnabled) allCommittedXacts += xact
 				}
 				garbageCollect
@@ -110,7 +114,7 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	//  - attribute-level validation should be supported
 	def validate(implicit xact:Transaction): Boolean = {
 		debug("\tvalidation started")
-		val concurrentXacts = recentlyCommittedXacts.filter(t => t.startTS > xact.startTS)
+		val concurrentXacts = recentlyCommittedXacts.filter(t => t.commitTS > xact.startTS)
 		debug("\t\tconcurrentXacts = " + concurrentXacts)
 		concurrentXacts.foreach { t =>
 			t.undoBuffer.foreach { dv =>

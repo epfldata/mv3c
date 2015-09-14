@@ -14,6 +14,7 @@ class Transaction(val tm: TransactionManager, val name: String, val startTS: Lon
 	val DEFAULT_UNDO_BUFFER_SIZE = 64
 
 	val undoBuffer = new HashSet[DeltaVersion[_,_]]()
+	//TODO can we se a simple ListBuffer instead? (the same as MVC3T)
 	var predicates = new MutableMap[Table, HashSet[Predicate]]
 
 	var command: XactCommand = null
