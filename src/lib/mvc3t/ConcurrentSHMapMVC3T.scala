@@ -1,5 +1,8 @@
 package ddbt.lib.mvc3t
 
+import scala.collection.mutable.Set
+import scala.collection.mutable.HashSet
+import scala.collection.mutable.ListBuffer
 import java.util.Map
 import java.util.NoSuchElementException
 import java.util.concurrent.atomic.AtomicReference
@@ -269,7 +272,7 @@ final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var en
   @inline
   final def getCurrentValue(implicit xact:Transaction) = entry.getTheValue
   @inline
-  final def project(part: Int) = getMap.projs(part).apply(getKey, getImage)
+  final def project(part: Int) = getMap.projs(part).apply(getKey, row)
 
   // @inline //inlining is disabled during development
   final def setEntryValue(newValue: V)(implicit xact:Transaction): DeltaVersion[K,V] = entry.synchronized {
@@ -286,7 +289,7 @@ final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var en
 
     if(insertOrUpdate) {
       val map = getMap
-      if (map.idxs!=Nil) map.idxs.foreach(_.set(entry.value))
+      if (map.idxs!=Nil) map.idxs.foreach(_.set(dv))
     }
     dv
   }
@@ -500,7 +503,7 @@ object ConcurrentSHMapMVC3T {
     }
 
     // @inline //inlining is disabled during development
-    final def getValueImage(implicit xact:Transaction) = { val v = getTheValue; if(v == null) null.asInstanceOf[V] else v.getImage }
+    final def getValueImage(implicit xact:Transaction) = { val v = getTheValue; if(v == null) null.asInstanceOf[V] else v.row }
 
     // final def getValue: V = throw new UnsupportedOperationException("SEntryMVCC.getValue without passing the xact is not supported.")
     // final def setValue(newValue: V): V = throw new UnsupportedOperationException("SEntryMVCC.setValue without passing the xact is not supported.")
@@ -1745,7 +1748,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
   /**
    * {@inheritDoc}
    */
-  def size: Int = {
+  private def size: Int = {
     val n: Long = sumCount
     (if ((n < 0L)) 0 else if ((n > Integer.MAX_VALUE.toLong)) Integer.MAX_VALUE else n.toInt)
   }
@@ -1753,7 +1756,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
   /**
    * {@inheritDoc}
    */
-  def isEmpty: Boolean = {
+  private def isEmpty: Boolean = {
     sumCount <= 0L
   }
 
@@ -1977,7 +1980,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
                   if(oldVal == null || oldVal.isDeleted) {
                     newVal = e.setTheValue(value, INSERT_OP)
                   } else if (!onlyIfAbsent) {
-                    oldValImg = oldVal.getImage
+                    oldValImg = oldVal.row
                     newVal = e.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
                   }
                   break = true //todo: break is not supported
@@ -2009,7 +2012,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
                 if(oldVal == null || oldVal.isDeleted) {
                   newVal = p.setTheValue(value, INSERT_OP)
                 } else if (!onlyIfAbsent) {
-                  oldValImg = oldVal.getImage
+                  oldValImg = oldVal.row
                   newVal = p.setTheValue(value, UPDATE_OP, getModifiedColIds(value, oldValImg))
                 }
               }
@@ -2038,7 +2041,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
         // (i) in the snapshot that is visible to the transaction,
         // (ii) in the last committed version of the key’s record, or
         // (iii) uncommitted as an insert in an undo buffer
-        throw new MVCCRecordAlreadyExistsException("The record (%s -> %s) already exists (written by %s). Could not insert the new value (%s) from %s".format(oldVal.getKey, oldVal.getImage, oldVal.vXact, value, xact))
+        throw new MVCCRecordAlreadyExistsException("The record (%s -> %s) already exists (written by %s). Could not insert the new value (%s) from %s".format(oldVal.getKey, oldVal.row, oldVal.vXact, value, xact))
       }
 
       if (idxs != Nil) idxs.foreach{ idx => 
@@ -2307,7 +2310,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
   /**
    * Helps transfer if a resize is in progress.
    */
-  final def helpTransfer(tab: Array[Node[K, V]], f: Node[K, V]): Array[Node[K, V]] = {
+  private final def helpTransfer(tab: Array[Node[K, V]], f: Node[K, V]): Array[Node[K, V]] = {
     var nextTab: Array[Node[K, V]] = null
     var sc: Int = 0
     if (tab != null && (f.isInstanceOf[ForwardingNode[_, _]]) && (({
@@ -2547,7 +2550,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
     }
   }
 
-  final def sumCount: Long = {
+  private final def sumCount: Long = {
     val as: Array[CounterCell] = counterCells
     var a: CounterCell = null
     var sum: Long = baseCount
@@ -2718,7 +2721,7 @@ class ConcurrentSHMapMVC3T[K, V <: Product](val tblName:Table, val projs:(K,V)=>
    * two anyway.
    */
   // @inline //inlining is disabled during development
-  final def batchFor(b: Long): Int = {
+  private final def batchFor(b: Long): Int = {
     var n: Long = 0L
     if (b == Long.MaxValue || (({
       n = sumCount; n
