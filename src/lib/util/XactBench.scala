@@ -307,7 +307,7 @@ class XactBench(val xactSelector: XactImplSelector) {
 			j = 0
 			while (j < TRANSACTION_COUNT) {
 				total = total + success(j) + late(j)
-				println(" " + TRANSACTION_NAME(j) + " Total: " + (success(j) + late(j)))
+				println(" " + TRANSACTION_NAME(j) + " xact/sec: %.2f".format((success(j) + late(j)) / (actualTestTime / 1000f)))
 				j += 1
 			}
 			System.out.print("\nSTOPPING THREADS\n")
