@@ -256,8 +256,8 @@ final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var en
   if(next != null) next.prev = this
   if(prev != null) prev.next = this
 
-  @inline
-  final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
+  // @inline
+  // final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
   @inline
   final def row: V = img
   @inline

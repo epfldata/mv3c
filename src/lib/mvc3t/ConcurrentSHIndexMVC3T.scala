@@ -22,7 +22,7 @@ class ConcurrentSHIndexMVC3TEntry[P,K,V <: Product](val p: P, val proj:(K,V)=>P)
   final def foreach(f: (K,V) => Unit)(implicit xact:Transaction): Unit = s.foreach{ e =>
     if(e.isVisible) {
       // if (e != e.entry.getTheValue) throw new RuntimeException("Wrong foreach => "+e.getKey)
-      f(e.getKey, e.getImage)
+      f(e.getKey, e.row)
       // println ((e.entry.map.tbl, e.entry.key, e) + " is visible!")
     }
     // else {
@@ -49,7 +49,7 @@ class ConcurrentSHIndexMVC3T[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Fl
 
   // @inline //inlining is disabled during development
   final def set(entry: DeltaVersion[K,V])(implicit xact:Transaction):Unit = {
-    val p:P = proj(entry.getKey, entry.getImage)
+    val p:P = proj(entry.getKey, entry.row)
     val s = idx.get(p)
     if (s==null) {
       val newIdx = new ConcurrentSHIndexMVC3TEntry[P,K,V](p, proj)
@@ -61,7 +61,7 @@ class ConcurrentSHIndexMVC3T[P,K,V <: Product](val proj:(K,V)=>P, loadFactor: Fl
   }
 
   // @inline //inlining is disabled during development
-  final def del(entry: DeltaVersion[K,V]):Unit = del(entry, entry.getImage)
+  final def del(entry: DeltaVersion[K,V]):Unit = del(entry, entry.row)
 
   // @inline //inlining is disabled during development
   final def del(entry: DeltaVersion[K,V], v:V):Unit = {

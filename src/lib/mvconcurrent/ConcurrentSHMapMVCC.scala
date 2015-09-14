@@ -242,6 +242,8 @@ final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var en
   @inline
   final def getImage: V = /*if(op == DELETE_OP) null.asInstanceOf[V] else*/ img
   @inline
+  final def row: V = img
+  @inline
   final def getKey: K = entry.key
   @inline
   final def getMap = entry.map
