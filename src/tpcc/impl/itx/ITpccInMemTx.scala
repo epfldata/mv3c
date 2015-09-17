@@ -66,14 +66,14 @@ trait InMemoryTxImplViaMVCCTpccTableV3 extends InMemoryTxImpl {
 	}
 }
 
-trait InMemoryTxImplViaMVCCTpccTableV4 extends InMemoryTxImpl {
-	var ISharedData:MVCCTpccTableV4 = null
+// trait InMemoryTxImplViaMVCCTpccTableV4 extends InMemoryTxImpl {
+// 	var ISharedData:MVCCTpccTableV4 = null
 
-	override def setSharedData(db:AnyRef) = {
-		ISharedData = db.asInstanceOf[MVCCTpccTableV4]
-		this
-	}
-}
+// 	override def setSharedData(db:AnyRef) = {
+// 		ISharedData = db.asInstanceOf[MVCCTpccTableV4]
+// 		this
+// 	}
+// }
 
 trait INewOrderInMem extends INewOrder with IInMemoryTx
 trait IPaymentInMem extends IPayment with IInMemoryTx

@@ -7,7 +7,7 @@ import ddbt.lib.util.XactBench
 import XactBench._
 import ddbt.tpcc.loadtest.Driver
 import ddbt.tpcc.loadtest.Util
-import scala.util.Random
+import java.util.concurrent.ThreadLocalRandom
 import XactCase1._
 
 object XactCase1 {
@@ -18,15 +18,13 @@ object XactCase1 {
 	val TIMEOUT_T1 = 5000
 	val TIMEOUT_T2 = 5000
 
-	val RANDOM_SEED = 2015
-
 	def main(argv:Array[String]) {
 		val xactRunner = new XactBench(XactCase1Selector)
 		xactRunner.init
 		xactRunner.runBenchmark(true, argv)
 	}
 
-	val NUM_ACCOUNTS = 1000000
+	val NUM_ACCOUNTS = 2
 }
 
 object XactCase1Selector extends XactImplSelector {
@@ -54,9 +52,7 @@ class XactCase1MVCC extends XactImpl {
 
 	val tm = new TransactionManager(false)
 
-	val rnd = new Random(RANDOM_SEED)
-
-	def runXact(driver: Driver, t_num: Int, sequence: Int){
+	def runXact(driver: Driver, t_num: Int, sequence: Int, rnd: ThreadLocalRandom){
 		if (sequence == 0) {
 			val timeout = TIMEOUT_T1
 			val fromAcc = rnd.nextInt(NUM_ACCOUNTS)
@@ -157,9 +153,8 @@ class XactCase1MVC3T extends XactImpl {
 
 	val tm = new TransactionManager(false)
 
-	val rnd = new Random(RANDOM_SEED)
 	var amt = 0
-	def runXact(driver: Driver, t_num: Int, sequence: Int){
+	def runXact(driver: Driver, t_num: Int, sequence: Int, rnd: ThreadLocalRandom){
 		if (sequence == 0) {
 			val timeout = TIMEOUT_T1
 			val fromAcc = rnd.nextInt(NUM_ACCOUNTS)

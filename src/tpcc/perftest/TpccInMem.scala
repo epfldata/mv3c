@@ -311,11 +311,11 @@ class TpccInMem() {
       delivery = new ddbt.tpcc.tx10.Delivery
       slev = new ddbt.tpcc.tx10.StockLevel
     } else if(implVersionUnderTest == 11) {
-      newOrder = new ddbt.tpcc.tx11.NewOrder
-      payment = new ddbt.tpcc.tx11.Payment
-      orderStat = new ddbt.tpcc.tx11.OrderStatus
-      delivery = new ddbt.tpcc.tx11.Delivery
-      slev = new ddbt.tpcc.tx11.StockLevel
+      // newOrder = new ddbt.tpcc.tx11.NewOrder
+      // payment = new ddbt.tpcc.tx11.Payment
+      // orderStat = new ddbt.tpcc.tx11.OrderStatus
+      // delivery = new ddbt.tpcc.tx11.Delivery
+      // slev = new ddbt.tpcc.tx11.StockLevel
     } else if(implVersionUnderTest == -1) {
       newOrder = new NewOrderLMSImpl
       payment = new PaymentLMSImpl
