@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory
 import org.slf4j.Logger
 import ddbt.tpcc.loadtest._
 import DatabaseConnector._
-import Tpcc._
+import TpccInMem._
 import TpccConstants._
 import ddbt.tpcc.itx._
 import java.sql.Connection
@@ -54,7 +54,7 @@ object TpccInMem {
 
   @volatile var counting_on: Boolean = false
 
-  @volatile var activate_transaction: Int = 0
+  @volatile var activate_transaction: Boolean = false
 
   def main(argv: Array[String]) {
     println("TPCC version " + VERSION + " Number of Arguments: " +
@@ -130,29 +130,29 @@ class TpccInMem() {
 
   private var num_node: Int = _
 
-  private val success = new Array[Int](TRANSACTION_COUNT)
+  private val success = new Array[Long](TRANSACTION_COUNT)
 
-  private val late = new Array[Int](TRANSACTION_COUNT)
+  private val late = new Array[Long](TRANSACTION_COUNT)
 
-  private val retry = new Array[Int](TRANSACTION_COUNT)
+  private val retry = new Array[Long](TRANSACTION_COUNT)
 
-  private val failure = new Array[Int](TRANSACTION_COUNT)
+  private val failure = new Array[Long](TRANSACTION_COUNT)
 
-  private var success2: Array[Array[Int]] = _
+  private var success2: Array[Array[Long]] = _
 
-  private var late2: Array[Array[Int]] = _
+  private var late2: Array[Array[Long]] = _
 
-  private var retry2: Array[Array[Int]] = _
+  private var retry2: Array[Array[Long]] = _
 
-  private var failure2: Array[Array[Int]] = _
+  private var failure2: Array[Array[Long]] = _
 
-  private var success2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
+  private var success2_sum: Array[Long] = new Array[Long](TRANSACTION_COUNT)
 
-  private var late2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
+  private var late2_sum: Array[Long] = new Array[Long](TRANSACTION_COUNT)
 
-  private var retry2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
+  private var retry2_sum: Array[Long] = new Array[Long](TRANSACTION_COUNT)
 
-  private var failure2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
+  private var failure2_sum: Array[Long] = new Array[Long](TRANSACTION_COUNT)
 
   private var prev_s: Array[Int] = new Array[Int](5)
 
@@ -180,8 +180,6 @@ class TpccInMem() {
   private var properties: Properties = _
 
   private var inputStream: InputStream = _
-
-  def activeTransactionChecker(counter:Int) = (Tpcc.activate_transaction == 1)
 
   def init() {
     logger.info("Loading properties from: " + PROPERTIESFILE)
@@ -367,7 +365,7 @@ class TpccInMem() {
     while(iter < TpccInMem.NUM_ITERATIONS) {
       
       RtHist.histInit()
-      activate_transaction = 1
+      activate_transaction = true
       for (i <- 0 until TRANSACTION_COUNT) {
         success(i) = 0
         late(i) = 0
@@ -379,10 +377,10 @@ class TpccInMem() {
       }
       num_node = 0
 
-      success2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
-      late2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
-      retry2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
-      failure2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
+      success2 = Array.ofDim[Long](TRANSACTION_COUNT, numConn)
+      late2 = Array.ofDim[Long](TRANSACTION_COUNT, numConn)
+      retry2 = Array.ofDim[Long](TRANSACTION_COUNT, numConn)
+      failure2 = Array.ofDim[Long](TRANSACTION_COUNT, numConn)
       System.out.print("<Parameters>\n")
       System.out.print("     [driver]: %s\n".format(javaDriver))
       System.out.print("        [URL]: %s\n".format(jdbcUrl))
@@ -414,9 +412,10 @@ class TpccInMem() {
           SharedDataScala = SharedDataScala.toMVCCTpccTableV2
         } else if(implVersionUnderTest == 10) {
           SharedDataScala = SharedDataScala.toMVCCTpccTableV3
-        } else if(implVersionUnderTest == 11) {
-          SharedDataScala = SharedDataScala.toMVCCTpccTableV4
-        }
+        } 
+        // else if(implVersionUnderTest == 11) {
+        //   SharedDataScala = SharedDataScala.toMVCCTpccTableV4
+        // }
         newOrder.setSharedData(SharedDataScala)
         payment.setSharedData(SharedDataScala)
         orderStat.setSharedData(SharedDataScala)
@@ -438,6 +437,7 @@ class TpccInMem() {
 
       counting_on = false
 
+      val workers = new Array[TpccThread](numConn)
       for (i <- 0 until numConn) {
         val conn: Connection = null //connectToDB(javaDriver, jdbcUrl, dbUser, dbPassword)
         // val pStmts: TpccStatements = new TpccStatements(conn, fetchSize)
@@ -453,7 +453,8 @@ class TpccInMem() {
         // val delivery: IDelivery = new ddbt.tpcc.tx.Delivery(SharedDataScala)
 
         val worker = new TpccThread(i, port, 1, dbUser, dbPassword, numWare, numConn, javaDriver, jdbcUrl, 
-          fetchSize, success, late, retry, failure, success2, late2, retry2, failure2, conn, newOrder, payment, orderStat, slev, delivery, activeTransactionChecker)
+          fetchSize, TRANSACTION_COUNT, conn, newOrder, payment, orderStat, slev, delivery, activate_transaction)
+        workers(i) = worker
         executor.execute(worker)
 
         // conn.close
@@ -486,9 +487,23 @@ class TpccInMem() {
         }
       }
       val actualTestTime = System.currentTimeMillis() - startTime
-      activate_transaction = 0
+      activate_transaction = false
       println("---------------------------------------------------")
       println("<Raw Results>")
+      for (i <- 0 until numConn) {
+        val worker = workers(i)
+        for (j <- 0 until TRANSACTION_COUNT) {
+          success(j) += worker.driver.success(j)
+          late(j) += worker.driver.late(j)
+          retry(j) += worker.driver.retry(j)
+          failure(j) += worker.driver.failure(j)
+          success2(j)(i) += worker.driver.success(j)
+          late2(j)(i) += worker.driver.late(j)
+          retry2(j)(i) += worker.driver.retry(j)
+          failure2(j)(i) += worker.driver.failure(j)
+        }
+        executor.execute(worker)
+      }
       for (i <- 0 until TRANSACTION_COUNT) {
         System.out.print("  |%s| sc:%d  lt:%d  rt:%d  fl:%d \n".format(TRANSACTION_NAME(i), success(i), late(i), 
           retry(i), failure(i)))
@@ -512,7 +527,7 @@ class TpccInMem() {
           late2_sum(i), retry2_sum(i), failure2_sum(i)))
       }
       println("<Constraint Check> (all must be [OK])\n [transaction percentage]")
-      var j = 0
+      var j = 0L
       var i: Int = 0
       i = 0
       while (i < TRANSACTION_COUNT) {
@@ -562,11 +577,11 @@ class TpccInMem() {
         }
       }
       var total = 0f
-      j = 0
-      while (j < TRANSACTION_COUNT) {
-        total = total + success(j) + late(j)
-        println(" " + TRANSACTION_NAME(j) + " Total: " + (success(j) + late(j)))
-        j += 1
+      var k = 0
+      while (k < TRANSACTION_COUNT) {
+        total = total + success(k) + late(k)
+        println(" " + TRANSACTION_NAME(k) + " Total: " + (success(k) + late(k)))
+        k += 1
       }
       val tpcm = (success(0) + late(0)) * 60000f / actualTestTime
       tpmcArr(iter) = tpcm

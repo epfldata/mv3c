@@ -58,8 +58,6 @@ object TpccUnitTest {
 
   @volatile var counting_on: Boolean = false
 
-  @volatile var activate_transaction: Int = 0
-
   def main(argv: Array[String]) {
     println("TPCC version " + VERSION + " Number of Arguments: " + 
       argv.length)
@@ -133,42 +131,10 @@ class TpccUnitTest {
 
   private var num_node: Int = _
 
-  private val success = new Array[Int](TRANSACTION_COUNT)
-
-  private val late = new Array[Int](TRANSACTION_COUNT)
-
-  private val retry = new Array[Int](TRANSACTION_COUNT)
-
-  private val failure = new Array[Int](TRANSACTION_COUNT)
-
-  private var success2: Array[Array[Int]] = _
-
-  private var late2: Array[Array[Int]] = _
-
-  private var retry2: Array[Array[Int]] = _
-
-  private var failure2: Array[Array[Int]] = _
-
-  private var success2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
-
-  private var late2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
-
-  private var retry2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
-
-  private var failure2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
-
   private var prev_s: Array[Int] = new Array[Int](5)
 
   private var prev_l: Array[Int] = new Array[Int](5)
 
-  java.util.Arrays.fill(success, 0)
-  java.util.Arrays.fill(late, 0)
-  java.util.Arrays.fill(retry, 0)
-  java.util.Arrays.fill(failure, 0)
-  java.util.Arrays.fill(success2_sum, 0)
-  java.util.Arrays.fill(late2_sum, 0)
-  java.util.Arrays.fill(retry2_sum, 0)
-  java.util.Arrays.fill(failure2_sum, 0)
   java.util.Arrays.fill(prev_s, 0)
   java.util.Arrays.fill(prev_l, 0)
 
@@ -194,16 +160,6 @@ class TpccUnitTest {
     println("****** Java TPC-C Load Generator ******")
     println("***************************************")
     RtHist.histInit()
-    activate_transaction = 1
-    for (i <- 0 until TRANSACTION_COUNT) {
-      success(i) = 0
-      late(i) = 0
-      retry(i) = 0
-      failure(i) = 0
-      prev_s(i) = 0
-      prev_l(i) = 0
-      max_rt(i) = 0f
-    }
     num_node = 0
 
     {
@@ -312,11 +268,11 @@ class TpccUnitTest {
     var slev: IStockLevelInMem = null
 
     if(implVersionUnderTest == 11) {
-      newOrder = new ddbt.tpcc.tx11.NewOrder
-      payment = new ddbt.tpcc.tx11.Payment
-      orderStat = new ddbt.tpcc.tx11.OrderStatus
-      delivery = new ddbt.tpcc.tx11.Delivery
-      slev = new ddbt.tpcc.tx11.StockLevel
+      // newOrder = new ddbt.tpcc.tx11.NewOrder
+      // payment = new ddbt.tpcc.tx11.Payment
+      // orderStat = new ddbt.tpcc.tx11.OrderStatus
+      // delivery = new ddbt.tpcc.tx11.Delivery
+      // slev = new ddbt.tpcc.tx11.StockLevel
     } else if(implVersionUnderTest == 10) {
       newOrder = new ddbt.tpcc.tx10.NewOrder
       payment = new ddbt.tpcc.tx10.Payment
@@ -387,10 +343,6 @@ class TpccUnitTest {
       throw new RuntimeException("No in-memory implementation selected.")
     }
 
-    success2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
-    late2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
-    retry2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
-    failure2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
     System.out.print("<Parameters>\n")
     System.out.print("     [driver]: %s\n".format(javaDriver))
     System.out.print("        [URL]: %s\n".format(jdbcUrl))
@@ -426,9 +378,10 @@ class TpccUnitTest {
         SharedDataScala = SharedDataScala.toMVCCTpccTableV2
       } else if(implVersionUnderTest == 10) {
         SharedDataScala = SharedDataScala.toMVCCTpccTableV3
-      } else if(implVersionUnderTest == 11) {
-        SharedDataScala = SharedDataScala.toMVCCTpccTableV4
-      }
+      } 
+      // else if(implVersionUnderTest == 11) {
+      //   SharedDataScala = SharedDataScala.toMVCCTpccTableV4
+      // }
       newOrder.setSharedData(SharedDataScala)
       payment.setSharedData(SharedDataScala)
       orderStat.setSharedData(SharedDataScala)
@@ -453,6 +406,7 @@ class TpccUnitTest {
     //   println("\n1- initialData is not equal to SharedDataScala")
     // }
 
+    val drivers = new Array[TpccDriver](numConn)
     if(numConn == 1) {
       val newOrderMix: INewOrder = new NewOrderMixedImpl(new ddbt.tpcc.loadtest.NewOrder(pStmts), newOrder)
       val paymentMix: IPayment = new PaymentMixedImpl(new ddbt.tpcc.loadtest.Payment(pStmts), payment)
@@ -460,9 +414,8 @@ class TpccUnitTest {
       val slevMix: IStockLevel = new StockLevelMixedImpl(new ddbt.tpcc.loadtest.Slev(pStmts), slev)
       val deliveryMix: IDelivery = new DeliveryMixedImpl(new ddbt.tpcc.loadtest.Delivery(pStmts), delivery)
 
-      val driver = new TpccDriver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
-        failure2, newOrderMix, paymentMix, orderStatMix, slevMix, deliveryMix)
-
+      val driver = new TpccDriver(conn, fetchSize, TRANSACTION_COUNT, newOrderMix, paymentMix, orderStatMix, slevMix, deliveryMix)
+      drivers(0) = driver
       try {
         if (DEBUG) {
           logger.debug("Starting driver with: numberOfTestTransactions: " + numberOfTestTransactions + " num_ware: " + 
@@ -470,7 +423,7 @@ class TpccUnitTest {
             " num_conn: " + 
             numConn)
         }
-        driver.runAllTransactions(numberOfTestTransactions, numWare, numConn, transactionCountChecker)
+        driver.runAllTransactions(numberOfTestTransactions, numWare, numConn, false, numberOfTestTransactionsPerThread)
       } catch {
         case e: Throwable => logger.error("Unhandled exception", e)
       }
@@ -499,7 +452,8 @@ class TpccUnitTest {
           // val delivery: IDelivery = new ddbt.tpcc.tx.Delivery(SharedDataScala)
 
           val worker = new TpccThread(i, port, 1, dbUser, dbPassword, numWare, numConn, javaDriver, jdbcUrl, 
-            fetchSize, success, late, retry, failure, success2, late2, retry2, failure2, conn, newOrder, payment, orderStat, slev, delivery, transactionCountChecker)
+            fetchSize, TRANSACTION_COUNT, conn, newOrder, payment, orderStat, slev, delivery, false, numberOfTestTransactionsPerThread)
+          drivers(i) = worker.driver
           executor.execute(worker)
 
           // conn.close
@@ -524,8 +478,7 @@ class TpccUnitTest {
         val slev: IStockLevel = new ddbt.tpcc.loadtest.Slev(pStmts)
         val delivery: IDelivery = new ddbt.tpcc.loadtest.Delivery(pStmts)
 
-        val driver = new TpccDriver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
-          failure2, newOrder, payment, orderStat, slev, delivery)
+        val driver = new TpccDriver(conn, fetchSize, TRANSACTION_COUNT, newOrder, payment, orderStat, slev, delivery)
 
         val numConn = 1 //we want to avoid any unwanted rollback due to concurrency in the reference DB
         try {
@@ -536,7 +489,7 @@ class TpccUnitTest {
               numConn)
           }
           logger.info("Number of committed transactions in the reference implementation: " + listOfCommittedCommands.size)
-          driver.runAllTransactions(numberOfTestTransactions, numWare, numConn, transactionCountChecker, listOfCommittedCommands)
+          driver.runAllTransactions(numberOfTestTransactions, numWare, numConn, false, numberOfTestTransactionsPerThread, listOfCommittedCommands)
         } catch {
           case e: Throwable => logger.error("Unhandled exception", e)
         }
@@ -558,6 +511,6 @@ class TpccUnitTest {
   }
 
   lazy val numberOfTestTransactionsPerThread = numberOfTestTransactions/numConn
-  def transactionCountChecker(counter:Int) = (counter < numberOfTestTransactionsPerThread)
+  // def transactionCountChecker(counter:Int) = (counter < numberOfTestTransactionsPerThread)
 
 }

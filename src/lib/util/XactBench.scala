@@ -14,6 +14,7 @@ import org.slf4j.Logger
 import ddbt.tpcc.loadtest.Driver
 import java.util.concurrent._
 import ddbt.tpcc.loadtest.{RtHist, Util, NamedThreadFactory}
+import java.util.concurrent.ThreadLocalRandom
 
 object XactBench {
 
@@ -35,7 +36,9 @@ object XactBench {
 
 	@volatile var counting_on: Boolean = false
 
-	@volatile var activate_transaction: Int = 0
+	@volatile var activate_transaction: Boolean = true
+
+	val RANDOM_SEED = 2015
 
 	def main(argv:Array[String]) {
 
@@ -63,58 +66,13 @@ class XactBench(val xactSelector: XactImplSelector) {
 
 	private var num_node: Int = _
 
-	private val success = new Array[Int](TRANSACTION_COUNT)
-
-	private val late = new Array[Int](TRANSACTION_COUNT)
-
-	private val retry = new Array[Int](TRANSACTION_COUNT)
-
-	private val failure = new Array[Int](TRANSACTION_COUNT)
-
-	private var success2: Array[Array[Int]] = _
-
-	private var late2: Array[Array[Int]] = _
-
-	private var retry2: Array[Array[Int]] = _
-
-	private var failure2: Array[Array[Int]] = _
-
-	private var success2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
-
-	private var late2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
-
-	private var retry2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
-
-	private var failure2_sum: Array[Int] = new Array[Int](TRANSACTION_COUNT)
-
-	private var prev_s: Array[Int] = new Array[Int](5)
-
-	private var prev_l: Array[Int] = new Array[Int](5)
-
 	var result: Seq[Long] = Array[Long]()
-
-	java.util.Arrays.fill(success, 0)
-	java.util.Arrays.fill(late, 0)
-	java.util.Arrays.fill(retry, 0)
-	java.util.Arrays.fill(failure, 0)
-	java.util.Arrays.fill(success2_sum, 0)
-	java.util.Arrays.fill(late2_sum, 0)
-	java.util.Arrays.fill(retry2_sum, 0)
-	java.util.Arrays.fill(failure2_sum, 0)
-	java.util.Arrays.fill(prev_s, 0)
-	java.util.Arrays.fill(prev_l, 0)
-
-	private var max_rt: Array[Float] = new Array[Float](5)
-
-	java.util.Arrays.fill(max_rt, 0f)
 
 	private var port: Int = 3306
 
 	private var properties: Properties = _
 
 	private var inputStream: InputStream = _
-
-	def activeTransactionChecker(counter:Int) = (activate_transaction == 1)
 
 	def init() {
 		logger.info("Loading properties from: " + PROPERTIESFILE)
@@ -188,22 +146,8 @@ class XactBench(val xactSelector: XactImplSelector) {
 		while(iter < NUM_ITERATIONS) {
 			
 			RtHist.histInit()
-			activate_transaction = 1
-			for (i <- 0 until TRANSACTION_COUNT) {
-				success(i) = 0
-				late(i) = 0
-				retry(i) = 0
-				failure(i) = 0
-				prev_s(i) = 0
-				prev_l(i) = 0
-				max_rt(i) = 0f
-			}
+			activate_transaction = true
 			num_node = 0
-
-			success2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
-			late2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
-			retry2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
-			failure2 = Array.ofDim[Int](TRANSACTION_COUNT, numConn)
 			System.out.print("<Parameters>\n")
 			System.out.print("  [warehouse]: %d\n".format(scaleFactor))
 			System.out.print(" [connection]: %d\n".format(numConn))
@@ -217,8 +161,10 @@ class XactBench(val xactSelector: XactImplSelector) {
 
 			counting_on = false
 
+			val workers = new Array[XactThread](numConn)
 			for (i <- 0 until numConn) {
-				val worker = new XactThread(i, scaleFactor, numConn, success, late, retry, failure, success2, late2, retry2, failure2, activeTransactionChecker, xactImpl)
+				val worker = new XactThread(i, scaleFactor, numConn, TRANSACTION_COUNT, activate_transaction, xactImpl)
+				workers(i) = worker
 				executor.execute(worker)
 			}
 			if (rampupTime > 0) {
@@ -239,22 +185,73 @@ class XactBench(val xactSelector: XactImplSelector) {
 			println("Start measurements....")
 			Thread.sleep(1000)
 			counting_on = true
+			xactImpl.isCountingOn = true
 			val startTime = System.currentTimeMillis()
-			while ({(runTime = System.currentTimeMillis() - startTime); runTime} < measureTime * 1000) {
-				//println("Current execution time lapse: " + df.format(runTime / 1000f) + " seconds")
-				try {
-					Thread.sleep(1000)
-				} catch {
-					case e: InterruptedException => logger.error("Sleep interrupted", e)
-				}
-			}
-			val actualTestTime = System.currentTimeMillis() - startTime
-			activate_transaction = 0
+			Thread.sleep(measureTime * 1000)
+			// while ({(runTime = System.currentTimeMillis() - startTime); runTime} < measureTime * 1000) {
+			// 	//println("Current execution time lapse: " + df.format(runTime / 1000f) + " seconds")
+			// 	try {
+			// 		Thread.sleep(1000)
+			// 	} catch {
+			// 		case e: InterruptedException => logger.error("Sleep interrupted", e)
+			// 	}
+			// }
+			activate_transaction = false
+			xactImpl.isCountingOn = false
 			counting_on = false
+			val actualTestTime = System.currentTimeMillis() - startTime
 			println("---------------------------------------------------")
 			println("<Raw Results>")
+
+			val success = new Array[Long](TRANSACTION_COUNT)
+			val late = new Array[Long](TRANSACTION_COUNT)
+			val retry = new Array[Long](TRANSACTION_COUNT)
+			val failure = new Array[Long](TRANSACTION_COUNT)
+			val success2 = Array.ofDim[Long](TRANSACTION_COUNT, numConn)
+			val late2 = Array.ofDim[Long](TRANSACTION_COUNT, numConn)
+			val retry2 = Array.ofDim[Long](TRANSACTION_COUNT, numConn)
+			val failure2 = Array.ofDim[Long](TRANSACTION_COUNT, numConn)
+			var success2_sum: Array[Long] = new Array[Long](TRANSACTION_COUNT)
+			var late2_sum: Array[Long] = new Array[Long](TRANSACTION_COUNT)
+			var retry2_sum: Array[Long] = new Array[Long](TRANSACTION_COUNT)
+			var failure2_sum: Array[Long] = new Array[Long](TRANSACTION_COUNT)
+
+			java.util.Arrays.fill(success, 0)
+			java.util.Arrays.fill(late, 0)
+			java.util.Arrays.fill(retry, 0)
+			java.util.Arrays.fill(failure, 0)
+			java.util.Arrays.fill(success2_sum, 0)
+			java.util.Arrays.fill(late2_sum, 0)
+			java.util.Arrays.fill(retry2_sum, 0)
+			java.util.Arrays.fill(failure2_sum, 0)
 			for (i <- 0 until TRANSACTION_COUNT) {
-				System.out.print("	|%s| sc:%d	lt:%d	rt:%d	fl:%d \n".format(TRANSACTION_NAME(i), success(i), late(i), 
+				success(i) = 0
+				late(i) = 0
+				retry(i) = 0
+				failure(i) = 0
+			}
+
+			var totalCounter = 0L
+			for (i <- 0 until numConn) {
+				val driver = workers(i).driver
+				System.out.print("worker(%d).counter = %,d\n".format(i+1, driver.counter.value))
+				totalCounter += driver.counter.value
+				for (j <- 0 until TRANSACTION_COUNT) {
+					System.out.print("	|%s| sc:%,d	lt:%,d	rt:%,d	fl:%,d <= worker(%,d)\n".format(TRANSACTION_NAME(j), driver.success(j), driver.late(j), 
+						driver.retry(j), driver.failure(j), i+1))
+					success(j) += driver.success(j)
+					late(j) += driver.late(j)
+					retry(j) += driver.retry(j)
+					failure(j) += driver.failure(j)
+					success2(j)(i) += driver.success(j)
+					late2(j)(i) += driver.late(j)
+					retry2(j)(i) += driver.retry(j)
+					failure2(j)(i) += driver.failure(j)
+				}
+			}
+			System.out.print("total counter = %,d\n".format(totalCounter))
+			for (i <- 0 until TRANSACTION_COUNT) {
+				System.out.print("	|%s| sc:%,d	lt:%,d	rt:%,d	fl:%,d \n".format(TRANSACTION_NAME(i), success(i), late(i), 
 					retry(i), failure(i)))
 			}
 			System.out.print(" in %f sec.\n".format(actualTestTime / 1000f))
@@ -272,11 +269,11 @@ class XactBench(val xactSelector: XactImplSelector) {
 				}
 			}
 			for (i <- 0 until TRANSACTION_COUNT) {
-				System.out.print("	|%s| sc:%d	lt:%d	rt:%d	fl:%d \n".format(TRANSACTION_NAME(i), success2_sum(i), 
+				System.out.print("	|%s| sc:%,d	lt:%,d	rt:%,d	fl:%,d \n".format(TRANSACTION_NAME(i), success2_sum(i), 
 					late2_sum(i), retry2_sum(i), failure2_sum(i)))
 			}
 			println("<Constraint Check> (all must be [OK])\n [transaction percentage]")
-			var j = 0
+			var j = 0L
 			var i: Int = 0
 			i = 0
 			while (i < TRANSACTION_COUNT) {
@@ -304,11 +301,11 @@ class XactBench(val xactSelector: XactImplSelector) {
 				}
 			}
 			var total = 0f
-			j = 0
-			while (j < TRANSACTION_COUNT) {
-				total = total + success(j) + late(j)
-				println(" " + TRANSACTION_NAME(j) + " xact/sec: %.2f".format((success(j) + late(j)) / (actualTestTime / 1000f)))
-				j += 1
+			var k = 0
+			while (k < TRANSACTION_COUNT) {
+				total = total + success(k) + late(k)
+				println(" " + TRANSACTION_NAME(k) + " xact/sec: %,.2f".format((success(k) + late(k)) / (actualTestTime / 1000f)))
+				k += 1
 			}
 			System.out.print("\nSTOPPING THREADS\n")
 			executor.shutdown()
@@ -323,27 +320,18 @@ class XactBench(val xactSelector: XactImplSelector) {
 	}
 }
 
-class XactThread(val number: Int, 
-	val scaleFactor: Int, 
-	val num_conn: Int, 
-	val success: Array[Int], 
-	val late: Array[Int], 
-	val retry: Array[Int], 
-	val failure: Array[Int], 
-	val success2: Array[Array[Int]], 
-	val late2: Array[Array[Int]], 
-	val retry2: Array[Array[Int]], 
-	val failure2: Array[Array[Int]],
-	loopConditionChecker: (Int => Boolean),
-	val xactImpl: XactImpl) extends Thread /*with DatabaseConnector*/{
-
+class XactThread(number: Int, 
+	scaleFactor: Int, 
+	num_conn: Int, 
+	TRANSACTION_COUNT: Int,
+	loopConditionChecker: => Boolean,
+	xactImpl: XactImpl) extends Thread /*with DatabaseConnector*/{
 	/**
 	 * Dedicated JDBC connection for this thread.
 	 */
 	// var conn: Connection = connectToDatabase
 
-	var driver = new XactDriver(success, late, retry, failure, success2, late2, retry2, failure2, xactImpl)
-
+	val driver = new XactDriver(number,TRANSACTION_COUNT, xactImpl)
 	override def run() {
 		try {
 			if (DEBUG) {
@@ -361,18 +349,14 @@ class XactThread(val number: Int,
 	// private def connectToDatabase:Connection = connectToDB(driverClassName, jdbcUrl, db_user, db_password)
 }
 
-class XactDriver(success: Array[Int], 
-		late: Array[Int], 
-		retry: Array[Int], 
-		failure: Array[Int], 
-		success2: Array[Array[Int]], 
-		late2: Array[Array[Int]], 
-		retry2: Array[Array[Int]], 
-		failure2: Array[Array[Int]],
-		xactImpl: XactImpl) extends Driver(null, -1, success, late, retry, failure, success2, late2, retry2, failure2) {
+class XactDriver(
+		number: Int,
+		TRANSACTION_COUNT: Int,
+		xactImpl: XactImpl) extends Driver(null, -1, TRANSACTION_COUNT) {
 
 	override def doNextTransaction(t_num: Int, sequence: Int) {
-		xactImpl.runXact(this, t_num, sequence)
+		// counter.value += 1L
+		xactImpl.runXact(this, t_num, sequence, ThreadLocalRandom.current)
 	}
 
 	override def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand]) = xactImpl.runXactSeq(this, commandSeq)
@@ -385,6 +369,7 @@ abstract class XactImplSelector {
 }
 
 abstract class XactImpl {
-	def runXact(driver: Driver, t_num: Int, sequence: Int): Unit
+	@volatile var isCountingOn = false
+	def runXact(driver: Driver, t_num: Int, sequence: Int, rnd:ThreadLocalRandom): Unit
 	def runXactSeq(driver: Driver, commandSeq:Seq[ddbt.lib.util.XactCommand]): Unit
 }

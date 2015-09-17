@@ -18,7 +18,7 @@ object Util{
 
   var total: Int = 0
 
-  private var seq: Array[Int] = _
+  var seq: Array[Int] = _
 
   private var nextNum: Int = 0
 

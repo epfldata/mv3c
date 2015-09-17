@@ -33,29 +33,22 @@ class TpccThread(val number: Int,
     val driverClassName: String, 
     val jdbcUrl: String, 
     val fetchSize: Int, 
-    val success: Array[Int], 
-    val late: Array[Int], 
-    val retry: Array[Int], 
-    val failure: Array[Int], 
-    val success2: Array[Array[Int]], 
-    val late2: Array[Array[Int]], 
-    val retry2: Array[Array[Int]], 
-    val failure2: Array[Array[Int]],
+    val TRANSACTION_COUNT: Int, 
     var conn: Connection,
     val newOrder: INewOrder,
     val payment: IPayment,
     val orderStat: IOrderStatus,
     val slev: IStockLevel,
     val delivery: IDelivery,
-    loopConditionChecker: (Int => Boolean)) extends Thread /*with DatabaseConnector*/{
+    loopConditionChecker: => Boolean,
+    val maximumNumberOfTransactionsToExecute:Int = 0) extends Thread /*with DatabaseConnector*/{
 
   /**
    * Dedicated JDBC connection for this thread.
    */
   // var conn: Connection = connectToDatabase
 
-  var driver = new TpccDriver(conn, fetchSize, success, late, retry, failure, success2, late2, retry2, 
-    failure2, newOrder, payment, orderStat, slev, delivery)
+  var driver = new TpccDriver(conn, fetchSize, TRANSACTION_COUNT, newOrder, payment, orderStat, slev, delivery)
 
   override def run() {
     try {
@@ -65,7 +58,7 @@ class TpccThread(val number: Int,
           " num_conn: " + 
           num_conn)
       }
-      driver.runAllTransactions(number, num_ware, num_conn, loopConditionChecker)
+      driver.runAllTransactions(number, num_ware, num_conn, loopConditionChecker, maximumNumberOfTransactionsToExecute)
     } catch {
       case e: Throwable => logger.error("Unhandled exception", e)
     }
