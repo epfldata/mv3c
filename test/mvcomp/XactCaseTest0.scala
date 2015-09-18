@@ -10,6 +10,21 @@ import ddbt.tpcc.loadtest.Util
 import java.util.concurrent.ThreadLocalRandom
 import XactCaseTest0._
 
+/**
+ * This class tests the maximum performance of XactBench
+ * (i.e. the maximum number of calls to an empty function)
+ * with dummy params
+ *
+ * For a single thread:
+ *   Xact1 xact/sec: 267,316,064.00
+ *   Xact2 xact/sec: 26,731,580.00
+ * For two threads:
+ *   Xact1 xact/sec: 549,213,440.00
+ *   Xact2 xact/sec: 54,921,320.00
+ * For four threads:
+ *   Xact1 xact/sec: 1,059,665,792.00
+ *   Xact2 xact/sec: 105,966,480.00
+ */
 object XactCaseTest0 {
 
 	val MVCC_IMPL = 1
