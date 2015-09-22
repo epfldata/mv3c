@@ -229,13 +229,13 @@ case class ForeachPredicateOp() extends PredicateOp {
 }
 //TODO: the base implementation uses 64-bit comparison summaries for compacted predicate entries, should we do that, too?
 //TODO: predicate should know the accessed fields, too, in order to do the attribute-level validation
-case class Predicate(tbl: Table, op: PredicateOp) {
+case class Predicate(tbl: Table, op: PredicateOp, var next: Predicate = null) {
   @inline
   def matches(dv: DeltaVersion[_,_]) = op.matches(dv)
 }
 
-final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null) {
-  vXact.undoBuffer += this
+final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var entry:SEntryMVCC[K,V], @volatile var img:V, @volatile var cols:List[Int]=Nil /*all columns*/, @volatile var op: Operation=INSERT_OP, @volatile var next: DeltaVersion[K,V]=null, @volatile var prev: DeltaVersion[K,V]=null, var nextInUndoBuffer: DeltaVersion[_,_]=null) {
+  vXact.addToUndoBuffer(this)
   if(next != null) next.prev = this
   if(prev != null) prev.next = this
 

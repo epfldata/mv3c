@@ -2,11 +2,12 @@ package ddbt.lib.mvconcurrent
 
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable._
 import scala.concurrent._
 import ExecutionContext.Implicits.global
-
 import TransactionManager._
+import ddbt.lib.util.BackOffAtomicLong
 
 /**
  * TransactionManager class has the responsibility of managing
@@ -49,19 +50,19 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	// 	failedConcurrentInsert = 0
 	// }
 
-	val transactionIdGen = new AtomicLong(TransactionManager.TRANSACTION_ID_GEN_START)
-	val startAndCommitTimestampGen = new AtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
+	val transactionIdGen = new BackOffAtomicLong(TransactionManager.TRANSACTION_ID_GEN_START)
+	val startAndCommitTimestampGen = new BackOffAtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
 	val isGcActive = new AtomicBoolean(DISABLE_GC)
 
-	val activeXacts = new LinkedHashMap[Long,Transaction]
+	val activeXacts = new ConcurrentHashMap[Long,Transaction]
 	//List of recently committed transactions consists of
 	//the most recent committed transaction in its head
 	val recentlyCommittedXacts = new ListBuffer[Transaction]()
 	val allCommittedXacts = new ListBuffer[Transaction]()
 
-	def begin(name: String) = activeXacts.synchronized {
-		val xactId = transactionIdGen.getAndIncrement()
-		val startTS = startAndCommitTimestampGen.getAndIncrement()
+	def begin(name: String) = {
+		val xactId = transactionIdGen.getAndIncrement
+		val startTS = startAndCommitTimestampGen.getAndIncrement
 		implicit val xact = new Transaction(this, name, startTS, xactId)
 		activeXacts.put(xactId, xact)
 		debug("started at %d".format(startTS))
@@ -70,43 +71,50 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	def commit(implicit xact:Transaction):Boolean = this.synchronized {
 		debug("commit started")
 		val xactId = xact.xactId
-		if(activeXacts.contains(xactId)){
+		// if(activeXacts.contains(xactId)){
 			if(xact.isReadOnly) {
-				xact.xactId = xact.startTS
-				activeXacts.synchronized {
-					activeXacts -= xactId
+				if((activeXacts remove xactId) == null) {
+					debug("commit failed: transaction does not exist! We have to roll it back...")
+					rollback
+					false
+				} else {
+					xact.xactId = xact.startTS
+					// recentlyCommittedXacts.synchronized {
+					// 	//appenda the transaction to the recently commmitted transactions list
+					// 	recentlyCommittedXacts += xact
+					// 	if(isUnitTestEnabled) allCommittedXacts += xact
+					// }
+					debug("(read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
+					true
 				}
-				// recentlyCommittedXacts.synchronized {
-				// 	//prepend the transaction to the recently commmitted transactions list
-				// 	recentlyCommittedXacts.+=:(xact)
-				// 	if(isUnitTestEnabled) allCommittedXacts += xact
-				// }
-				debug("(read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
-				true
 			} else if(!validate) {
 				debug("commit failed: transaction validation failed! We have to roll it back...")
 				rollback
 				false
 			} else {
-				activeXacts.synchronized {
-					xact.xactId = startAndCommitTimestampGen.getAndIncrement()
-					activeXacts -= xactId
-				}
-				debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
-				recentlyCommittedXacts.synchronized {
-					//prepend the transaction to the recently commmitted transactions list
-					recentlyCommittedXacts.+=:(xact)
+				if((activeXacts remove xactId) == null) {
+					debug("commit failed: transaction does not exist! We have to roll it back...")
+					rollback
+					false
+				} else {
+					xact.xactId = startAndCommitTimestampGen.getAndIncrement
+
+					// debug("\twith undo buffer(%d) = %%s".format(xact.undoBufferSize, xact.undoBufferToString))
+					
+					//appends the transaction to the recently commmitted transactions list
+					recentlyCommittedXacts += xact
 					if(isUnitTestEnabled) allCommittedXacts += xact
+
+					garbageCollect
+					debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
+					true
 				}
-				garbageCollect
-				debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
-				true
 			}
-		} else {
-			debug("commit failed: transaction does not exist! We have to roll it back...")
-			rollback
-			false
-		}
+		// } else {
+		// 	debug("commit failed: transaction does not exist! We have to roll it back...")
+		// 	rollback
+		// 	false
+		// }
 	}
 	//TODO: should be implemented completely
 	// missing:
@@ -117,7 +125,8 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 		val concurrentXacts = recentlyCommittedXacts.filter(t => t.commitTS > xact.startTS)
 		debug("\t\tconcurrentXacts = " + concurrentXacts)
 		concurrentXacts.foreach { t =>
-			t.undoBuffer.foreach { dv =>
+			var dv = t.undoBuffer
+			while(dv != null) {
 				debug("\t\tchecking whether " + dv + " (in " + t + ") matches predicates in " + xact)
 				if(xact.matchesPredicates(dv)) {
 					debug("\tvalidation failed")
@@ -127,23 +136,23 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 				else {
 					debug("\t\t\t did not match!")
 				}
+				dv = dv.nextInUndoBuffer
 			}
 		}
 		debug("\tvalidation succeeded")
 		true
 	}
 
-	def rollback(implicit xact:Transaction) = this.synchronized {
+	def rollback(implicit xact:Transaction) = {
 		debug("rollback started")
-		activeXacts.synchronized {
-			activeXacts -= xact.xactId
-		}
-		debug("\twith undo buffer(%d) = %%s".format(xact.undoBuffer.size, xact.undoBuffer))
-		xact.undoBuffer.foreach{ dv => 
+		activeXacts remove xact.xactId
+		// debug("\twith undo buffer(%d) = %%s".format(xact.undoBufferSize, xact.undoBufferToString))
+		var dv = xact.undoBuffer
+		while(dv != null) {
 			debug("\t\tremoved => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
 			dv.remove
+			dv = dv.nextInUndoBuffer
 		}
-		garbageCollect
 		debug("rollback finished")
 	}
 
@@ -165,11 +174,15 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 		debug("GC started")
 		if(!recentlyCommittedXacts.isEmpty) {
 			var oldestActiveXactStartTS = TransactionManager.TRANSACTION_ID_GEN_START
-			activeXacts.synchronized {
-				activeXacts.foreach{ a => if(a._2.startTS < oldestActiveXactStartTS) oldestActiveXactStartTS = a._2.startTS }
-				debug("\tactiveXacts = " + activeXacts)
-				debug("\toldestActiveXactStartTS = " + oldestActiveXactStartTS)
-			}
+			activeXacts.forEachValue(Long.MaxValue/*no parallelism*/,
+				new java.util.function.Consumer[Transaction] {
+					def accept(t: Transaction) {
+						if(t.startTS < oldestActiveXactStartTS) oldestActiveXactStartTS = t.startTS
+					}
+				}
+			)
+			debug("\tactiveXacts = " + activeXacts)
+			debug("\toldestActiveXactStartTS = " + oldestActiveXactStartTS)
 
 			var reachedLimit = false
 			while(!reachedLimit && !recentlyCommittedXacts.isEmpty) {
@@ -177,7 +190,8 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 				implicit val theXact = xact
 				if(xact.commitTS < oldestActiveXactStartTS) {
 					debug("\tremoving xact = " + xact.transactionId)
-					xact.undoBuffer.foreach{ dv =>
+					var dv = xact.undoBuffer
+					while(dv != null) {
 						val nextDV = dv.next
 						dv.next = null
 						if(nextDV != null) {
@@ -194,6 +208,7 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 						else if(nextDV != null){
 							debug("\t\t, and current version is => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
 						}
+						dv = dv.nextInUndoBuffer
 					}
 					recentlyCommittedXacts.synchronized {
 						recentlyCommittedXacts.remove(0)
