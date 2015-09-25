@@ -10,7 +10,7 @@ import TransactionManager._
  * running a transaction program in a concurrent execution
  * environment.
  */
-class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var committed:Boolean=false) {
+class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var isDefinedReadOnly: Boolean, var committed:Boolean=false) {
 	// val DEFAULT_UNDO_BUFFER_SIZE = 64
 
 	var undoBuffer:DeltaVersion[_,_] = null // a singly linked list of DeltaVersions, based on nextInUndoBuffer field of DeltaVersion
@@ -53,6 +53,7 @@ class Transaction(val tm: TransactionManager, val name: String, val startTS: Lon
 		res
 	}
 	def addToUndoBuffer(dv: DeltaVersion[_,_]) {
+		if(isDefinedReadOnly) throw new RuntimeException("Read-only transactions cannot write into the DB objects.")
 		if(undoBuffer == null) undoBuffer = dv
 		else {
 			dv.nextInUndoBuffer = undoBuffer
