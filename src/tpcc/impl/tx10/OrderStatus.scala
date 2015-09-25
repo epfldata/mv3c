@@ -1,4 +1,6 @@
 package ddbt.tpcc.tx10
+
+import ddbt.lib.util.ThreadInfo
 import java.io._
 import scala.collection.mutable._
 import java.util.Date
@@ -43,7 +45,7 @@ class OrderStatus extends InMemoryTxImplViaMVCCTpccTableV3 with IOrderStatusInMe
    *   - [OrderLine: R] in
    *      + findOrderLines
    */
-  override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String):Int = {
+  override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String)(implicit tInfo: ThreadInfo): Int = {
     implicit val xact = ISharedData.begin("ordstat")
     if(ISharedData.isUnitTestEnabled) xact.setCommand(OrderStatusCommand(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last))
     try {

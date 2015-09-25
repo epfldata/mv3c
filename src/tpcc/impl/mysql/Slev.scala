@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
@@ -27,7 +28,7 @@ class Slev(pStms: TpccStatements) extends IStockLevel {
   override def stockLevelTx(t_num: Int, 
       w_id_arg: Int, 
       d_id_arg: Int, 
-      level_arg: Int): Int = {
+      level_arg: Int)(implicit tInfo: ThreadInfo): Int = {
     try {
       pStmts.setAutoCommit(false)
       if (DEBUG) logger.debug("Transaction: 	SLEV")

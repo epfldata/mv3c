@@ -1,4 +1,6 @@
 package ddbt.tpcc.tx4
+
+import ddbt.lib.util.ThreadInfo
 import java.io._
 import scala.collection.mutable._
 import java.util.Date
@@ -42,7 +44,7 @@ class Delivery extends InMemoryTxImpl with IDeliveryInMem {
    *   - [Customer: W] in
    *      + updateCustomerBalance
    */
-  override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int): Int = {
+  override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int)(implicit tInfo: ThreadInfo): Int = {
     try {
       val DIST_PER_WAREHOUSE = 10
       val orderIDs = new Array[Int](10)

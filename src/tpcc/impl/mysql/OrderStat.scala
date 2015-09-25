@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
@@ -29,7 +30,7 @@ class OrderStat(var pStmts: TpccStatements) extends IOrderStatus {
       d_id_arg: Int, 
       byname: Int, 
       c_id_arg: Int, 
-      c_last_arg: String): Int = {
+      c_last_arg: String)(implicit tInfo: ThreadInfo): Int = {
     try {
       pStmts.setAutoCommit(false)
       if (DEBUG) logger.debug("Transaction: ORDER STAT")

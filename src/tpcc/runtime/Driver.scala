@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.io.PrintWriter
 import java.sql.Connection
 import java.sql.SQLException
@@ -71,7 +72,9 @@ abstract class Driver(var conn: java.sql.Connection,
 
   var startTime = 0L
 
-  def runAllTransactions(t_num: Int, numWare: Int, numConn: Int, loopConditionChecker: => Boolean, maximumNumberOfTransactionsToExecute:Int = 0, commandSeq:Seq[ddbt.lib.util.XactCommand]=null): Int = {
+  def runAllTransactions(tInfo: ThreadInfo, numWare: Int, numConn: Int, loopConditionChecker: => Boolean, maximumNumberOfTransactionsToExecute:Int = 0, commandSeq:Seq[ddbt.lib.util.XactCommand]=null): Int = {
+
+    val threadId = tInfo.tid
 
     startTime = (System.currentTimeMillis() % 1000) * 1000
 
@@ -83,8 +86,8 @@ abstract class Driver(var conn: java.sql.Connection,
       val seq = Util.seq
       val seqLen = seq.length
       val seqSectionLen = seq.length / numConn
-      val seqSectionStart = t_num * seqSectionLen
-      val seqSectionEnd = (t_num + 1) * seqSectionLen
+      val seqSectionStart = threadId * seqSectionLen
+      val seqSectionEnd = (threadId + 1) * seqSectionLen
       seqCounter = seqSectionStart
       var sequence = seq(seqCounter)
       // var sequence = Util.seqGet()
@@ -100,7 +103,7 @@ abstract class Driver(var conn: java.sql.Connection,
           //   val t = new FutureTask[Any](new Callable[Any]() {
 
           //     def call(): AnyRef = {
-          //       doNextTransaction(t_num, _sequence)
+          //       doNextTransaction(tInfo, _sequence)
           //       null
           //     }
           //   })
@@ -122,7 +125,7 @@ abstract class Driver(var conn: java.sql.Connection,
           //     }
           //   }
           // } else {
-            doNextTransaction(t_num, sequence)
+            doNextTransaction(tInfo, sequence)
           // }
           count += 1
         } catch {
@@ -149,25 +152,25 @@ abstract class Driver(var conn: java.sql.Connection,
         // sequence = Util.seqGet()
       }
     } else {
-      runCommandSeq(commandSeq)
+      runCommandSeq(commandSeq)(tInfo)
       count += 1
     }
     logger.debug("Driver terminated after {} transactions", count)
     (0)
   }
 
-  def doNextTransaction(t_num: Int, sequence: Int): Unit
+  def doNextTransaction(tInfo: ThreadInfo, sequence: Int): Unit
 
-  def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand]): Unit
+  def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand])(implicit tInfo: ThreadInfo): Unit
 
-  def execTransaction(t_num:Int, xactId:Int, timeout: Int, counting_on: Boolean)(xact: =>Int): Int = {
+  def execTransaction(tInfo:ThreadInfo, xactId:Int, timeout: Int, counting_on: Boolean)(xact: ThreadInfo=>Int): Int = {
     var i = 0
     // var rt = 0f
     var ret = 0
     // var endTime = 0L
     // var beginTime = System.currentTimeMillis()
     while (i < MAX_RETRY) {
-      ret = xact
+      ret = xact(tInfo)
       // endTime = System.currentTimeMillis()
       if (ret >= 1) {
         // rt = (endTime - beginTime).toFloat
@@ -200,7 +203,7 @@ abstract class Driver(var conn: java.sql.Connection,
     (0)
   }
 
-  def execTransactionWithProfiling(t_num:Int, xactId:Int, timeout: Int, counting_on: =>Boolean)(xact: =>Int): Int = {
+  def execTransactionWithProfiling(tInfo:ThreadInfo, xactId:Int, timeout: Int, counting_on: =>Boolean)(xact: =>Int): Int = {
     var i = 0
     var rt = 0f
     var ret = 0

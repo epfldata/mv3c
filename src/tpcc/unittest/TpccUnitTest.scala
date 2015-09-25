@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -377,7 +378,7 @@ class TpccUnitTest {
       } else if(implVersionUnderTest == 9) {
         SharedDataScala = SharedDataScala.toMVCCTpccTableV2
       } else if(implVersionUnderTest == 10) {
-        SharedDataScala = SharedDataScala.toMVCCTpccTableV3
+        SharedDataScala = SharedDataScala.toMVCCTpccTableV3(numConn)
       } 
       // else if(implVersionUnderTest == 11) {
       //   SharedDataScala = SharedDataScala.toMVCCTpccTableV4
@@ -423,7 +424,7 @@ class TpccUnitTest {
             " num_conn: " + 
             numConn)
         }
-        driver.runAllTransactions(numberOfTestTransactions, numWare, numConn, false, numberOfTestTransactionsPerThread)
+        driver.runAllTransactions(new ThreadInfo(0), numWare, numConn, false, numberOfTestTransactionsPerThread)
       } catch {
         case e: Throwable => logger.error("Unhandled exception", e)
       }
@@ -451,7 +452,7 @@ class TpccUnitTest {
           // val slev: IStockLevel = new ddbt.tpcc.tx.StockLevel(SharedDataScala)
           // val delivery: IDelivery = new ddbt.tpcc.tx.Delivery(SharedDataScala)
 
-          val worker = new TpccThread(i, port, 1, dbUser, dbPassword, numWare, numConn, javaDriver, jdbcUrl, 
+          val worker = new TpccThread(new ThreadInfo(i), port, 1, dbUser, dbPassword, numWare, numConn, javaDriver, jdbcUrl, 
             fetchSize, TRANSACTION_COUNT, conn, newOrder, payment, orderStat, slev, delivery, false, numberOfTestTransactionsPerThread)
           drivers(i) = worker.driver
           executor.execute(worker)
@@ -489,7 +490,7 @@ class TpccUnitTest {
               numConn)
           }
           logger.info("Number of committed transactions in the reference implementation: " + listOfCommittedCommands.size)
-          driver.runAllTransactions(numberOfTestTransactions, numWare, numConn, false, numberOfTestTransactionsPerThread, listOfCommittedCommands)
+          driver.runAllTransactions(new ThreadInfo(0), numWare, numConn, false, numberOfTestTransactionsPerThread, listOfCommittedCommands)
         } catch {
           case e: Throwable => logger.error("Unhandled exception", e)
         }

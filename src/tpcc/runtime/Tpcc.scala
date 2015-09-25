@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -312,7 +313,7 @@ class Tpcc {
       // val slev: IStockLevel = new StockLevelMixedImpl(new ddbt.tpcc.loadtest.Slev(pStmts), new ddbt.tpcc.tx.StockLevel(SharedData))
       // val delivery: IDelivery = new DeliveryMixedImpl(new ddbt.tpcc.loadtest.Delivery(pStmts), new ddbt.tpcc.tx.Delivery(SharedData))
 
-      val worker = new TpccThread(i, port, 1, dbUser, dbPassword, numWare, numConn, javaDriver, jdbcUrl, 
+      val worker = new TpccThread(new ThreadInfo(i), port, 1, dbUser, dbPassword, numWare, numConn, javaDriver, jdbcUrl, 
         fetchSize, TRANSACTION_COUNT, conn, newOrder, payment, orderStat, slev, delivery, activate_transaction)
       workers(i) = worker
       executor.execute(worker)

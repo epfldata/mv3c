@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -23,7 +24,7 @@ object TpccThread {
   private val DEBUG = logger.isDebugEnabled
 }
 
-class TpccThread(val number: Int, 
+class TpccThread(val tInfo: ThreadInfo, 
     val port: Int, 
     val is_local: Int, 
     val db_user: String, 
@@ -53,12 +54,12 @@ class TpccThread(val number: Int,
   override def run() {
     try {
       if (DEBUG) {
-        logger.debug("Starting driver with: number: " + number + " num_ware: " + 
+        logger.debug("Starting driver with: tInfo: " + tInfo + " num_ware: " + 
           num_ware + 
           " num_conn: " + 
           num_conn)
       }
-      driver.runAllTransactions(number, num_ware, num_conn, loopConditionChecker, maximumNumberOfTransactionsToExecute)
+      driver.runAllTransactions(tInfo, num_ware, num_conn, loopConditionChecker, maximumNumberOfTransactionsToExecute)
     } catch {
       case e: Throwable => logger.error("Unhandled exception", e)
     }

@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
@@ -34,7 +35,7 @@ class Payment(var pStmts: TpccStatements) extends IPayment {
       c_d_id_arg: Int, 
       c_id_arg: Int, 
       c_last_arg: String, 
-      h_amount_arg: Float): Int = {
+      h_amount_arg: Float)(implicit tInfo: ThreadInfo): Int = {
     try {
       pStmts.setAutoCommit(false)
       if (DEBUG) logger.debug("Transaction:	PAYMENT")

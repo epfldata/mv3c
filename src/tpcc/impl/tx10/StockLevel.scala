@@ -1,4 +1,6 @@
 package ddbt.tpcc.tx10
+
+import ddbt.lib.util.ThreadInfo
 import java.io._
 import scala.collection.mutable._
 import java.util.Date
@@ -43,7 +45,7 @@ class StockLevel extends InMemoryTxImplViaMVCCTpccTableV3 with IStockLevelInMem 
    *      + findOrderLineStockRecentItemsUnderThresholds
    *
    */
-  override def stockLevelTx(t_num: Int, w_id: Int, d_id: Int, threshold: Int):Int= {
+  override def stockLevelTx(t_num: Int, w_id: Int, d_id: Int, threshold: Int)(implicit tInfo: ThreadInfo): Int= {
     implicit val xact = ISharedData.begin("slev")
     if(ISharedData.isUnitTestEnabled) xact.setCommand(StockLevelCommand(t_num, w_id, d_id, threshold))
     try {

@@ -1,5 +1,6 @@
 package ddbt.tpcc.tx
 
+import ddbt.lib.util.ThreadInfo
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -411,7 +412,7 @@ class TpccInMem() {
         } else if(implVersionUnderTest == 9) {
           SharedDataScala = SharedDataScala.toMVCCTpccTableV2
         } else if(implVersionUnderTest == 10) {
-          SharedDataScala = SharedDataScala.toMVCCTpccTableV3
+          SharedDataScala = SharedDataScala.toMVCCTpccTableV3(numConn)
         } 
         // else if(implVersionUnderTest == 11) {
         //   SharedDataScala = SharedDataScala.toMVCCTpccTableV4
@@ -452,7 +453,7 @@ class TpccInMem() {
         // val slev: IStockLevel = new ddbt.tpcc.tx.StockLevel(SharedDataScala)
         // val delivery: IDelivery = new ddbt.tpcc.tx.Delivery(SharedDataScala)
 
-        val worker = new TpccThread(i, port, 1, dbUser, dbPassword, numWare, numConn, javaDriver, jdbcUrl, 
+        val worker = new TpccThread(new ThreadInfo(i), port, 1, dbUser, dbPassword, numWare, numConn, javaDriver, jdbcUrl, 
           fetchSize, TRANSACTION_COUNT, conn, newOrder, payment, orderStat, slev, delivery, activate_transaction)
         workers(i) = worker
         executor.execute(worker)

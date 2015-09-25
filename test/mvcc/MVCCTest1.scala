@@ -1,5 +1,6 @@
 package ddbt.lib.mvconcurrent
 
+import ddbt.lib.util.ThreadInfo
 import ddbt.tpcc.tx._
 import org.scalatest._
 import MVCCTestParams._
@@ -28,13 +29,16 @@ class MVCCSpec1 extends FlatSpec with Matchers {
     override def toString = (_1,_2).toString
   }
 
-  val tm = new TransactionManager(true)
+  val tm = new TransactionManager(2, true)
   tm.isGcActive.set(disableGC)
   val tbl = new ConcurrentSHMapMVCC[Key,(Int,String)]("Test1Map", (k:Key,v:(Int,String)) => k._1 )
 
+  val thread1 = new ThreadInfo(0)
+  val thread2 = new ThreadInfo(1)
+
   "A MVCC table" should "be able to insert an element and store it properly (before reaching threshold" in {
     ConcurrentSHMapMVCC.TREEIFY_THRESHOLD should be (8) //we assume that threshold is 8
-    implicit val xact = tm.begin("T1")
+    implicit val xact = tm.begin("T1")(thread1)
     tbl += (Key(1,"z"),(2,"a"))
     tbl += (Key(1,"x"),(5,"e"))
     tbl += (Key(2,"z"),(6,"f"))
@@ -45,14 +49,14 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "persistent an inserted element after the commit" in {
-    implicit val xact = tm.begin("T2")
+    implicit val xact = tm.begin("T2")(thread1)
     tbl.get(Key(1,"z")) should be ((2,"a"))
     tbl.size should be (4)
     xact.commit should be (true)
   }
 
   it should "throw an exception on inserting an existing key" in {
-    implicit val xact = tm.begin("T3")
+    implicit val xact = tm.begin("T3")(thread1)
     a [MVCCRecordAlreadyExistsException] should be thrownBy {
       tbl += (Key(1,"z"),(3,"b"))
     }
@@ -61,7 +65,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "throw an exception on inserting an already inserted entry even by current transaction" in {
-    implicit val xact = tm.begin("T4")
+    implicit val xact = tm.begin("T4")(thread1)
     tbl += (Key(1,"y"),(4,"c"))
     a [MVCCRecordAlreadyExistsException] should be thrownBy {
       tbl += (Key(1,"y"),(5,"d"))
@@ -71,14 +75,14 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "remove the stale versions produced by aborted xacts" in {
-    implicit val xact = tm.begin("T5")
+    implicit val xact = tm.begin("T5")(thread1)
     tbl.get(Key(1,"y")) should be (null)
     tbl.size should be (4)
     xact.commit should be (true)
   }
 
   it should "create the correct slices (after insertions)" in {
-    implicit val xact = tm.begin("T6")
+    implicit val xact = tm.begin("T6")(thread1)
     var sum = 0
     tbl.slice(0,1).foreach { case (k,v) =>
       sum += v._1
@@ -89,7 +93,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "execute the foreach over all visible elements (1)" in {
-    implicit val xact = tm.begin("T7")
+    implicit val xact = tm.begin("T7")(thread1)
     var sum = 0
     tbl.foreach { case (k,v) =>
       sum += v._1
@@ -99,7 +103,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "be able to delete an element" in {
-    implicit val xact = tm.begin("T8")
+    implicit val xact = tm.begin("T8")(thread1)
     tbl -= (Key(1,"z"))
     tbl.get(Key(1,"z")) should be (null)
     tbl.size should be (4)
@@ -107,7 +111,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "create the correct slices (after deletion)" in {
-    implicit val xact = tm.begin("T9")
+    implicit val xact = tm.begin("T9")(thread1)
     var sum = 0
     tbl.slice(0,1).foreach { case (k,v) =>
       sum += v._1
@@ -118,7 +122,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "execute the foreach over all visible elements (2)" in {
-    implicit val xact = tm.begin("T10")
+    implicit val xact = tm.begin("T10")(thread1)
     var sum = 0
     tbl.foreach { case (k,v) =>
       sum += v._1
@@ -128,7 +132,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "be able to re-insert an already deleted element" in {
-    implicit val xact = tm.begin("T11")
+    implicit val xact = tm.begin("T11")(thread1)
     tbl += (Key(1,"z"), (22,"aa"))
     tbl.get(Key(1,"z")) should be ((22,"aa"))
     tbl.size should be (4)
@@ -136,7 +140,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "execute the foreach over all visible elements (3)" in {
-    implicit val xact = tm.begin("T12")
+    implicit val xact = tm.begin("T12")(thread1)
     var sum = 0
     tbl.foreach { case (k,v) =>
       sum += v._1
@@ -146,7 +150,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "be able to update an already inserted element" in {
-    implicit val xact = tm.begin("T13")
+    implicit val xact = tm.begin("T13")(thread1)
     tbl(Key(1,"z")) = (222,"aaa")
     tbl.get(Key(1,"z")) should be ((222,"aaa"))
     tbl.size should be (4)
@@ -154,7 +158,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "create the correct slices (after update 1)" in {
-    implicit val xact = tm.begin("T14")
+    implicit val xact = tm.begin("T14")(thread1)
     var sum = 0
     tbl.slice(0,1).foreach { case (k,v) =>
       sum += v._1
@@ -165,7 +169,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "execute the foreach over all visible elements (4)" in {
-    implicit val xact = tm.begin("T15")
+    implicit val xact = tm.begin("T15")(thread1)
     var sum = 0
     tbl.foreach { case (k,v) =>
       sum += v._1
@@ -175,7 +179,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "be able to update via delta version" in {
-    implicit val xact = tm.begin("T16")
+    implicit val xact = tm.begin("T16")(thread1)
     val ent = tbl.getEntry(Key(1,"z"))
     ent.setEntryValue((2222,"aaa"))
     
@@ -185,7 +189,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "create the correct slices (after update 2)" in {
-    implicit val xact = tm.begin("T17")
+    implicit val xact = tm.begin("T17")(thread1)
     var sum = 0
     tbl.slice(0,1).foreach { case (k,v) =>
       sum += v._1
@@ -196,7 +200,7 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "execute the foreach over all visible elements (5)" in {
-    implicit val xact = tm.begin("T18")
+    implicit val xact = tm.begin("T18")(thread1)
     var sum = 0
     tbl.foreach { case (k,v) =>
       sum += v._1
@@ -206,10 +210,10 @@ class MVCCSpec1 extends FlatSpec with Matchers {
   }
 
   it should "handle the validation failure correctly" in {
-    implicit val xact1 = tm.begin("T19")
+    implicit val xact1 = tm.begin("T19")(thread1)
     
     {
-      implicit val xact2 = tm.begin("T20")
+      implicit val xact2 = tm.begin("T20")(thread2)
       tbl.+=(Key(1,"y"),(4,"c"))(xact2)
       xact2.commit should be (true)
     }
@@ -225,14 +229,14 @@ class MVCCSpec1 extends FlatSpec with Matchers {
 
   it should "handle cleanup correctly after rollback (including the removal of pointers in DeltaVersion)" in {
     {
-      implicit val xact2 = tm.begin("T21")
+      implicit val xact2 = tm.begin("T21")(thread1)
       tbl.update(Key(1,"y"),(44,"c"))
       tbl.get(Key(1,"y")) should be ((44,"c"))
       xact2.rollback
     }
 
     {
-      implicit val xact1 = tm.begin("T22")
+      implicit val xact1 = tm.begin("T22")(thread2)
       tbl.get(Key(1,"y")) should be ((4,"c"))
       tbl.update(Key(1,"y"),(444,"c"))
       tbl.get(Key(1,"y")) should be ((444,"c"))

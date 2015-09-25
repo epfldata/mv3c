@@ -1,4 +1,6 @@
 package ddbt.tpcc.tx9
+
+import ddbt.lib.util.ThreadInfo
 import java.io._
 import scala.collection.mutable._
 import java.util.Date
@@ -44,7 +46,7 @@ class Delivery extends InMemoryTxImplViaMVCCTpccTableV2 with IDeliveryInMem {
    *   - [Customer: W] in
    *      + updateCustomerBalance
    */
-  override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int): Int = {
+  override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int)(implicit tInfo: ThreadInfo): Int = {
     try {
       implicit val xact = ISharedData.begin
 

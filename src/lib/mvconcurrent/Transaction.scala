@@ -1,5 +1,6 @@
 package ddbt.lib.mvconcurrent
 
+import ddbt.lib.util.ThreadInfo
 import scala.collection.mutable._
 import ddbt.lib.util.XactCommand
 
@@ -10,8 +11,10 @@ import TransactionManager._
  * running a transaction program in a concurrent execution
  * environment.
  */
-class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var isDefinedReadOnly: Boolean, var committed:Boolean=false) {
+class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var isDefinedReadOnly: Boolean, val tInfo:ThreadInfo) {
 	// val DEFAULT_UNDO_BUFFER_SIZE = 64
+
+	var committed = false
 
 	var undoBuffer:DeltaVersion[_,_] = null // a singly linked list of DeltaVersions, based on nextInUndoBuffer field of DeltaVersion
 	//TODO can we se a simple ListBuffer instead? (the same as MVC3T)

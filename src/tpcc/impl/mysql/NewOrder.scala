@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.sql.SQLException
 import java.util.Calendar
 import java.util.Date
@@ -73,7 +74,7 @@ class NewOrder(var pStmts: TpccStatements) extends INewOrder {
       iname: Array[String],
       stock: Array[Int],
       bg: Array[Char],
-      amt: Array[Float]): Int = {
+      amt: Array[Float])(implicit tInfo: ThreadInfo): Int = {
     try {
       pStmts.setAutoCommit(false)
       if(NewOrder.SHOW_OUTPUT) logger.info("# Started NewOrder transaction for warehouse=%d, district=%d, customer=%d".format(w_id_arg,d_id_arg,c_id_arg))

@@ -1,4 +1,6 @@
 package ddbt.tpcc.tx3
+
+import ddbt.lib.util.ThreadInfo
 import java.io._
 import scala.collection.mutable._
 import java.util.Date
@@ -41,7 +43,7 @@ class Payment extends InMemoryTxImpl with IPaymentInMem {
    *      + insertHistory
    *
    */
-  override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float):Int = {
+  override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float)(implicit tInfo: ThreadInfo): Int = {
     try {
       PaymentTxOps.updateWarehouse(w_id, { case (w_name,w_street_1,w_street_2,w_city,w_state,w_zip,w_tax,w_ytd) => {
         PaymentTxOps.updateDistrict(w_id,d_id, { case (d_name,d_street_1,d_street_2,d_city,d_state,d_zip,d_tax,d_ytd,d_next_o_id) => { 

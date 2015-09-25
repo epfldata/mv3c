@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.io.PrintWriter
 import java.sql.Connection
 import java.sql.SQLException
@@ -36,23 +37,24 @@ class TpccDriver(conn: java.sql.Connection,
     slev: IStockLevel,
     delivery: IDelivery) extends Driver(conn, fetchSize, TRANSACTION_COUNT) {
 
-  override def doNextTransaction(t_num: Int, sequence: Int) {
+  override def doNextTransaction(tInfo: ThreadInfo, sequence: Int) {
     if (sequence == 0) {
-      doNeword(t_num)
+      doNeword(tInfo)
     } else if (sequence == 1) {
-      doPayment(t_num)
+      doPayment(tInfo)
     } else if (sequence == 2) {
-      doOrdstat(t_num)
+      doOrdstat(tInfo)
     } else if (sequence == 3) {
-      doDelivery(t_num)
+      doDelivery(tInfo)
     } else if (sequence == 4) {
-      doSlev(t_num)
+      doSlev(tInfo)
     } else {
       throw new IllegalStateException("Error - Unknown sequence")
     }
   }
 
-  private def doNeword(t_num: Int): Int = {
+  private def doNeword(tInfo: ThreadInfo): Int = {
+    val t_num = tInfo.tid
     var c_num = 0
     var w_id = 0
     var d_id = 0
@@ -107,7 +109,7 @@ class TpccDriver(conn: java.sql.Connection,
     
     val timeout = RTIME_NEWORD
     val xactId = 0
-    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
+    execTransaction(tInfo, xactId, timeout, Tpcc.counting_on) { implicit tInfo: ThreadInfo =>
       val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
       newOrder.newOrderTx(currentTimeStamp, t_num, w_id, d_id, c_id, ol_cnt, all_local, itemid, supware, qty, price, iname, stock, bg, amt)
     }
@@ -165,7 +167,8 @@ class TpccDriver(conn: java.sql.Connection,
     tmp
   }
 
-  private def doPayment(t_num: Int): Int = {
+  private def doPayment(tInfo: ThreadInfo): Int = {
+    val t_num = tInfo.tid
     var c_num = 0
     var byname = 0
     var w_id = 0
@@ -203,7 +206,7 @@ class TpccDriver(conn: java.sql.Connection,
 
     val timeout = RTIME_PAYMENT
     val xactId = 1
-    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
+    execTransaction(tInfo, xactId, timeout, Tpcc.counting_on) { implicit tInfo: ThreadInfo =>
       val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
       payment.paymentTx(currentTimeStamp, t_num, w_id, d_id, byname, c_w_id, c_d_id, c_id, c_last, h_amount)
     }
@@ -249,7 +252,8 @@ class TpccDriver(conn: java.sql.Connection,
     // (0)
   }
 
-  private def doOrdstat(t_num: Int): Int = {
+  private def doOrdstat(tInfo: ThreadInfo): Int = {
+    val t_num = tInfo.tid
     var c_num = 0
     var byname = 0
     var w_id = 0
@@ -270,7 +274,7 @@ class TpccDriver(conn: java.sql.Connection,
     
     val timeout = RTIME_ORDSTAT
     val xactId = 2
-    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
+    execTransaction(tInfo, xactId, timeout, Tpcc.counting_on) { implicit tInfo: ThreadInfo =>
       val datetime = new java.util.Date({startTime += 1000; startTime})
       orderStat.orderStatusTx(datetime, t_num, w_id, d_id, byname, c_id, c_last)
     }
@@ -316,7 +320,8 @@ class TpccDriver(conn: java.sql.Connection,
     // (0)
   }
 
-  private def doDelivery(t_num: Int): Int = {
+  private def doDelivery(tInfo: ThreadInfo): Int = {
+    val t_num = tInfo.tid
     var c_num = 0
     var w_id = 0
     var o_carrier_id = 0
@@ -331,7 +336,7 @@ class TpccDriver(conn: java.sql.Connection,
     
     val timeout = RTIME_DELIVERY
     val xactId = 3
-    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
+    execTransaction(tInfo, xactId, timeout, Tpcc.counting_on) { implicit tInfo: ThreadInfo =>
       val currentTimeStamp = new Timestamp({startTime += 1000; startTime})
       delivery.deliveryTx(currentTimeStamp, w_id, o_carrier_id)
     }
@@ -377,7 +382,8 @@ class TpccDriver(conn: java.sql.Connection,
     // (0)
   }
 
-  private def doSlev(t_num: Int): Int = {
+  private def doSlev(tInfo: ThreadInfo): Int = {
+    val t_num = tInfo.tid
     var c_num = 0
     var w_id = 0
     var d_id = 0
@@ -394,7 +400,7 @@ class TpccDriver(conn: java.sql.Connection,
     
     val timeout = RTIME_SLEV
     val xactId = 4
-    execTransaction(t_num, xactId, timeout, Tpcc.counting_on) {
+    execTransaction(tInfo, xactId, timeout, Tpcc.counting_on) { implicit tInfo: ThreadInfo =>
       slev.stockLevelTx(t_num, w_id, d_id, level)
     }
     // var i = 0
@@ -438,7 +444,7 @@ class TpccDriver(conn: java.sql.Connection,
     // (0)
   }
 
-  override def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand]) = commandSeq.foreach {
+  override def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand])(implicit tInfo: ThreadInfo) = commandSeq.foreach {
     case TpccTable.DeliveryCommand(datetime, w_id, o_carrier_id) => delivery.deliveryTx(datetime, w_id, o_carrier_id)
     case TpccTable.NewOrderCommand(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stocks, bg, amt) => newOrder.newOrderTx(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stocks, bg, amt)
     case TpccTable.OrderStatusCommand(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last) => orderStat.orderStatusTx(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last)

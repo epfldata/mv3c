@@ -1,4 +1,6 @@
 package ddbt.tpcc.tx
+
+import ddbt.lib.util.ThreadInfo
 import java.io._
 import scala.collection.mutable._
 import java.util.Date
@@ -33,7 +35,7 @@ object MVCCTpccTableV3 {
 
 	val TABLES = List(NEWORDER_TBL,HISTORY_TBL,WAREHOUSE_TBL,ITEM_TBL,ORDER_TBL,DISTRICT_TBL,ORDERLINE_TBL,CUSTOMER_TBL,STOCK_TBL,CUSTOMERWAREHOUSE_TBL)
 
-	class TpccTransactionManager(isUnitTestEnabled: =>Boolean) extends ddbt.lib.mvconcurrent.TransactionManager(isUnitTestEnabled) {
+	class TpccTransactionManager(numConn: Int, isUnitTestEnabled: =>Boolean) extends ddbt.lib.mvconcurrent.TransactionManager(numConn, isUnitTestEnabled) {
 
 		/////// TABLES \\\\\\\
 		val newOrderTbl = new ConcurrentSHMapMVCC[(Int,Int,Int),Tuple1[Boolean]](NEWORDER_TBL,/*0.9f, 262144,*/ (k:(Int,Int,Int),v:Tuple1[Boolean]) => ((k._2, k._3)) )
@@ -68,7 +70,7 @@ object MVCCTpccTableV3 {
  *
  * @author Mohammad Dashti
  */
-class MVCCTpccTableV3 extends TpccTable(7) {
+class MVCCTpccTableV3(numConn: Int) extends TpccTable(7) {
 
 	override val newOrderTbl = null
 	override val historyTbl = null
@@ -81,10 +83,10 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 	override val stockTbl = null
 	override val customerWarehouseFinancialInfoMap = null
 
-	val tm = new TpccTransactionManager(isUnitTestEnabled)
+	val tm = new TpccTransactionManager(numConn, isUnitTestEnabled)
 
-	def begin = tm.begin("adhoc")
-	def begin(name: String) = tm.begin(name)
+	def begin(implicit tInfo: ThreadInfo) = tm.begin("adhoc")
+	def begin(name: String)(implicit tInfo: ThreadInfo) = tm.begin(name)
 	def commit(implicit xact:Transaction) = tm.commit
 	def rollback(implicit xact:Transaction) = tm.rollback
 
@@ -315,6 +317,7 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 
     override def toTpccTable = {
     	val res = new TpccTable(7)
+    	implicit val tInfo = new ThreadInfo(0)
 		implicit val xact = this.begin
 		val THE_VALUE_DOES_NOT_EXIST = -1 //TODO: should be FIXED
 		tm.newOrderTbl.foreach { case (k,v) => res.onInsert_NewOrder(k._1,k._2,k._3) }

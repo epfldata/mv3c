@@ -1,4 +1,6 @@
 package ddbt.tpcc.tx3
+
+import ddbt.lib.util.ThreadInfo
 import java.io._
 import scala.collection.mutable._
 import java.util.Date
@@ -38,7 +40,7 @@ class OrderStatus extends InMemoryTxImpl with IOrderStatusInMem {
    *   - [OrderLine: R] in
    *      + findOrderLines
    */
-  override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String):Int = {
+  override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String)(implicit tInfo: ThreadInfo): Int = {
     try {
 
       var c: (String,String,String,String,String,String,String,String,String,Date,String,Float,Float,Float,Float,Int,Int,String,Int) = null

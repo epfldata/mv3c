@@ -1,4 +1,6 @@
 package ddbt.tpcc.tx10
+
+import ddbt.lib.util.ThreadInfo
 import java.io._
 import scala.collection.mutable._
 import java.util.Date
@@ -46,7 +48,7 @@ class Payment extends InMemoryTxImplViaMVCCTpccTableV3 with IPaymentInMem {
    *      + insertHistory
    *
    */
-  override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float):Int = {
+  override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float)(implicit tInfo: ThreadInfo): Int = {
     implicit val xact = ISharedData.begin("payment")
     if(ISharedData.isUnitTestEnabled) xact.setCommand(PaymentCommand(datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last_input, h_amount))
     try {

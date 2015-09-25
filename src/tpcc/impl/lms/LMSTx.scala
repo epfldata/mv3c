@@ -1,5 +1,6 @@
 package tpcc.lms
 
+import ddbt.lib.util.ThreadInfo
 import ddbt.tpcc.itx._
 import ddbt.tpcc.loadtest.TpccConstants._
 import java.util.Date
@@ -20,31 +21,31 @@ class InMemoryLMSTxImpl extends IInMemoryTx {
 } 
 
 class NewOrderLMSImpl extends InMemoryLMSTxImpl with INewOrderInMem {
-  override def newOrderTx(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stock:Array[Int], bg:Array[Char], amt:Array[Float]): Int = {
+  override def newOrderTx(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stock:Array[Int], bg:Array[Char], amt:Array[Float])(implicit tInfo: ThreadInfo): Int = {
     exec.newOrderTxInst(SHOW_OUTPUT, datetime,t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stock, bg, amt)
   }
 }
 
 class DeliveryLMSImpl extends InMemoryLMSTxImpl with IDeliveryInMem {
-  override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int): Int = {
+  override def deliveryTx(datetime:Date, w_id: Int, o_carrier_id: Int)(implicit tInfo: ThreadInfo): Int = {
     exec.deliveryTxInst(SHOW_OUTPUT, datetime, w_id, o_carrier_id)
   }
 }
 
 class OrderStatusLMSImpl extends InMemoryLMSTxImpl with IOrderStatusInMem {
-  override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String):Int = {
+  override def orderStatusTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String)(implicit tInfo: ThreadInfo): Int = {
     exec.orderStatusTxInst(SHOW_OUTPUT, datetime, t_num, w_id, d_id, c_by_name, c_id, c_last)
   }
 }
 
 class PaymentLMSImpl extends InMemoryLMSTxImpl with IPaymentInMem {
-  override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last: String, h_amount: Float):Int = {
-    exec.paymentTxInst(SHOW_OUTPUT, datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last, h_amount)
+  override def paymentTx(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float)(implicit tInfo: ThreadInfo): Int = {
+    exec.paymentTxInst(SHOW_OUTPUT, datetime, t_num, w_id, d_id, c_by_name, c_w_id, c_d_id, c_id, c_last_input, h_amount)
   }
 }
 
 class StockLevelLMSImpl extends InMemoryLMSTxImpl with IStockLevelInMem {
-  override def stockLevelTx(t_num: Int, w_id: Int, d_id: Int, threshold: Int):Int = {
+  override def stockLevelTx(t_num: Int, w_id: Int, d_id: Int, threshold: Int)(implicit tInfo: ThreadInfo): Int = {
     exec.stockLevelTxInst(SHOW_OUTPUT, null, t_num, w_id, d_id, threshold)
   }
 }

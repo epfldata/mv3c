@@ -118,8 +118,6 @@ class XactBench(val xactSelector: XactImplSelector) {
 			}
 		}
 
-		val xactImpl = xactSelector.select(implVersionUnderTest)
-
 		if (num_node > 0) {
 			if (scaleFactor % num_node != 0) {
 				logger.error(" [warehouse] value must be devided by [num_node].")
@@ -142,6 +140,9 @@ class XactBench(val xactSelector: XactImplSelector) {
 		if (measureTime < 1) {
 			throw new RuntimeException("Duration has to be greater than or equal to 1.")
 		}
+
+		val xactImpl = xactSelector.select(implVersionUnderTest, numConn)
+
 		var iter = 0
 		while(iter < NUM_ITERATIONS) {
 			
@@ -163,7 +164,7 @@ class XactBench(val xactSelector: XactImplSelector) {
 
 			val workers = new Array[XactThread](numConn)
 			for (i <- 0 until numConn) {
-				val worker = new XactThread(i, scaleFactor, numConn, TRANSACTION_COUNT, activate_transaction, xactImpl)
+				val worker = new XactThread(new ThreadInfo(i), scaleFactor, numConn, TRANSACTION_COUNT, activate_transaction, xactImpl)
 				workers(i) = worker
 				executor.execute(worker)
 			}
@@ -320,7 +321,7 @@ class XactBench(val xactSelector: XactImplSelector) {
 	}
 }
 
-class XactThread(number: Int, 
+class XactThread(val tInfo: ThreadInfo, 
 	scaleFactor: Int, 
 	num_conn: Int, 
 	TRANSACTION_COUNT: Int,
@@ -331,16 +332,16 @@ class XactThread(number: Int,
 	 */
 	// var conn: Connection = connectToDatabase
 
-	val driver = new XactDriver(number,TRANSACTION_COUNT, xactImpl)
+	val driver = new XactDriver(tInfo,TRANSACTION_COUNT, xactImpl)
 	override def run() {
 		try {
 			if (DEBUG) {
-				logger.debug("Starting driver with: number: " + number + " scaleFactor: " + 
+				logger.debug("Starting driver with: tInfo: " + tInfo + " scaleFactor: " + 
 					scaleFactor + 
 					" num_conn: " + 
 					num_conn)
 			}
-			driver.runAllTransactions(number, scaleFactor, num_conn, loopConditionChecker)
+			driver.runAllTransactions(tInfo, scaleFactor, num_conn, loopConditionChecker)
 		} catch {
 			case e: Throwable => logger.error("Unhandled exception", e)
 		}
@@ -350,26 +351,26 @@ class XactThread(number: Int,
 }
 
 class XactDriver(
-		number: Int,
+		tInfo: ThreadInfo,
 		TRANSACTION_COUNT: Int,
 		xactImpl: XactImpl) extends Driver(null, -1, TRANSACTION_COUNT) {
 
-	override def doNextTransaction(t_num: Int, sequence: Int) {
+	override def doNextTransaction(tInfo: ThreadInfo, sequence: Int) {
 		// counter.value += 1L
-		xactImpl.runXact(this, t_num, sequence, ThreadLocalRandom.current)
+		xactImpl.runXact(this, tInfo, sequence, ThreadLocalRandom.current)
 	}
 
-	override def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand]) = xactImpl.runXactSeq(this, commandSeq)
+	override def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand])(implicit tInfo: ThreadInfo) = xactImpl.runXactSeq(this, commandSeq)
 }
 
 abstract class XactImplSelector {
-	def select(impl: Int): XactImpl
+	def select(impl: Int, numConn: Int): XactImpl
 	def xactNames: Array[String]
 	def seqInit(t1: Int, t2: Int, t3: Int, t4: Int, t5: Int): Unit
 }
 
 abstract class XactImpl {
 	@volatile var isCountingOn = false
-	def runXact(driver: Driver, t_num: Int, sequence: Int, rnd:ThreadLocalRandom): Unit
-	def runXactSeq(driver: Driver, commandSeq:Seq[ddbt.lib.util.XactCommand]): Unit
+	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int, rnd:ThreadLocalRandom): Unit
+	def runXactSeq(driver: Driver, commandSeq:Seq[ddbt.lib.util.XactCommand])(implicit tInfo: ThreadInfo): Unit
 }

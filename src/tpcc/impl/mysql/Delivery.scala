@@ -1,5 +1,6 @@
 package ddbt.tpcc.loadtest
 
+import ddbt.lib.util.ThreadInfo
 import java.sql.Timestamp
 import java.sql.SQLException
 import java.util.Calendar
@@ -23,7 +24,7 @@ object Delivery {
 
 class Delivery(var pStmts: TpccStatements) extends IDelivery {
 
-  override def deliveryTx(currentTimeStamp:Date, w_id_arg: Int, o_carrier_id_arg: Int): Int = {
+  override def deliveryTx(currentTimeStamp:Date, w_id_arg: Int, o_carrier_id_arg: Int)(implicit tInfo: ThreadInfo): Int = {
     val orderIDs = new Array[Int](10)
     try {
       pStmts.setAutoCommit(false)

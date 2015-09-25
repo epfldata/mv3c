@@ -1,4 +1,6 @@
 package ddbt.tpcc.tx
+
+import ddbt.lib.util.ThreadInfo
 import java.io._
 import scala.collection.mutable._
 import java.util.Date
@@ -931,8 +933,9 @@ class TpccTable(implVersion:Int) {
 	    res
 	}
 
-	def toMVCCTpccTableV3 = {
-		val res = new MVCCTpccTableV3
+	def toMVCCTpccTableV3(numConn:Int) = {
+    	implicit val tInfo = new ThreadInfo(0)
+		val res = new MVCCTpccTableV3(numConn)
 		implicit val xact = res.begin
 		val THE_VALUE_DOES_NOT_EXIST = -1 //TODO: should be FIXED
 		newOrderTbl.foreach { case (k,v) => res.onInsert_NewOrder(k._1,k._2,k._3) }
