@@ -93,14 +93,14 @@ class MVCCTpccTableV3 extends TpccTable(7) {
 	 * by the serialization order
 	 */
 	override def getListOfCommittedCommands: Seq[ddbt.lib.util.XactCommand] = {
-		if(tm.allCommittedXacts.isEmpty) {
-			if(isUnitTestEnabled)
-				throw new RuntimeException("No transaction is committed")
-			else
+		// if(tm.allCommittedXacts.isEmpty) {
+		// 	if(isUnitTestEnabled)
+		// 		throw new RuntimeException("No transaction is committed")
+		// 	else
 				throw new RuntimeException("No committed transaction is collected because isUnitTestEnabled = " + isUnitTestEnabled)
-		} else {
-			tm.allCommittedXacts/*.filter(_.committed)*/.sortWith(_.commitTS < _.commitTS).map(_.command)
-		}
+		// } else {
+		// 	tm.allCommittedXacts/*.filter(_.committed)*/.sortWith(_.commitTS < _.commitTS).map(_.command)
+		// }
 	}
 
 	override def testSpecialDsUsed = MVCCTpccTableV3.testSpecialDsUsed

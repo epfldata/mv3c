@@ -58,7 +58,7 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	//List of recently committed transactions consists of
 	//the most recent committed transaction in its head
 	val recentlyCommittedXacts = new ListBuffer[Transaction]()
-	val allCommittedXacts = new ListBuffer[Transaction]()
+	// val allCommittedXacts = new ListBuffer[Transaction]()
 
 	def begin(name: String) = {
 		val xactId = transactionIdGen.getAndIncrement
@@ -103,11 +103,11 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 					
 					//appends the transaction to the recently commmitted transactions list
 					recentlyCommittedXacts += xact
-					if(isUnitTestEnabled) allCommittedXacts += xact
 
 					garbageCollect
 					debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
 					true
+						// if(isUnitTestEnabled) allCommittedXacts += xact
 				}
 			}
 		// } else {
