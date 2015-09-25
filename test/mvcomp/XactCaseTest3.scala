@@ -9,25 +9,25 @@ import XactBench._
 import ddbt.tpcc.loadtest.Driver
 import ddbt.tpcc.loadtest.Util
 import java.util.concurrent.ThreadLocalRandom
-import XactCaseTest2._
+import XactCaseTest3._
 
 /**
  * This class tests the maximum transactional performance of XactBench
  * (i.e. the maximum number of calls to an empty (read-only) transaction
  * program that executes the begin and commit operations with
- * an empty body) with dummy params (and read-only hint to the xact)
+ * an empty body) with dummy params (without read-only hint)
  *
  * For a single thread:
- *   Xact1 xact/sec: 251,652,640.00
- *   Xact2 xact/sec: 25,165,264.00
+ *   Xact1 xact/sec: 29,741,308.00
+ *   Xact2 xact/sec: 2,974,131.50
  * For two threads:
- *   Xact1 xact/sec: 500,753,248.00
- *   Xact2 xact/sec: 50,088,428.00
+ *   Xact1 xact/sec: 21,173,984.00
+ *   Xact2 xact/sec: 2,117,169.75
  * For four threads:
- *   Xact1 xact/sec: 940,342,336.00
- *   Xact2 xact/sec: 94,058,616.00
+ *   Xact1 xact/sec: 22,347,884.00
+ *   Xact2 xact/sec: 2,233,995.75
  */
-object XactCaseTest2 {
+object XactCaseTest3 {
 
 	val MVCC_IMPL = 1
 	val MVC3T_IMPL = 2
@@ -36,7 +36,7 @@ object XactCaseTest2 {
 	val TIMEOUT_T2 = 5000
 
 	def main(argv:Array[String]) {
-		val xactRunner = new XactBench(XactCaseTest2Selector)
+		val xactRunner = new XactBench(XactCaseTest3Selector)
 		xactRunner.init
 		xactRunner.runBenchmark(true, argv)
 	}
@@ -44,10 +44,10 @@ object XactCaseTest2 {
 	val NUM_ACCOUNTS = 2
 }
 
-object XactCaseTest2Selector extends XactImplSelector {
+object XactCaseTest3Selector extends XactImplSelector {
 	def select(impl: Int, numConn: Int) = {
 		if (impl == MVCC_IMPL) {
-			(new XactCaseTest2MVCC(numConn)).init
+			(new XactCaseTest3MVCC(numConn)).init
 		} else {
 			throw new RuntimeException("No implementation selected.")
 		}
@@ -60,7 +60,7 @@ object XactCaseTest2Selector extends XactImplSelector {
 	def xactNames = Array("Xact1", "Xact2")
 }
 
-class XactCaseTest2MVCC(numConn: Int) extends XactImpl {
+class XactCaseTest3MVCC(numConn: Int) extends XactImpl {
 	import ddbt.lib.mvconcurrent._
 	import TransactionManager._
 	val accountsTbl = new ConcurrentSHMapMVCC[Int /*Account Number*/,Tuple1[Long] /*Boolean*/]("ACCOUNTS_TBL")
@@ -83,7 +83,7 @@ class XactCaseTest2MVCC(numConn: Int) extends XactImpl {
 
 	def execXact1(fromAccNum:Int, toAccNum:Int, amount:Int)(implicit tInfo: ThreadInfo) = {
 		// logger.info("MVCC - execXact1 - Move Money")
-		implicit val xact = tm.begin("Xact1", true)
+		implicit val xact = tm.begin("Xact1")
 		try {
 			// val fromAcc = accountsTbl.getEntry(fromAccNum)
 			// fromAcc.setEntryValue(Tuple1(fromAcc.row._1 - amount))
@@ -112,7 +112,7 @@ class XactCaseTest2MVCC(numConn: Int) extends XactImpl {
 
 	def execXact2(implicit tInfo: ThreadInfo) = {
 		// logger.info("MVCC - execXact2 - Sum Balances")
-		implicit val xact = tm.begin("Xact2", true)
+		implicit val xact = tm.begin("Xact2")
 		try {
 			// val actualSum = 3L * (NUM_ACCOUNTS * (NUM_ACCOUNTS - 1L)) / 2L
 			// var computedSum = 0L

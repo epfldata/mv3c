@@ -1,6 +1,7 @@
 //MVCC vs. MVC3T
 package ddbt.lib.mvcomp
 
+import ddbt.lib.util.ThreadInfo
 import ddbt.lib.util.XactImpl
 import ddbt.lib.util.XactImplSelector
 import ddbt.lib.util.XactBench
@@ -43,61 +44,61 @@ object XactCaseTest1 {
 }
 
 object XactCaseTest1Selector extends XactImplSelector {
-	def select(impl: Int) = {
+	def select(impl: Int, numConn: Int) = {
 		if (impl == MVCC_IMPL) {
-			(new XactCaseTest1MVCC()).init
+			(new XactCaseTest1MVCC(numConn)).init
 		} else {
 			throw new RuntimeException("No implementation selected.")
 		}
 	}
 
 	def seqInit(t1: Int, t2: Int, t3: Int, t4: Int, t5: Int) {
-		Util.seqInit(10000000, 1000000)
+		Util.seqInit(10000, 1000)
 	}
 
 	def xactNames = Array("Xact1", "Xact2")
 }
 
-class XactCaseTest1MVCC extends XactImpl {
+class XactCaseTest1MVCC(numConn: Int) extends XactImpl {
 	import ddbt.lib.mvconcurrent._
 	import TransactionManager._
 	val accountsTbl = new ConcurrentSHMapMVCC[Int /*Account Number*/,Tuple1[Long] /*Boolean*/]("ACCOUNTS_TBL")
 
-	val tm = new TransactionManager(false)
+	val tm = new TransactionManager(numConn, false)
 
-	def runXact(driver: Driver, t_num: Int, sequence: Int, rnd: ThreadLocalRandom){
+	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int, rnd: ThreadLocalRandom){
 		if (sequence == 0) {
 			val fromAcc = rnd.nextInt(NUM_ACCOUNTS)
 			val toAcc = rnd.nextInt(NUM_ACCOUNTS)
 			val amount = rnd.nextInt(5)+1
-			driver.execTransaction(t_num, sequence, 0, isCountingOn) {
-				execXact1(fromAcc,toAcc,amount)
+			driver.execTransaction(tInfo, sequence, 0, isCountingOn) { tInfo:ThreadInfo =>
+				execXact1(fromAcc,toAcc,amount)(tInfo)
 			}
 		} else if (sequence == 1) {
-			driver.execTransaction(t_num, sequence, 0, isCountingOn) {
-				execXact2()
+			driver.execTransaction(tInfo, sequence, 0, isCountingOn) { tInfo:ThreadInfo =>
+				execXact2(tInfo)
 			}
 		} else {
 			throw new IllegalStateException("Error - Unknown sequence")
 		}
 	}
 
-	def execXact1(fromAccNum:Int, toAccNum:Int, amount:Int) = {
+	def execXact1(fromAccNum:Int, toAccNum:Int, amount:Int)(implicit tInfo: ThreadInfo) = {
 		1
 	}
 
-	def execXact2() = {
+	def execXact2(implicit tInfo: ThreadInfo) = {
 		1
 	}
 
-	def runXactSeq(driver: Driver, commandSeq:Seq[ddbt.lib.util.XactCommand]): Unit = {
+	def runXactSeq(driver: Driver, commandSeq:Seq[ddbt.lib.util.XactCommand])(implicit tInfo: ThreadInfo): Unit = {
 		// commandSeq.foreach { x =>
 		// }
 		throw new UnsupportedOperationException
 	}
 
 	def init = {
-		implicit val xact = tm.begin("InitXact")
+		implicit val xact = tm.begin("InitXact")(new ThreadInfo(0))
 		for(i <- 0 until NUM_ACCOUNTS) accountsTbl += (i, Tuple1(i*3L))
 		xact.commit
 		this
