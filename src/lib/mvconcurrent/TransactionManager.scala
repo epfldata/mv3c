@@ -1,5 +1,6 @@
 package ddbt.lib.mvconcurrent
 
+import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable._
@@ -61,100 +62,111 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	val recentlyCommittedXacts = new ListBuffer[Transaction]()
 	// val allCommittedXacts = new ListBuffer[Transaction]()
 
-	def begin(name: String) = {
+	val commitLock = new ReentrantLock
+
+	def begin(name: String, readOnly: Boolean=false): Transaction = {
 		val xactId = transactionIdGen.getAndIncrement
 		val startTS = startAndCommitTimestampGen.getAndIncrement
-		implicit val xact = new Transaction(this, name, startTS, xactId)
-		activeXacts.put(xactId, xact)
-		debug("started at %d".format(startTS))
+		implicit val xact = new Transaction(this, name, startTS, xactId, readOnly)
+		if(!readOnly) activeXacts.put(xactId, xact)
+		// debug("started at %d".format(startTS))
 		xact
 	}
-	def commit(implicit xact:Transaction):Boolean = this.synchronized {
-		debug("commit started")
+
+	def commit(implicit xact:Transaction):Boolean = /*this.synchronized*/ {
+		// debug("commit started")
 		val xactId = xact.xactId
-		// if(activeXacts.contains(xactId)){
-			if(xact.isReadOnly) {
-				if((activeXacts remove xactId) == null) {
-					debug("commit failed: transaction does not exist! We have to roll it back...")
-					rollback
-					false
-				} else {
-					xact.xactId = xact.startTS
-					// recentlyCommittedXacts.synchronized {
-					// 	//appenda the transaction to the recently commmitted transactions list
-					// 	recentlyCommittedXacts += xact
-					// 	if(isUnitTestEnabled) allCommittedXacts += xact
-					// }
-					debug("(read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
-					true
-				}
-			} else if(!validate) {
-				debug("commit failed: transaction validation failed! We have to roll it back...")
-				rollback
+		if(xact.isDefinedReadOnly) {
+			true
+		} else if(xact.isReadOnly) {
+			if((activeXacts remove xactId) == null) {
+				// debug("commit failed: transaction does not exist! We have to roll it back...")
+				// rollback
 				false
 			} else {
-				if((activeXacts remove xactId) == null) {
-					debug("commit failed: transaction does not exist! We have to roll it back...")
+				xact.xactId = xact.startTS
+				// A read-only transaction does not have to be added to the recentlyCommittedXacts
+				// recentlyCommittedXacts.synchronized {
+				// 	//appenda the transaction to the recently commmitted transactions list
+				// 	recentlyCommittedXacts += xact
+				// 	if(isUnitTestEnabled) allCommittedXacts += xact
+				// }
+				// debug("(read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
+				true
+			}
+		} else {
+			commitLock.lock
+			var alreadyUnlocked = false
+			try {
+				if(!validate) {
+					// debug("commit failed: transaction validation failed! We have to roll it back...")
+					commitLock.unlock
+					alreadyUnlocked = true
 					rollback
 					false
 				} else {
-					xact.xactId = startAndCommitTimestampGen.getAndIncrement
-
-					// debug("\twith undo buffer(%d) = %%s".format(xact.undoBufferSize, xact.undoBufferToString))
-					
-					//appends the transaction to the recently commmitted transactions list
-					recentlyCommittedXacts += xact
-
-					garbageCollect
-					debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
-					true
+					if((activeXacts remove xactId) == null) {
+						// debug("commit failed: transaction does not exist! We have to roll it back...")
+						commitLock.unlock
+						alreadyUnlocked = true
+						rollback
+						false
+					} else {
+						xact.xactId = startAndCommitTimestampGen.getAndIncrement
+						// debug("\twith undo buffer(%d) = %%s".format(xact.undoBufferSize, xact.undoBufferToString))
+						//appends the transaction to the recently commmitted transactions list
+						recentlyCommittedXacts += xact
+						commitLock.unlock
+						alreadyUnlocked = true
 						// if(isUnitTestEnabled) allCommittedXacts += xact
+						garbageCollect
+						// debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
+						true
+					}
 				}
+			} finally {
+				if(!alreadyUnlocked) commitLock.unlock
 			}
-		// } else {
-		// 	debug("commit failed: transaction does not exist! We have to roll it back...")
-		// 	rollback
-		// 	false
-		// }
+		}
 	}
 	//TODO: should be implemented completely
 	// missing:
 	//  - validation can run in parallel for the transactions that are in this stage (we do not have to synchronize it)
 	//  - attribute-level validation should be supported
 	def validate(implicit xact:Transaction): Boolean = {
-		debug("\tvalidation started")
+		// debug("\tvalidation started")
 		val concurrentXacts = recentlyCommittedXacts.filter(t => t.commitTS > xact.startTS)
-		debug("\t\tconcurrentXacts = " + concurrentXacts)
+		// debug("\t\tconcurrentXacts = " + concurrentXacts)
 		concurrentXacts.foreach { t =>
 			var dv = t.undoBuffer
 			while(dv != null) {
-				debug("\t\tchecking whether " + dv + " (in " + t + ") matches predicates in " + xact)
+				// debug("\t\tchecking whether " + dv + " (in " + t + ") matches predicates in " + xact)
 				if(xact.matchesPredicates(dv)) {
-					debug("\tvalidation failed")
+					// debug("\tvalidation failed")
 					failedValidation += 1
 					return false
 				}
 				else {
-					debug("\t\t\t did not match!")
+					// debug("\t\t\t did not match!")
 				}
 				dv = dv.nextInUndoBuffer
 			}
 		}
-		debug("\tvalidation succeeded")
+		// debug("\tvalidation succeeded")
 		true
 	}
 
 	def rollback(implicit xact:Transaction) = {
-		debug("rollback started")
+		// debug("rollback started")
 		activeXacts remove xact.xactId
 		// debug("\twith undo buffer(%d) = %%s".format(xact.undoBufferSize, xact.undoBufferToString))
 		var dv = xact.undoBuffer
 		while(dv != null) {
-			debug("\t\tremoved => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
+			// debug("\t\tremoved => (" + dv.getTable+"," + dv.getKey + ", " + dv + ")")
 			dv.remove
 			dv = dv.nextInUndoBuffer
 		}
-		debug("rollback finished")
+		// debug("rollback finished")
 	}
 
 	private def garbageCollect(implicit xact:Transaction) {
@@ -187,8 +199,7 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 
 			var reachedLimit = false
 			while(!reachedLimit && !recentlyCommittedXacts.isEmpty) {
-				val xact = recentlyCommittedXacts.head
-				implicit val theXact = xact
+				implicit val xact = recentlyCommittedXacts.head
 				if(xact.commitTS < oldestActiveXactStartTS) {
 					debug("\tremoving xact = " + xact.transactionId)
 					var dv = xact.undoBuffer
@@ -211,9 +222,11 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 						}
 						dv = dv.nextInUndoBuffer
 					}
-					recentlyCommittedXacts.synchronized {
+					// recentlyCommittedXacts.synchronized {
+					// here is the only place that we are removing from the recentlyCommittedXacts
+					// and only one thread can be active here, so no synchronization is required
 						recentlyCommittedXacts.remove(0)
-					}
+					// }
 				} else {
 					debug("\treached gc limit T"+xact.transactionId+" vs. oldestActiveXactStartTS=" + oldestActiveXactStartTS)
 					reachedLimit = true
