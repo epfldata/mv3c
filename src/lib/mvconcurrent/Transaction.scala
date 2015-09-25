@@ -102,7 +102,7 @@ class Transaction(val tm: TransactionManager, val name: String, val startTS: Lon
 	}
 
 	def imageMatchesPredicates(dv:DeltaVersion[_,_], predsHead: Predicate): Boolean = {
-		var p = preds
+		var p = predsHead
 		do {
 			if(p.matches(dv)) {
 				debug("\t\t\t matched " + p + "!")(this)
