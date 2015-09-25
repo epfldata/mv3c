@@ -1,13 +1,11 @@
 package ddbt.lib.mvconcurrent
 
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable._
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import TransactionManager._
-import ddbt.lib.util.BackOffAtomicLong
 
 /**
  * TransactionManager class has the responsibility of managing
@@ -15,6 +13,9 @@ import ddbt.lib.util.BackOffAtomicLong
  * concurrency control mechanism (that is MVCC).
  */
 object TransactionManager {
+	// type AtomicLongType = java.util.concurrent.atomic.AtomicLong
+	type AtomicLongType = ddbt.lib.util.BackOffAtomicLong
+
 	val TRANSACTION_ID_GEN_START = (1L << 32)
 	val TRANSACTION_STRAT_TS_GEN_START = 1L
 
@@ -50,8 +51,8 @@ class TransactionManager(isUnitTestEnabled: =>Boolean) {
 	// 	failedConcurrentInsert = 0
 	// }
 
-	val transactionIdGen = new BackOffAtomicLong(TransactionManager.TRANSACTION_ID_GEN_START)
-	val startAndCommitTimestampGen = new BackOffAtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
+	val transactionIdGen = new AtomicLongType(TransactionManager.TRANSACTION_ID_GEN_START)
+	val startAndCommitTimestampGen = new AtomicLongType(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
 	val isGcActive = new AtomicBoolean(DISABLE_GC)
 
 	val activeXacts = new ConcurrentHashMap[Long,Transaction]
