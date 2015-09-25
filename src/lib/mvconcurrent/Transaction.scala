@@ -29,7 +29,7 @@ class Transaction(val tm: TransactionManager, val name: String, val startTS: Lon
 
 	def isCommitted = (xactId < TransactionManager.TRANSACTION_ID_GEN_START)
 
-	def isReadOnly = (undoBuffer == null)
+	var isReadOnly = true
 
 	def undoBufferSize = {
 		var res = 0
@@ -54,6 +54,7 @@ class Transaction(val tm: TransactionManager, val name: String, val startTS: Lon
 	}
 	def addToUndoBuffer(dv: DeltaVersion[_,_]) {
 		if(isDefinedReadOnly) throw new RuntimeException("Read-only transactions cannot write into the DB objects.")
+		isReadOnly = false
 		if(undoBuffer == null) undoBuffer = dv
 		else {
 			dv.nextInUndoBuffer = undoBuffer
