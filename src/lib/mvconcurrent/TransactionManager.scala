@@ -79,13 +79,14 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 			val startTS = startAndCommitTimestampGen.get
 			val xactId = startTS
 			xact = new Transaction(this, name, startTS, xactId, readOnly, tInfo)
+			// debug("started at %d".format(startTS))(xact)
 		} else {
 			val startTS = startAndCommitTimestampGen.getAndIncrement
 			val xactId = transactionIdGen.getAndIncrement
 			xact = new Transaction(this, name, startTS, xactId, readOnly, tInfo)
 			activeXacts(tInfo.tid).set(xact)
+			// debug("started at %d".format(startTS))(xact)
 		}
-		// debug("started at %d".format(startTS))
 		xact
 	}
 
@@ -93,6 +94,7 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 		// debug("commit started")
 		val xactThreadId = xact.tInfo.tid
 		if(xact.isDefinedReadOnly) {
+			// debug("(defined read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
 			true
 		} else if(xact.isReadOnly) {
 			// we assume that a Transaction object cannot be instantiated
@@ -123,7 +125,7 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 				if(!validate) {
 					commitLock.unlock
 					alreadyUnlocked = true
-					debug("commit failed: transaction validation failed! We have to roll it back...")
+					// debug("commit failed: transaction validation failed! We have to roll it back...")
 					rollback
 					false
 				} else {

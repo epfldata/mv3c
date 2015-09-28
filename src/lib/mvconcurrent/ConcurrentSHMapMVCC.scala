@@ -274,7 +274,7 @@ final class DeltaVersion[K,V <: Product](val vXact:Transaction, @volatile var en
   // @inline //inlining is disabled during development
   final def isVisible(implicit xact:Transaction): Boolean = entry.synchronized {
     /*val res = */(!isDeleted) && ((vXact eq xact) || 
-        (vXact.isCommitted && (vXact.xactId < xact.startTS)
+        (vXact.isCommitted && (vXact.xactId <= xact.startTS)
             && ((prev == null) || (prev.vXact.commitTS > xact.startTS))
         )
       )
@@ -490,7 +490,7 @@ object ConcurrentSHMapMVCC {
         }
         val resXact = res.vXact
         if((resXact eq xact) || 
-           (resXact.isCommitted && resXact.xactId < xact.startTS)) {
+           (resXact.isCommitted && resXact.xactId <= xact.startTS)) {
           found = true
         }
         if(!found) {
