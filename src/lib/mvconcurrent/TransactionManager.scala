@@ -121,9 +121,9 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 			var alreadyUnlocked = false
 			try {
 				if(!validate) {
-					// debug("commit failed: transaction validation failed! We have to roll it back...")
 					commitLock.unlock
 					alreadyUnlocked = true
+					debug("commit failed: transaction validation failed! We have to roll it back...")
 					rollback
 					false
 				} else {
@@ -149,9 +149,9 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 						}
 						commitLock.unlock
 						alreadyUnlocked = true
+						// debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
 						// if(isUnitTestEnabled) allCommittedXacts += xact
 						garbageCollect
-						// debug("commit succeeded (with commitTS = %d)".format(xact.commitTS))
 						true
 					// }
 				}
@@ -266,6 +266,7 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 						while(!recentlyCommittedXacts.compareAndSet(currRecentlyCommittedXacts, currRecentlyCommittedXacts.tail)) {
 							currRecentlyCommittedXacts = recentlyCommittedXacts.get
 						}
+						currRecentlyCommittedXacts = currRecentlyCommittedXacts.tail
 					// }
 				} else {
 					// debug("\treached gc limit T"+xact.transactionId+" vs. oldestActiveXactStartTS=" + oldestActiveXactStartTS)
