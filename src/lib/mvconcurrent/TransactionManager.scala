@@ -42,10 +42,10 @@ object TransactionManager {
 	def error(e: Throwable)(implicit xact:Transaction): Unit = if(ERROR) { error(e.toString); e.getStackTrace.foreach(st => error(st.toString))}
 }
 class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
-	var forcedRollback = 0 // is the rollback requested by transaction program (and it’s a part of benchmark)
-	var failedValidation = 0 // is the rollback due to the validation failure
-	var failedConcurrentUpdate = 0 // is the rollback due to a concurrent update (for the same object), which is not allowed in the reference impl.
-	var failedConcurrentInsert = 0 // is the rollback due to a concurrent insert (for the same object), which is not allowed in the reference impl.
+	@volatile var forcedRollback = 0 // is the rollback requested by transaction program (and it’s a part of benchmark)
+	@volatile var failedValidation = 0 // is the rollback due to the validation failure
+	@volatile var failedConcurrentUpdate = 0 // is the rollback due to a concurrent update (for the same object), which is not allowed in the reference impl.
+	@volatile var failedConcurrentInsert = 0 // is the rollback due to a concurrent insert (for the same object), which is not allowed in the reference impl.
 
 	// def clear = {
 	// 	forcedRollback = 0
