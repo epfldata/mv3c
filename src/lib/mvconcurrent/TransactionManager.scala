@@ -65,9 +65,10 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 			activeXacts(i) = new AtomicReference[Transaction]
 		}
 	}
+
 	//List of recently committed transactions consists of
 	//the most recent committed transaction in its head
-	val recentlyCommittedXacts = new ListBuffer[Transaction]()
+	val recentlyCommittedXacts = new AtomicReference[List[Transaction]](List[Transaction]())
 	// val allCommittedXacts = new ListBuffer[Transaction]()
 
 	val commitLock = new ReentrantLock
@@ -142,7 +143,10 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 						xact.xactId = startAndCommitTimestampGen.getAndIncrement
 						// debug("\twith undo buffer(%d) = %%s".format(xact.undoBufferSize, xact.undoBufferToString))
 						//appends the transaction to the recently commmitted transactions list
-						recentlyCommittedXacts += xact
+						var currRecentlyCommittedXacts = recentlyCommittedXacts.get
+						while(!recentlyCommittedXacts.compareAndSet(currRecentlyCommittedXacts, currRecentlyCommittedXacts :+ xact)) {
+							currRecentlyCommittedXacts = recentlyCommittedXacts.get
+						}
 						commitLock.unlock
 						alreadyUnlocked = true
 						// if(isUnitTestEnabled) allCommittedXacts += xact
@@ -162,7 +166,7 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 	//  - attribute-level validation should be supported
 	def validate(implicit xact:Transaction): Boolean = {
 		// debug("\tvalidation started")
-		val concurrentXacts = recentlyCommittedXacts.filter(t => t.commitTS > xact.startTS)
+		val concurrentXacts = recentlyCommittedXacts.get.filter(t => t.commitTS > xact.startTS)
 		// debug("\t\tconcurrentXacts = " + concurrentXacts)
 		concurrentXacts.foreach { t =>
 			var dv = t.undoBuffer
@@ -215,7 +219,8 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 
 	private def gcInternal(implicit xact:Transaction) {
 		// debug("GC started")
-		if(!recentlyCommittedXacts.isEmpty) {
+		var currRecentlyCommittedXacts = recentlyCommittedXacts.get
+		if(!currRecentlyCommittedXacts.isEmpty) {
 			var oldestActiveXactStartTS = TransactionManager.TRANSACTION_ID_GEN_START
 
 			val len = activeXacts.length
@@ -231,8 +236,8 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 			// debug("\toldestActiveXactStartTS = " + oldestActiveXactStartTS)
 
 			var reachedLimit = false
-			while(!reachedLimit && !recentlyCommittedXacts.isEmpty) {
-				implicit val xact = recentlyCommittedXacts.head
+			while(!reachedLimit && !currRecentlyCommittedXacts.isEmpty) {
+				implicit val xact = currRecentlyCommittedXacts.head
 				if(xact.commitTS < oldestActiveXactStartTS) {
 					// debug("\tremoving xact = " + xact.transactionId)
 					var dv = xact.undoBuffer
@@ -258,7 +263,9 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 					// recentlyCommittedXacts.synchronized {
 					// here is the only place that we are removing from the recentlyCommittedXacts
 					// and only one thread can be active here, so no synchronization is required
-						recentlyCommittedXacts.remove(0)
+						while(!recentlyCommittedXacts.compareAndSet(currRecentlyCommittedXacts, currRecentlyCommittedXacts.tail)) {
+							currRecentlyCommittedXacts = recentlyCommittedXacts.get
+						}
 					// }
 				} else {
 					// debug("\treached gc limit T"+xact.transactionId+" vs. oldestActiveXactStartTS=" + oldestActiveXactStartTS)
