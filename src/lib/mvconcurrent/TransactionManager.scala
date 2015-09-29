@@ -59,8 +59,15 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 	val startAndCommitTimestampGen = new java.util.concurrent.atomic.AtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
 	val isGcActive = new AtomicBoolean(DISABLE_GC)
 
-	val activeXacts = new AtomicReferenceArray[Transaction](numConn)
+	val activeXacts = new Array[AtomicReference[Transaction]](numConn)
 
+	{
+		var i = 0
+		while(i < activeXacts.length) {
+			activeXacts(i) = new AtomicReference[Transaction]()
+			i += 1
+		}
+	}
 	//List of recently committed transactions consists of
 	//the most recent committed transaction in its head
 	val recentlyCommittedXacts = new AtomicReference[List[Transaction]](List[Transaction]())
@@ -97,14 +104,21 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 		}
 		val xactId = transactionIdGen.getAndIncrement
 		val xact = new Transaction(this, name, startTS, xactId, readOnly, tInfo)
-		activeXacts.set(tInfo.tid, xact)
+
+		// instead of accessing the atomic reference from the array
+		// it is more efficient to access it from ThreadInfo object
+		// You can have a look into the ThreadTest4
+		// activeXacts(tInfo.tid).set(xact)
+		if(null eq tInfo.currentXact) tInfo.currentXact = activeXacts(tInfo.tid).asInstanceOf[AtomicReference[AnyRef]]
+		tInfo.currentXact.set(xact)
+		
 		// debug("started at %d".format(startTS))(xact)
 		xact
 	}
 
 	def commit(implicit xact:Transaction):Boolean = /*this.synchronized*/ {
 		// debug("commit started")
-		val xactThreadId = xact.tInfo.tid
+		// val xactThreadId = xact.tInfo.tid
 		if(xact.isDefinedReadOnly) {
 			// debug("(defined read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
 			xact.xactId = xact.startTS
@@ -247,7 +261,7 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 			var i = 0
 			// var startTSList = List[Long]()
 			while(i < len) {
-				val t = activeXacts.get(i)
+				val t = activeXacts(i).get
 				// if((null ne t)) startTSList = t.startTS :: startTSList
 				//if we are doing sequential GC, then we can safely ignore
 				//the current transaction, because we know that it has been

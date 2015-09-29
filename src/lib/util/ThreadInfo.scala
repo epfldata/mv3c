@@ -1,3 +1,7 @@
 package ddbt.lib.util
 
-class ThreadInfo(val tid:Int)
+import java.util.concurrent.atomic.AtomicReference
+
+class ThreadInfo(val tid:Int) {
+	var currentXact:AtomicReference[AnyRef] = null
+}
