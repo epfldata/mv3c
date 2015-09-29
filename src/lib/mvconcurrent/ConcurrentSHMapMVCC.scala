@@ -2737,17 +2737,17 @@ class ConcurrentSHMapMVCC[K, V <: Product](val tbl:Table, val projs:(K,V)=>_ *)(
    * @since 1.8
    */
   // @inline //inlining is disabled during development
-  final private def forEachEntry(parallelismThreshold: Long, action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction)  {
+  final private def forEachEntry(parallelismThreshold: Long, action: DeltaVersion[K, V] => Unit)(implicit xact:Transaction)  {
     xact.addPredicate(Predicate(tbl, ForeachPredicateOp()))
     if (action == null) throw new NullPointerException
     new ForEachEntryTask[K, V](null, batchFor(parallelismThreshold), 0, 0, table, { e =>
       val dv = e.getTheValue
-      if((dv ne null) && (dv.getImage != null)) action(e)
+      if((dv ne null) && (dv.getImage != null)) action(dv)
     }).invoke
   }
 
   // @inline //inlining is disabled during development
-  final def foreachEntry(action: SEntryMVCC[K, V] => Unit)(implicit xact:Transaction) {
+  final def foreachEntry(action: DeltaVersion[K, V] => Unit)(implicit xact:Transaction) {
     forEachEntry(ONE_THREAD_NO_PARALLELISM, action)
   }
 
