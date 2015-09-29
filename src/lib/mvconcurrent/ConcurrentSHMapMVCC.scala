@@ -536,9 +536,15 @@ object ConcurrentSHMapMVCC {
     final override def toString: String = {
       throw new UnsupportedOperationException("The toString method is not supported in SEntryMVCC. You should use the overloaded method accepting the Transaction as an extra parameter.")
     }
-    // final def toString(implicit xact:Transaction): String = {
-    //   key + "=" + getValueImage
-    // }
+    final def toString(implicit xact:Transaction): String = {
+      var iter = value
+      val res = new StringBuilder(key.toString).append("=")
+      while(null ne iter) {
+        res.append("\n\t -> ").append(iter)
+        iter = iter.next
+      }
+      res.toString
+    }
 
     final override def equals(o: Any): Boolean = {
       //TODO add safety checks (checking for null or isInstanceOf)?
