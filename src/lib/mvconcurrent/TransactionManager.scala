@@ -4,6 +4,7 @@ import ddbt.lib.util.ThreadInfo
 import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicReferenceArray
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable._
 import scala.concurrent._
@@ -55,38 +56,49 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 	// }
 
 	val transactionIdGen = new AtomicLongType(TransactionManager.TRANSACTION_ID_GEN_START)
-	val startAndCommitTimestampGen = new AtomicLongType(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
+	val startAndCommitTimestampGen = new java.util.concurrent.atomic.AtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
 	val isGcActive = new AtomicBoolean(DISABLE_GC)
 
-	val activeXacts = new Array[AtomicReference[Transaction]](numConn)
-
-	{
-		for(i <- 0 until numConn) {
-			activeXacts(i) = new AtomicReference[Transaction]
-		}
-	}
+	val activeXacts = new AtomicReferenceArray[Transaction](numConn)
 
 	//List of recently committed transactions consists of
 	//the most recent committed transaction in its head
 	val recentlyCommittedXacts = new AtomicReference[List[Transaction]](List[Transaction]())
 	// val allCommittedXacts = new ListBuffer[Transaction]()
 
+	/**
+	 * This lock prevents any conflicts at commit time
+	 * Only one transaction can validate and commit at a time
+	 */
 	val commitLock = new ReentrantLock
+	/**
+	 * This lock is required to make sure that while we are seeting the commit
+	 * timestamp for a transaction, after increasing startAndCommitTimestampGen
+	 * and before setting it as commit timestamp, another transaction aquires
+	 * a newer startAndCommitTimestampGen and does its job, without seeing
+	 * the versions written by the former committed transaction
+	 */
+	val timestampLock = new ReentrantLock
 
+	/**
+	 * Starts a new transaction managed by this transaction manager.
+	 * We have to do all the work even for the read-only transactions
+	 * because they should be in the active transactions array
+	 * in order to prevent garbage collector from removing the versions
+	 * that might be visible to them
+	 */
 	def begin(name: String, readOnly: Boolean=false)(implicit tInfo: ThreadInfo): Transaction = {
-		var xact:Transaction = null
-		if(readOnly) {
-			val startTS = startAndCommitTimestampGen.get
-			val xactId = startTS
-			xact = new Transaction(this, name, startTS, xactId, readOnly, tInfo)
-			// debug("started at %d".format(startTS))(xact)
-		} else {
-			val startTS = startAndCommitTimestampGen.getAndIncrement
-			val xactId = transactionIdGen.getAndIncrement
-			xact = new Transaction(this, name, startTS, xactId, readOnly, tInfo)
-			activeXacts(tInfo.tid).set(xact)
-			// debug("started at %d".format(startTS))(xact)
+		var startTS = 0L
+		timestampLock.lock
+		try {
+			startTS = startAndCommitTimestampGen.getAndIncrement
+		} finally {
+			timestampLock.unlock
 		}
+		val xactId = transactionIdGen.getAndIncrement
+		val xact = new Transaction(this, name, startTS, xactId, readOnly, tInfo)
+		activeXacts.set(tInfo.tid, xact)
+		// debug("started at %d".format(startTS))(xact)
 		xact
 	}
 
@@ -95,6 +107,7 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 		val xactThreadId = xact.tInfo.tid
 		if(xact.isDefinedReadOnly) {
 			// debug("(defined read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
+			xact.xactId = xact.startTS
 			true
 		} else if(xact.isReadOnly) {
 			// we assume that a Transaction object cannot be instantiated
@@ -142,7 +155,12 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 						//under the assumption that the current thread will quickly
 						//do the next transaction, otherwise it should be done
 						// activeXacts.set(xactThreadId, null)
-						xact.xactId = startAndCommitTimestampGen.getAndIncrement
+						timestampLock.lock
+						try {
+							xact.xactId = startAndCommitTimestampGen.getAndIncrement
+						} finally {
+							timestampLock.unlock
+						}
 						// debug("\twith undo buffer(%d) = %%s".format(xact.undoBufferSize, xact.undoBufferToString))
 						//appends the transaction to the recently commmitted transactions list
 						var currRecentlyCommittedXacts = recentlyCommittedXacts.get
@@ -227,13 +245,22 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 
 			val len = activeXacts.length
 			var i = 0
+			// var startTSList = List[Long]()
 			while(i < len) {
-				val t = activeXacts(i).get
-				if((null ne t) && (xact ne t /*because we did not remove current xact from active xact list*/) && t.startTS < oldestActiveXactStartTS) {
+				val t = activeXacts.get(i)
+				// if((null ne t)) startTSList = t.startTS :: startTSList
+				//if we are doing sequential GC, then we can safely ignore
+				//the current transaction, because we know that it has been
+				//already committed. However, while doing parallel GC, there
+				//is a chance that the next transaction that is substituting
+				//the current xact might appear in the array with some delay
+				//in which we will miss it if it is the oldest one
+				if((null ne t) && (PARALLEL_GC || (xact ne t /*because we did not remove current xact from active xact list*/)) && t.startTS < oldestActiveXactStartTS) {
 					oldestActiveXactStartTS = t.startTS
 				}
 				i += 1
 			}
+			// debug("oldestActiveXactStartTS = %d among %s".format(oldestActiveXactStartTS, startTSList ))
 			// debug("\tactiveXacts = " + activeXacts)
 			// debug("\toldestActiveXactStartTS = " + oldestActiveXactStartTS)
 
@@ -241,6 +268,7 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 			while(!reachedLimit && !currRecentlyCommittedXacts.isEmpty) {
 				implicit val xact = currRecentlyCommittedXacts.head
 				if(xact.commitTS < oldestActiveXactStartTS) {
+					// debug("GC => " + xact)
 					// debug("\tremoving xact = " + xact.transactionId)
 					var dv = xact.undoBuffer
 					while(dv != null) {
