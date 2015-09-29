@@ -141,11 +141,10 @@ class XactBench(val xactSelector: XactImplSelector) {
 			throw new RuntimeException("Duration has to be greater than or equal to 1.")
 		}
 
-		val xactImpl = xactSelector.select(implVersionUnderTest, numConn)
-
 		var iter = 0
 		while(iter < NUM_ITERATIONS) {
-			
+			val xactImpl = xactSelector.select(implVersionUnderTest, numConn)
+
 			RtHist.histInit()
 			activate_transaction = true
 			num_node = 0
