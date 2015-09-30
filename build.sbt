@@ -32,7 +32,7 @@ libraryDependencies ++= Seq(
 
 // --------- Compilation options
 Seq(
-  scalaVersion := "2.11.6",
+  scalaVersion := "2.11.7",
   scalacOptions ++= Seq("-deprecation","-unchecked","-feature","-optimise","-Yinline-warnings"), // ,"-target:jvm-1.7"
   javacOptions ++= Seq("-Xlint:unchecked","-Xlint:-options","-source","1.8","-target","1.8") // forces JVM 1.6 compatibility with JDK 1.7 compiler
 )
