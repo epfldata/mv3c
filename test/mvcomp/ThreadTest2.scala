@@ -18,7 +18,6 @@ import ddbt.tpcc.loadtest.{RtHist, Util, NamedThreadFactory}
 import ThreadTest2._
 
 object ThreadTest2 {
-	val numConn = 8
 	val rampupTime = 5
 	val measureTime = 10
 
@@ -49,6 +48,8 @@ object ThreadTest2 {
 	// }
 
 	def main(argv:Array[String]) {
+		if(argv.length == 0) throw new RuntimeException("Please specify the number of connections")
+		val numConn =  Integer.parseInt(argv(0))
 
 		val executor = Executors.newFixedThreadPool(numConn, new NamedThreadFactory("xact-thread"))
 
