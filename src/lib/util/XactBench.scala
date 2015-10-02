@@ -14,7 +14,6 @@ import org.slf4j.Logger
 import ddbt.tpcc.loadtest.Driver
 import java.util.concurrent._
 import ddbt.tpcc.loadtest.{RtHist, Util, NamedThreadFactory}
-import java.util.concurrent.ThreadLocalRandom
 
 object XactBench {
 
@@ -356,7 +355,7 @@ class XactDriver(
 
 	override def doNextTransaction(tInfo: ThreadInfo, sequence: Int) {
 		// counter.value += 1L
-		xactImpl.runXact(this, tInfo, sequence, ThreadLocalRandom.current)
+		xactImpl.runXact(this, tInfo, sequence)
 	}
 
 	override def runCommandSeq(commandSeq:Seq[ddbt.lib.util.XactCommand])(implicit tInfo: ThreadInfo) = xactImpl.runXactSeq(this, commandSeq)
@@ -370,6 +369,6 @@ abstract class XactImplSelector {
 
 abstract class XactImpl {
 	@volatile var isCountingOn = false
-	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int, rnd:ThreadLocalRandom): Unit
+	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int): Unit
 	def runXactSeq(driver: Driver, commandSeq:Seq[ddbt.lib.util.XactCommand])(implicit tInfo: ThreadInfo): Unit
 }

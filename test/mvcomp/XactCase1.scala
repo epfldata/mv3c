@@ -8,7 +8,6 @@ import ddbt.lib.util.XactBench
 import XactBench._
 import ddbt.tpcc.loadtest.Driver
 import ddbt.tpcc.loadtest.Util
-import java.util.concurrent.ThreadLocalRandom
 import XactCase1._
 
 object XactCase1 {
@@ -53,7 +52,8 @@ class XactCase1MVCC(numConn: Int) extends XactImpl {
 
 	val tm = new TransactionManager(numConn, false)
 
-	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int, rnd: ThreadLocalRandom){
+	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int){
+		val rnd = java.util.concurrent.ThreadLocalRandom.current
 		if (sequence == 0) {
 			val timeout = TIMEOUT_T1
 			val fromAcc = rnd.nextInt(NUM_ACCOUNTS)
@@ -155,7 +155,8 @@ class XactCase1MVC3T(numConn: Int) extends XactImpl {
 	val tm = new TransactionManager(false)
 
 	var amt = 0
-	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int, rnd: ThreadLocalRandom){
+	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int){
+		val rnd = java.util.concurrent.ThreadLocalRandom.current
 		if (sequence == 0) {
 			val timeout = TIMEOUT_T1
 			val fromAcc = rnd.nextInt(NUM_ACCOUNTS)

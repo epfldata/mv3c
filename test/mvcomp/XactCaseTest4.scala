@@ -8,7 +8,6 @@ import ddbt.lib.util.XactBench
 import XactBench._
 import ddbt.tpcc.loadtest.Driver
 import ddbt.tpcc.loadtest.Util
-import java.util.concurrent.ThreadLocalRandom
 import XactCaseTest4._
 
 /**
@@ -68,7 +67,7 @@ class XactCaseTest4MVCC(numConn: Int) extends XactImpl {
 
 	val tm = new TransactionManager(numConn, false)
 
-	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int, rnd: ThreadLocalRandom){
+	def runXact(driver: Driver, tInfo: ThreadInfo, sequence: Int){
 		if (sequence == 0) {
 			driver.execTransaction(tInfo, sequence, 0, isCountingOn) { tInfo:ThreadInfo =>
 				execXact1(0,0,0)(tInfo)
