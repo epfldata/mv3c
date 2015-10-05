@@ -17,6 +17,21 @@ import java.util.concurrent._
 import ddbt.tpcc.loadtest.{RtHist, Util, NamedThreadFactory}
 import ThreadTest2._
 
+/**
+ * This class tests the maximum performance of multi-threaded app
+ * (i.e. the maximum number of calls to an empty function),
+ * by signaling the exec thread via @volatile booleans inside
+ * the exec thread
+ *
+ * The results for a machine with 1 CPU with 12 cores
+ *   For 1  thread :   547,949,109 xact/sec
+ *   For 2  threads: 1,093,456,332 xact/sec
+ *   For 4  threads: 1,988,643,984 xact/sec
+ *   For 8  threads: 3,845,784,392 xact/sec
+ *   For 12 threads: 5,766,365,850 xact/sec
+ *   For 16 threads: 5,762,638,260 xact/sec
+ *   For 24 threads: 5,762,235,600 xact/sec
+ */
 object ThreadTest2 {
 	val rampupTime = 5
 	val measureTime = 10

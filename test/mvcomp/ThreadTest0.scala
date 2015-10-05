@@ -15,41 +15,45 @@ import org.slf4j.Logger
 import ddbt.tpcc.loadtest.Driver
 import java.util.concurrent._
 import ddbt.tpcc.loadtest.{RtHist, Util, NamedThreadFactory}
-import ThreadTest1._
-
+import ThreadTest0._
 /**
  * This class tests the maximum performance of multi-threaded app
  * (i.e. the maximum number of calls to an empty function),
- * by signaling the exec thread via @volatile booleans packed in
- * a stateChecker object
+ * by checking the test time inside the exec thread
  *
  * The results for a machine with 1 CPU with 12 cores
- *   For 1  thread :   547,910,043 xact/sec
- *   For 2  threads: 1,091,895,030 xact/sec
- *   For 4  threads: 1,989,464,173 xact/sec
- *   For 8  threads: 3,848,110,662 xact/sec
- *   For 12 threads: 5,764,074,822 xact/sec
- *   For 16 threads: 5,763,591,216 xact/sec
- *   For 24 threads: 5,761,858,638 xact/sec
+ *   For 1  thread :  46,974,000 xact/sec
+ *   For 2  threads:  96,550,321 xact/sec
+ *   For 4  threads: 175,439,303 xact/sec
+ *   For 8  threads: 339,674,272 xact/sec
+ *   For 12 threads: 495,592,806 xact/sec
+ *   For 16 threads: 495,515,713 xact/sec
+ *   For 24 threads: 495,676,649 xact/sec
  */
-object ThreadTest1 {
+object ThreadTest0 {
 	val rampupTime = 10
 	val measureTime = 10
 
 	val stateChecker = new StateChecker
 
 	class SampleWorker(id:Int, stateChecker:StateChecker) extends Thread {
+		val rampupStart = System.currentTimeMillis()
+		var startTime = rampupStart + (rampupTime * 1000)
+		var finishTime = startTime + (measureTime * 1000)
 		var counter = 0L
 		// var counter2 = 0
 		override def run() {
 			println("started " + id)
-			while(stateChecker.isActive) {
+			var now = System.currentTimeMillis()
+			while(now < finishTime) {
 				// println("stateChecker.isActive = " + stateChecker.isActive)
-				if(stateChecker.counting_on) {
+				if(now > startTime) {
 					// println("stateChecker.counting_on = " + stateChecker.counting_on)
 					counter += 1L
 				}
+				now = System.currentTimeMillis()
 			}
+			finishTime = now
 
 			println("finished " + id)
 		}
@@ -73,40 +77,20 @@ object ThreadTest1 {
 			workers(i) = worker
 			executor.execute(worker)
 		}
-		println("started")
-		println("ramp up")
-		Thread.sleep(rampupTime * 1000)
-		stateChecker.counting_on = true
-		println("counting")
-		val startTime = System.currentTimeMillis()
-		var runTime = 0L
-		while ({(runTime = System.currentTimeMillis() - startTime); runTime} < measureTime * 1000) {
-			//println("Current execution time lapse: " + df.format(runTime / 1000f) + " seconds")
-			try {
-				Thread.sleep(1000)
-			} catch {
-				case e: InterruptedException => new RuntimeException("Sleep interrupted", e)
-			}
-		}
-		stateChecker.counting_on = false
-		stateChecker.isActive = false
-		val actualTestTime = System.currentTimeMillis() - startTime
-		println("finished")
-		var countAll = 0L
-		for (i <- 0 until numConn) {
-			countAll += workers(i).counter
-			println("worker(%d) = %,d".format(i, workers(i).counter))
-		}
-		println("countAll = %,d".format(countAll))
-		println("actualTestTime = %d".format(actualTestTime))
-		println("run/sec = %,.0f".format((countAll * 1.0) / (actualTestTime / 1000.0) ))
+		
 		executor.shutdown()
-		println("trying to shut down")
 		try {
-			executor.awaitTermination(30, TimeUnit.SECONDS)
+			executor.awaitTermination(120, TimeUnit.SECONDS)
 		} catch {
 			case e: InterruptedException => println("Timed out waiting for executor to terminate")
 		}
-		println("shut down")
+		var averageAll = 0.0
+		for (i <- 0 until numConn) {
+			val actualTestTime = workers(i).finishTime - workers(i).startTime
+			averageAll += workers(i).counter / (actualTestTime / 1000.0)
+			println("worker(%d) = %,d in %.2f sec".format(i, workers(i).counter, actualTestTime / 1000.0))
+		}
+		println("run/sec = %,.0f".format(averageAll))
+		
 	}
 }
