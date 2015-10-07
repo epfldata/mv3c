@@ -11,7 +11,7 @@ import TransactionManager._
  * running a transaction program in a concurrent execution
  * environment.
  */
-class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, var isDefinedReadOnly: Boolean, val tInfo:ThreadInfo) {
+class Transaction(val tm: TransactionManager, val name: String, val startTS: Long, var xactId: Long, val isDefinedReadOnly: Boolean, val tInfo:ThreadInfo) {
 	// val DEFAULT_UNDO_BUFFER_SIZE = 64
 
 	var committed = false
