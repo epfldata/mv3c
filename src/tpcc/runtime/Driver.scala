@@ -1,5 +1,7 @@
 package ddbt.tpcc.loadtest
 
+import java.text.SimpleDateFormat
+
 import ddbt.lib.util.ThreadInfo
 import java.io.PrintWriter
 import java.sql.Connection
@@ -76,7 +78,8 @@ abstract class Driver(var conn: java.sql.Connection,
 
     val threadId = tInfo.tid
 
-    startTime = (System.currentTimeMillis() % 1000) * 1000
+    val sdf = new SimpleDateFormat("dd/MM/yyyy")
+    startTime = sdf.parse("01/12/2015").getTime
 
     num_ware = numWare
     num_conn = numConn

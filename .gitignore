@@ -43,3 +43,4 @@ sstore*.csv
 sstore_*.txt
 *.sql.bz2
 test-output/*
+bench/systems/tpcc/mysql

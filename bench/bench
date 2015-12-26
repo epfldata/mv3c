@@ -28,16 +28,32 @@ if [ ! -z "$MYPASS" ]; then myargs="-p$MYPASS"; fi; myargs="-u$MYUSER $myargs $M
 
 load() { # $1=warehouses, $2=type
  myf="$BENCH/systems/tpcc/mysql/db$1$2.sql.bz2"
+ myd="$BENCH/systems/tpcc/mysql/db$1$2"
  mysql $myargs < $BENCH/systems/tpcc/mysql/tpcc_$2.sql
  mysql $myargs < $BENCH/systems/tpcc/mysql/tpcc_proc.sql
  if [ ! -f "$myf" ]; then
-   echo "Recreating Database W=$1 with $2 ..."
+   echo "Recreating Database W=$1 with $2 (and saving it into $myf)..."
    cd $BASE; sbt "test:run-main ddbt.tpcc.loadtest.TpccLoad -w $1 -u $MYUSER -p $MYPASS" || exit 1; cd $BENCH
    mysqldump $myargs | bzip2 > $myf
+
+   eval "rm -rf $myd"
+   eval "mkdir -p $myd"
+   eval "chmod -R 777 $myd"
+   echo "Saving the state of the created database (into $myd)..."
+   mysqldump --fields-optionally-enclosed-by='"' --fields-terminated-by=',' --tab $myd $myargs
  else
-   echo "Reusing Database W=$1 with $2 ..."
+   echo "Reusing Database W=$1 with $2 (from $myf) ..."
    bzcat $myf | mysql $myargs
  fi
+}
+
+saveDBState() { # $1=warehouses, $2=type
+ resdir="$BENCH/systems/tpcc/mysql/results_db$1$2"
+ eval "rm -rf $resdir"
+ eval "mkdir -p $resdir"
+ eval "chmod -R 777 $resdir"
+ echo "Saving the state of the result database (into $resdir)..."
+ mysqldump --fields-optionally-enclosed-by='"' --fields-terminated-by=',' --tab $resdir $myargs
 }
 
 case "$1" in
@@ -116,6 +132,9 @@ EOF
 ;;
 # ------------------------------------------------------------------------------
 load) load $2 innodb
+;;
+# ------------------------------------------------------------------------------
+save) saveDBState $2 innodb
 ;;
 # ------------------------------------------------------------------------------
 -1|1|2|3|4|5|6|7|8|9|10|11)

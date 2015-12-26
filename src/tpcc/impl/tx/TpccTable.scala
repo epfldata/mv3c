@@ -25,7 +25,9 @@ object TpccTable {
 
 	abstract class TpccCommand extends ddbt.lib.util.XactCommand
 	case class DeliveryCommand(datetime:Date, w_id: Int, o_carrier_id: Int) extends TpccCommand
-	case class NewOrderCommand(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stocks:Array[Int], bg:Array[Char], amt:Array[Float]) extends TpccCommand
+	case class NewOrderCommand(datetime:Date, t_num: Int, w_id:Int, d_id:Int, c_id:Int, o_ol_count:Int, o_all_local:Int, itemid:Array[Int], supware:Array[Int], quantity:Array[Int], price:Array[Float], iname:Array[String], stocks:Array[Int], bg:Array[Char], amt:Array[Float]) extends TpccCommand{
+		override def toString = "NewOrderCommand("+datetime+","+t_num+","+w_id+","+d_id+","+c_id+","+o_ol_count+","+o_all_local+","+itemid.mkString("[",",","]")+","+supware.mkString("[",",","]")+","+quantity.mkString("[",",","]")+")"
+	}
 	case class OrderStatusCommand(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String) extends TpccCommand
 	case class PaymentCommand(datetime:Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last_input: String, h_amount: Float) extends TpccCommand
 	case class StockLevelCommand(t_num: Int, w_id: Int, d_id: Int, threshold: Int) extends TpccCommand

@@ -6,10 +6,11 @@ import java.io.IOException
 import java.io.InputStream
 import java.nio.charset.Charset
 import java.text.DecimalFormat
-import java.util.Properties
+import java.util.{Date, Properties}
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import ddbt.tpcc.tx.TpccTable._
 import org.slf4j.LoggerFactory
 import org.slf4j.Logger
 import ddbt.tpcc.tx.TpccTable
@@ -60,15 +61,15 @@ object TpccUnitTest {
   @volatile var counting_on: Boolean = false
 
   def main(argv: Array[String]) {
-    println("TPCC version " + VERSION + " Number of Arguments: " + 
+    println("TPCC version " + VERSION + " Number of Arguments: " +
       argv.length)
     val sysProp = Array("os.name", "os.arch", "os.version", "java.runtime.name", "java.vm.version", "java.library.path")
     for (s <- sysProp) {
       logger.info("System Property: " + s + " = " + System.getProperty(s))
     }
     val df = new DecimalFormat("#,##0.0")
-    println("maxMemory = " + 
-      df.format(Runtime.getRuntime.totalMemory() / (1024.0 * 1024.0)) + 
+    println("maxMemory = " +
+      df.format(Runtime.getRuntime.totalMemory() / (1024.0 * 1024.0)) +
       " MB")
 
     val tpcc = new TpccUnitTest
@@ -262,6 +263,9 @@ class TpccUnitTest {
       throw new RuntimeException("Target implementation should be selected for testing.")
     }
 
+    val commandHistory:Array[TpccCommand]=new Array[TpccCommand](numberOfTestTransactions);
+    var commandHistoryCounter = 0
+
     var newOrder: INewOrderInMem = null
     var payment: IPaymentInMem = null
     var orderStat: IOrderStatusInMem = null
@@ -340,6 +344,57 @@ class TpccUnitTest {
       orderStat = new OrderStatusLMSImpl
       delivery = new DeliveryLMSImpl
       slev = new StockLevelLMSImpl
+    } else if(implVersionUnderTest == -2) { // Command Print
+      newOrder = new INewOrderInMem {
+        override def newOrderTx(datetime: Date, t_num: Int, w_id: Int, d_id: Int, c_id: Int, o_ol_count: Int, o_all_local: Int, itemid: Array[Int], supware: Array[Int], quantity: Array[Int], price: Array[Float], iname: Array[String], stock: Array[Int], bg: Array[Char], amt: Array[Float])(implicit tInfo: ThreadInfo): Int = {
+          commandHistory(commandHistoryCounter) = NewOrderCommand(datetime, t_num, w_id, d_id, c_id, o_ol_count, o_all_local, itemid, supware, quantity, price, iname, stock, bg, amt)
+          commandHistoryCounter += 1
+
+          1
+        }
+
+        override def setSharedData(db: AnyRef): this.type = this
+      }
+      payment = new IPaymentInMem {
+        override def paymentTx(datetime: Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_w_id: Int, c_d_id: Int, c_id: Int, c_last: String, h_amount: Float)(implicit tInfo: ThreadInfo): Int = {
+          commandHistory(commandHistoryCounter) = PaymentCommand(datetime,t_num,w_id,d_id, c_by_name, c_w_id, c_d_id, c_id, c_last, h_amount)
+          commandHistoryCounter += 1
+
+          1
+        }
+
+        override def setSharedData(db: AnyRef): this.type = this
+      }
+      orderStat = new IOrderStatusInMem {
+        override def orderStatusTx(datetime: Date, t_num: Int, w_id: Int, d_id: Int, c_by_name: Int, c_id: Int, c_last: String)(implicit tInfo: ThreadInfo): Int = {
+          commandHistory(commandHistoryCounter) = OrderStatusCommand(datetime, t_num, w_id, d_id, c_by_name, c_id, c_last)
+          commandHistoryCounter += 1
+
+          1
+        }
+
+        override def setSharedData(db: AnyRef): this.type = this
+      }
+      slev = new IStockLevelInMem {
+        override def stockLevelTx(t_num: Int, w_id: Int, d_id: Int, threshold: Int)(implicit tInfo: ThreadInfo): Int = {
+          commandHistory(commandHistoryCounter) = StockLevelCommand(t_num, w_id, d_id, threshold)
+          commandHistoryCounter += 1
+
+          1
+        }
+
+        override def setSharedData(db: AnyRef): this.type = this
+      }
+      delivery = new IDeliveryInMem {
+        override def deliveryTx(datetime: Date, w_id: Int, o_carrier_id: Int)(implicit tInfo: ThreadInfo): Int = {
+          commandHistory(commandHistoryCounter) = DeliveryCommand(datetime, w_id, o_carrier_id)
+          commandHistoryCounter += 1
+
+          1
+        }
+
+        override def setSharedData(db: AnyRef): this.type = this
+      }
     } else {
       throw new RuntimeException("No in-memory implementation selected.")
     }
@@ -388,7 +443,7 @@ class TpccUnitTest {
       orderStat.setSharedData(SharedDataScala)
       slev.setSharedData(SharedDataScala)
       delivery.setSharedData(SharedDataScala)
-    } else {
+    } else if(implVersionUnderTest == -1){
       SharedDataLMS = new EfficientExecutor
       LMSDataLoader.loadDataIntoMaps(SharedDataLMS,javaDriver,jdbcUrl,dbUser,dbPassword)
       logger.info(LMSDataLoader.getAllMapsInfoStr(SharedDataLMS))
@@ -497,7 +552,7 @@ class TpccUnitTest {
       }
     }
 
-    {
+    if(implVersionUnderTest >= -1){
       val newData = new TpccTable(if(implVersionUnderTest == 6) 5 else implVersionUnderTest)
       newData.loadDataIntoMaps(javaDriver,jdbcUrl,dbUser,dbPassword)
 
@@ -506,6 +561,9 @@ class TpccUnitTest {
       } else {
         println("\nThere is some error in transactions, as the results does not match.")
       }
+    } else if(implVersionUnderTest == -2) {
+      println()
+      System.err.println(commandHistory.mkString("","\n",""))
     }
 
     0

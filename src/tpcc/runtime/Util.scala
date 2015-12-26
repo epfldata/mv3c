@@ -100,7 +100,7 @@ object Util{
     dl = d
     sl = s
     total = n + p + o + d + s
-    System.out.print("TOTAL:%d".format(total))
+//    System.out.print("TOTAL:%d".format(total))
     seq = Array.ofDim[Int](total)
     shuffle()
     nextNum = 0
