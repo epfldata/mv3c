@@ -50,10 +50,9 @@ int main(int argc, char** argv) {
     tpcc.loadOrders();
     tpcc.loadStocks();
     tpcc.loadWare();
+
     TransactionManager tm;
     Transaction *t0 = tm.begin();
-    int itemcheck[ItemSize + 1];
-    memset(itemcheck, 0, sizeof (int) * (ItemSize + 1));
     for (const auto&it : tpcc.iCustomer) {
         custTbl.insert(t0, it.first, it.second);
     }
@@ -65,7 +64,6 @@ int main(int argc, char** argv) {
         historyTbl.insert(t0, it.first, it.second);
     }
     for (const auto&it : tpcc.iItem) {
-        itemcheck[it.first._1]++;
         itemTbl.insert(t0, it.first, it.second);
     }
     for (const auto&it : tpcc.iNewOrder) {
@@ -83,14 +81,10 @@ int main(int argc, char** argv) {
     for (const auto&it : tpcc.iWarehouse) {
         wareTbl.insert(t0, it.first, it.second);
     }
-    assert(wareTbl.getReadOnly(t0, WarehouseKey(1)) != nullptr);
-    for (int i = 1; i < 11; ++i) {
-        assert(distTbl.getReadOnly(t0, DistrictKey(i, 1)) != nullptr);
-    }
-
-    Program * programs[numPrograms];
     int neworder = 0;
     int payment = 0;
+    Program ** programs = new Program*[numPrograms];
+
     for (uint i = 0; i < numPrograms; ++i) {
         Program *p = tpcc.programs[i];
         Program *newp;
@@ -107,16 +101,17 @@ int main(int argc, char** argv) {
                 throw std::runtime_error("Unknown program");
 
         }
-        programs[i] = newp;
         newp->xact = t0;
+        programs[i] = newp;
+
 
     }
     cout << "NewOrder =" << neworder << endl;
     cout << "Payment =" << payment << endl;
-    ConcurrentExecutor exec(12, tm);
+    ConcurrentExecutor exec(10, tm);
     exec.execute(programs, numPrograms);
     cout << "Duration = " << exec.timeMs << endl;
-    cout << "Throughput = " << numPrograms * 1000.0 / exec.timeMs << endl;
+    cout << "Throughput = " << numPrograms*1000.0 / exec.timeMs << " K tps" << endl;
     return 0;
 }
 

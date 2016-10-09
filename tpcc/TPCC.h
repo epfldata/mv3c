@@ -395,7 +395,7 @@ namespace tpcc_ns {
     ////////////
 
     struct TPCCDataGen {
-        Program* programs[numPrograms];
+        Program** programs;
         Map(Customer) iCustomer, oCustomer, fCustomer;
         Map(Warehouse) iWarehouse, oWarehouse, fWarehouse;
         Map(District) iDistrict, oDistrict, fDistrict;
@@ -415,10 +415,13 @@ namespace tpcc_ns {
 #define fp "%f"
 #define dp "%lf"
 #define nullable "%[^,]"   
-
+        TPCCDataGen(){
+            programs = new Program*[numPrograms];
+        }
         ~TPCCDataGen() {
             for (size_t i = 0; i < numPrograms; i++)
                 delete programs[i];
+            delete programs;
         }
 
         void loadPrograms() {

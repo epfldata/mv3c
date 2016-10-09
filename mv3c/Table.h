@@ -19,7 +19,7 @@ struct Table {
     forceinline OperationReturnStatus insert(Transaction *xact, const K& k, const V& v, PRED* parent = nullptr) {
         Entry<K, V>* e;
         if (primaryIndex.find(k, e)) {
-//            xact->undoBufferHead = new(dvStore.add()) DeltaVersion<K, V>(e, PTRtoTS(xact), xact->undoBufferHead, INSERT, parent);
+            //            xact->undoBufferHead = new(dvStore.add()) DeltaVersion<K, V>(e, PTRtoTS(xact), xact->undoBufferHead, INSERT, parent);
             e->dv->val = v;
         } else {
             e = new(entryStore.add()) Entry<K, V>(this, k);
@@ -32,7 +32,7 @@ struct Table {
     }
 
     forceinline OperationReturnStatus update(Transaction *xact, Entry<K, V> *e, const V& newVal, PRED* parent = nullptr, const bool allowWW = false, const col_type& colsChanged = col_type(-1)) {
-//        xact->undoBufferHead = new(dvStore.add()) DeltaVersion<K, V>(e, PTRtoTS(xact), xact->undoBufferHead, UPDATE, newVal, colsChanged, parent);
+        //        xact->undoBufferHead = new(dvStore.add()) DeltaVersion<K, V>(e, PTRtoTS(xact), xact->undoBufferHead, UPDATE, newVal, colsChanged, parent);
         e->dv->val = newVal;
         return OP_SUCCESS;
     }

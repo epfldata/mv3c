@@ -74,6 +74,7 @@ namespace tpcc_ns {
         }
 
         TransactionReturnStatus execute() override {
+            return SUCCESS;
             TransactionReturnStatus status;
             for (uint8_t ol_number = 0; ol_number < o_ol_cnt; ol_number++) {
                 uint32_t ol_i_id = itemid[ol_number];
@@ -227,6 +228,7 @@ namespace tpcc_ns {
         }
 
         TransactionReturnStatus execute() override {
+            return SUCCESS;
             dist = new (DistGet::store.add()) DistGet(&distTable, xact, DistrictKey(d_id, w_id), nullptr, col_type(1 << 8));
             auto ddv = dist->evaluateAndExecute(xact, payment_distfn);
             auto status = payment_distfn(this, ddv, nullptr);

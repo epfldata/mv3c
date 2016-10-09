@@ -5,7 +5,6 @@
 #include <functional>
 #include <thread>
 #include <sched.h>
-#include <atomic>
 #include <pthread.h>
 #include <vector>
 #include "Timer.h"
@@ -16,13 +15,14 @@ struct ConcurrentExecutor {
     volatile bool* isReady;
     volatile bool startExecution;
     Timepoint startTime, endTime;
-    uint numPrograms, numThreads;
+    uint numThreads, progPerThread;
     size_t timeMs;
-    Program ** programs;
-    std::atomic<uint> nextProgram;
+    Program *** programs;
     TransactionManager& tm;
-    ConcurrentExecutor(int numThr, TransactionManager& TM): tm(TM) {
+
+    ConcurrentExecutor(int numThr, TransactionManager& TM) : tm(TM) {
         numThreads = numThr;
+        programs = new Program**[numThreads];
         workers = new std::thread[numThreads];
         isReady = new volatile bool[numThreads];
         startExecution = false;
@@ -32,34 +32,45 @@ struct ConcurrentExecutor {
     }
 
     void execute(Program** progs, uint numProgs) {
-        nextProgram = 0;
-        programs = progs;
-        numPrograms = numProgs;
-        for(uint i = 0; i < numThreads; ++i){
+        int prog = 0;
+        progPerThread = numProgs / numThreads + 1;
+        for (uint i = 0; i < numThreads; ++i) {
+            programs[i] = new Program*[numProgs / numThreads + 1];
+        }
+        for (uint i = 0; i < numThreads; ++i) {
+            for (uint j = 0; j < progPerThread; ++j) {
+                programs[i][j] = (prog < numProgs) ? progs[prog] : nullptr;
+                prog++;
+            }
+        }
+
+        for (uint i = 0; i < numThreads; ++i) {
             workers[i] = std::thread(&ConcurrentExecutor::threadFunction, this, i);
         }
         bool all_ready = true;
-        while(true){
-            for(uint i = 0; i < numThreads; ++i){
-                if(isReady[i] == false){
+        while (true) {
+            for (uint i = 0; i < numThreads; ++i) {
+                if (isReady[i] == false) {
                     all_ready = false;
                     break;
                 }
             }
-            if(all_ready){
+            if (all_ready) {
+                startTime = Now;
                 startExecution = true;
                 break;
             }
             all_ready = true;
         }
-        for(uint i = 0; i < numThreads; ++i){
+        for (uint i = 0; i < numThreads; ++i) {
             workers[i].join();
         }
-        timeMs = DurationMS(endTime - startTime);
+        endTime = Now;
+        timeMs = DurationUS(endTime - startTime);
     }
 
     void threadFunction(int thread_id) {
-//        const int CPUS[] = {0, 1, 2, 3};
+        //        const int CPUS[] = {0, 1, 2, 3};
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
         CPU_SET(2 * thread_id, &cpuset);
@@ -70,26 +81,21 @@ struct ConcurrentExecutor {
 
         isReady[thread_id] = true;
         while (!startExecution);
-        auto pid = nextProgram++;
-        if (pid == 0) {
-            startTime = Now;
-        }
-        while (pid < numPrograms) {
-            Program *p = programs[pid];
+        uint pid = 0;
+        Program ** threadPrgs = programs[thread_id];
+        Program *p;
+        auto ppt = progPerThread;
+        while (pid < ppt && (p = threadPrgs[pid])) {
             executeProgram(p);
-            pid = nextProgram++;
-        }
-        if(pid == numPrograms + numThreads -1){
-            endTime = Now;
-            cout << "FINISHED" << endl;
+            pid++;
         }
     }
 
     void executeProgram(Program *p) {
-//        p->xact = tm.begin();
+        //        p->xact = tm.begin();
         p->execute();
-        tm.commit(p->xact);
-        p->cleanUp();
+        //        tm.commit(p->xact);
+//        p->cleanUp();
     }
 
     ~ConcurrentExecutor() {

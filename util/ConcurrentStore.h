@@ -61,10 +61,11 @@ class ConcurrentStore {
     const size_t poolsize;
     std::atomic<size_t> currentArrayIndex;
     std::atomic<ConcurrentElement<T>*> free;
-//    std::mutex mutex;
-    const std::string name;
+    std::mutex mutex;
+
     //    friend StoreIterator<T>;
 public:
+    const std::string name;
 
     forceinline char getCtr(T *optr) {
         return ((ConcurrentElement<T>*)optr)->accessCounter;
@@ -106,7 +107,7 @@ public:
     }
 
     forceinline T* add() {
-//        mutex.lock();
+        mutex.lock();
         ConcurrentElement<T>* ptr = free, *nextptr;
         std::atomic_thread_fence(std::memory_order_seq_cst);
         do {
@@ -130,14 +131,14 @@ public:
         assert(pos >= 0 && pos < currentArrayIndex);
         assert(ptr->isActive == false);
         ptr->isActive = true;
-//        mutex.unlock();
+        mutex.unlock();
         return (T*) ptr;
     }
 
     forceinline void remove(const T * optr) {
         if (optr == nullptr)
             return;
-//        mutex.lock();
+        mutex.lock();
         optr->~T();
         ConcurrentElement<T>* ptr = (ConcurrentElement<T>*)optr;
         assert(ptr->isActive == true);
@@ -147,7 +148,7 @@ public:
         ptr->cell.next = free;
         assert(ptr->isActive == false);
         while (!free.compare_exchange_weak(ptr->cell.next, ptr));
-//        mutex.unlock();
+        mutex.unlock();
     }
 };
 
