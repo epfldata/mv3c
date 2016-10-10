@@ -28,7 +28,6 @@ struct ValTuple<T1> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1>)); } 
   ValTuple(T1 t1) {
-    memset(this, 0, sizeof(ValTuple<T1>));
     _1 = t1;
     isNotNull=true;   
   }
@@ -55,7 +54,6 @@ struct KeyTuple<T1> {
   T1 _1;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1>)); } 
   KeyTuple(T1 t1) {
-    memset(this, 0, sizeof(KeyTuple<T1>));
     _1 = t1;
   }
   bool operator ==(const KeyTuple<T1>& that) const { 
@@ -77,7 +75,6 @@ struct ValTuple<T1, T2> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2>)); } 
   ValTuple(T1 t1, T2 t2) {
-    memset(this, 0, sizeof(ValTuple<T1, T2>));
     _1 = t1;
     _2 = t2;
     isNotNull=true;   
@@ -107,7 +104,6 @@ struct KeyTuple<T1, T2> {
   T2 _2;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2>)); } 
   KeyTuple(T1 t1, T2 t2) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2>));
     _1 = t1;
     _2 = t2;
   }
@@ -131,7 +127,6 @@ struct ValTuple<T1, T2, T3> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -164,7 +159,6 @@ struct KeyTuple<T1, T2, T3> {
   T3 _3;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -190,7 +184,6 @@ struct ValTuple<T1, T2, T3, T4> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -226,7 +219,6 @@ struct KeyTuple<T1, T2, T3, T4> {
   T4 _4;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -254,7 +246,6 @@ struct ValTuple<T1, T2, T3, T4, T5> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -293,7 +284,6 @@ struct KeyTuple<T1, T2, T3, T4, T5> {
   T5 _5;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -323,7 +313,6 @@ struct ValTuple<T1, T2, T3, T4, T5, T6> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -365,7 +354,6 @@ struct KeyTuple<T1, T2, T3, T4, T5, T6> {
   T6 _6;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -397,7 +385,6 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -442,7 +429,6 @@ struct KeyTuple<T1, T2, T3, T4, T5, T6, T7> {
   T7 _7;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -476,7 +462,6 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -524,7 +509,6 @@ struct KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8> {
   T8 _8;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -560,7 +544,6 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -611,7 +594,6 @@ struct KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9> {
   T9 _9;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -649,7 +631,6 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> {
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -703,7 +684,6 @@ struct KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> {
   T10 _10;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -747,7 +727,6 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -816,7 +795,6 @@ struct KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
   T15 _15;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -866,7 +844,6 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15, T16 t16) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -938,7 +915,6 @@ struct KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
   T16 _16;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15, T16 t16) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -991,7 +967,6 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15, T16 t16, T17 t17, T18 t18) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -1069,7 +1044,6 @@ struct KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
   T18 _18;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15, T16 t16, T17 t17, T18 t18) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -1138,7 +1112,6 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
   
   ValTuple() {  memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32>)); } 
   ValTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15, T16 t16, T17 t17, T18 t18, T19 t19, T20 t20, T21 t21, T22 t22, T23 t23, T24 t24, T25 t25, T26 t26, T27 t27, T28 t28, T29 t29, T30 t30, T31 t31, T32 t32) {
-    memset(this, 0, sizeof(ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32>));
     _1 = t1;
     _2 = t2;
     _3 = t3;
@@ -1258,7 +1231,6 @@ struct KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
   T32 _32;
   KeyTuple() {  memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32>)); } 
   KeyTuple(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15, T16 t16, T17 t17, T18 t18, T19 t19, T20 t20, T21 t21, T22 t22, T23 t23, T24 t24, T25 t25, T26 t26, T27 t27, T28 t28, T29 t29, T30 t30, T31 t31, T32 t32) {
-    memset(this, 0, sizeof(KeyTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32>));
     _1 = t1;
     _2 = t2;
     _3 = t3;

@@ -5,18 +5,16 @@
 
 struct Program {
     const char prgType;
-    Transaction *xact;
-    Program(char id) : prgType(id), xact(nullptr){}
-    Program(const Program* p): prgType(p->prgType), xact(nullptr){}
+    Transaction xact;
+    ThreadLocal *threadVar;
+    Program(char id) : prgType(id){}
+    Program(const Program* p): prgType(p->prgType){}
 
     virtual TransactionReturnStatus execute() {
         return SUCCESS;
     }
 
     virtual std::ostream& print(std::ostream& s) {
-    }
-    virtual void cleanUp(){
-        
     }
 
 };

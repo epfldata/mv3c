@@ -3,7 +3,7 @@
 #include "types.h"
 #include "Predicate.h"
 #include "Table.h"
-#include "ConcurrentStore.h"
+
 struct DELTA {
     DELTA* nextInUndoBuffer;
     DELTA* olderVersion, *newerVersion;
@@ -39,52 +39,44 @@ struct DeltaVersion : DELTA {
             olderVersion->newerVersion = this;
         entry->dv = this;
     }
-
-    DeltaVersion(Entry<K, V>* e, timestamp id, DELTA* nextUndo, Operation op, const V&v, PRED* parent) : DELTA(id, nextUndo, op, parent), entry(e), val(v), cols(-1) {
-        olderVersion = entry->dv;
-        if (olderVersion)
-            olderVersion->newerVersion = this;
-        entry->dv = this;
-    }
-
-    DeltaVersion(Entry<K, V>* e, timestamp id, DELTA* nextUndo, Operation op, const V&v, const col_type& colsChanged, PRED* parent) : DELTA(id, nextUndo, op, parent), entry(e), val(v), cols(colsChanged) {
-        olderVersion = entry->dv;
-        if (olderVersion)
-            olderVersion->newerVersion = this;
-        entry->dv = this;
-    }
-
-
-
 #else
 
     DeltaVersion(Entry<K, V>* e, timestamp id, DELTA* nextUndo, Operation op, PRED* parent) : DELTA(id, nextUndo, op, parent), entry(e), val() {
+
         olderVersion = entry->dv;
         if (olderVersion)
             olderVersion->newerVersion = this;
         entry->dv = this;
     }
 
-    DeltaVersion(Entry<K, V>* e, timestamp id, DELTA* nextUndo, Operation op, const V&v, PRED* parent) : DELTA(id, nextUndo, op, parent), entry(e), val(v) {
-        olderVersion = entry->dv;
-        if (olderVersion)
-            olderVersion->newerVersion = this;
-        entry->dv = this;
-    }
-
-    DeltaVersion(Entry<K, V>* e, timestamp id, DELTA* nextUndo, Operation op, const V&v, const col_type& colsChanged, PRED* parent) : DELTA(id, nextUndo, op, parent), entry(e), val(v) {
-        olderVersion = entry->dv;
-        if (olderVersion)
-            olderVersion->newerVersion = this;
-        entry->dv = this;
-    }
-
+#endif
+//TODO: ADd static ref to dvstore
     void free() override {
         entry->tbl->dvStore.remove(this);
 
     }
 
+    void initialize(Entry<K, V>* e, timestamp id, DELTA* nextUndo, Operation o, PRED* parent, const col_type& colsChanged = col_type(-1)) {
+#ifdef ATTRIB_LEVEL
+        cols = colsChanged;
 #endif
+        entry = e;
+        nextInUndoBuffer = nextUndo;
+        xactId = id;
+        op = o;
+        newerVersion = nullptr;
+        if (parent != nullptr) {
+            nextInDVsInClosure = parent->DVsInClosureHead;
+            parent->DVsInClosureHead = this;
+        } else {
+            nextInDVsInClosure = nullptr;
+        }
+        olderVersion = entry->dv;
+        if (olderVersion)
+            olderVersion->newerVersion = this;
+        entry->dv = this;
+    }
+
 };
 
 

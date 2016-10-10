@@ -40,9 +40,8 @@ for i in range(1,numTuples+1)+otherTuples:
 
   
   print "  ValTuple() {  memset(this, 0, sizeof("+valtype+")); } "
-  
+
   print "  ValTuple("+ ", ".join(map(lambda x: "T"+str(x)+" t"+str(x), cols)) + ") {"
-  print "    memset(this, 0, sizeof("+valtype+"));"
   for j in cols:
     print "    _"+str(j)+" = t"+str(j)+";"
   print "    isNotNull=true;   "
@@ -78,9 +77,8 @@ for i in range(1,numTuples+1)+otherTuples:
   
   
   print "  KeyTuple() {  memset(this, 0, sizeof("+keytype+")); } "
-  
+
   print "  KeyTuple("+ ", ".join(map(lambda x: "T"+str(x)+" t"+str(x), cols)) + ") {"
-  print "    memset(this, 0, sizeof("+keytype+"));"
   for j in cols:
     print "    _"+str(j)+" = t"+str(j)+";"
   print "  }"

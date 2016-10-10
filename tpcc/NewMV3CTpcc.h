@@ -4,7 +4,7 @@
 #include "Predicate.hpp"
 
 namespace tpcc_ns {
-#define TABLE(x) Table<x##Key, x##Val>
+#define  TABLE(x) Table<x##Key, x##Val>
 #define GETP(x) GetPred<x##Key,x##Val>
 #define DV(x) DeltaVersion<x##Key,x##Val>
     typedef GETP(Item) ItemGet;
@@ -21,153 +21,139 @@ namespace tpcc_ns {
     typedef DV(Order) OrderDV;
     typedef GETP(DistrictNewOrder) DistNOGet;
     typedef DV(DistrictNewOrder) DistNODV;
+}
+using namespace tpcc_ns;
 
-    struct NewOrderCS : ClosureState {
-        typedef ConcurrentStore<NewOrderCS> StoreType;
-        static StoreType  store;
-        const uint8_t ol_number;
+struct ThreadLocal {
+    DistGet dist;
+    CustGet cust;
+    WareGet ware;
+    String<24>* MV3CNewOrderDist_info[15];
+    StockGet MV3CNewOrderStock[15];
+    ItemGet MV3CNewOrderItem[15];
+    float MV3CNewOrderOl_amt[15];
+    float MV3CNewOrderTotal;
+    float MV3CNewOrderD_tax;
 
-        NewOrderCS(uint8_t n) : ol_number(n) {
-        }
 
-        void free() override {
-            store.remove(this);
-        }
-
-    };
-
-  
-    forceinline TransactionReturnStatus neworder_itemfn(Program *p, const ItemDV * idv, ClosureState* cs);
-    forceinline TransactionReturnStatus neworder_stockfn(Program *p, const StockDV * idv, ClosureState* cs);
-    forceinline TransactionReturnStatus neworder_distfn(Program *p, const DistDV * idv, ClosureState* cs);
+    //        DistGet dist;
+    //        CustGet cust;
+    //        WareGet ware;
+    HistoryKey histKey;
+    WarehouseKey wareKey;
+    DistrictKey distKey;
+    CustomerKey custKey;
+    ItemKey itemKey;
+    StockKey stockKey;
+    OrderKey orderKey;
+    OrderLineKey orderLineKey;
+    NewOrderKey newOrderKey;
+};
+namespace tpcc_ns {
+    forceinline TransactionReturnStatus neworder_itemfn(Program *p, const ItemDV * idv, uint cs);
+    forceinline TransactionReturnStatus neworder_stockfn(Program *p, const StockDV * idv, uint cs);
+    forceinline TransactionReturnStatus neworder_distfn(Program *p, const DistDV * idv, uint cs = -1);
 
     struct MV3CNewOrder : NewOrder {
-        TABLE(Customer) &custTable;
-        TABLE(District) &distTable;
-        TABLE(Warehouse) &wareTable;
-        TABLE(Item) &itemTable;
-        TABLE(Stock) &stockTable;
-        TABLE(Order) &orderTable;
-        TABLE(OrderLine) &ordLTable;
-        TABLE(NewOrder) &newOrdTable;
+        //Tables are not defined static because we can reuse program for verification by just changing tables
+        //EDIT:  Can use static table pointers instead of refs
+        static TABLE(Customer) * custTable;
+        static TABLE(District) * distTable;
+        static TABLE(Warehouse) * wareTable;
+        static TABLE(Item) * itemTable;
+        static TABLE(Stock) * stockTable;
+        static TABLE(Order) * orderTable;
+        static TABLE(OrderLine) * ordLTable;
+        static TABLE(NewOrder) * newOrdTable;
+        //NOT INPUT PARAMATERS  
 
-        float total;
-        float d_tax;
-
-
-        DistGet* dist;
-        ItemGet* item[15];
-        StockGet* stock[15];
-        CustGet *cust;
-        WareGet *ware;
-        
-        MV3CNewOrder(Program *p, TABLE(Customer) & c, TABLE(District) & d, TABLE(Warehouse) & w, TABLE(Item) & i, TABLE(Stock) & s, TABLE(Order) & o, TABLE(OrderLine) & ol, TABLE(NewOrder) & no) : NewOrder(p), custTable(c), distTable(d), wareTable(w), itemTable(i), stockTable(s), orderTable(o), ordLTable(ol), newOrdTable(no) {
-        }
-        void cleanUp() override{
-            dist->free();
-            cust->free();
-            ware->free();
-            for(int i = 0; i< o_ol_cnt; ++i){
-                item[i]->free();
-                stock[i]->free();
-            }
+        MV3CNewOrder(const Program* p) :
+        NewOrder(p) {
         }
 
         TransactionReturnStatus execute() override {
-            return SUCCESS;
+            //            return SUCCESS;
             TransactionReturnStatus status;
             for (uint8_t ol_number = 0; ol_number < o_ol_cnt; ol_number++) {
                 uint32_t ol_i_id = itemid[ol_number];
-                item[ol_number] = new (ItemGet::store.add()) ItemGet(&itemTable, xact, ItemKey(ol_i_id), nullptr, col_type(1 << 3));
-                auto itemcs = new (NewOrderCS::store.add()) NewOrderCS(ol_number);
-                auto idv = item[ol_number]->evaluateAndExecute(xact, neworder_itemfn, itemcs);
-                status = neworder_itemfn(this, idv, itemcs);
+
+                new (&threadVar->itemKey) ItemKey(ol_i_id);
+                new (&threadVar->MV3CNewOrderItem[ol_number]) ItemGet(itemTable, &xact, threadVar->itemKey, nullptr, col_type(1 << 3));
+
+                auto idv = threadVar->MV3CNewOrderItem[ol_number].evaluateAndExecute(&xact, neworder_itemfn, ol_number);
+                status = neworder_itemfn(this, idv, ol_number);
                 if (status != SUCCESS) {
-                    throw std::logic_error("NewOrder Item");
+                    cerr << "NewOrder Item" << endl;
                     return status;
                 }
             }
 
-            dist = new (DistGet::store.add()) DistGet(&distTable, xact, DistrictKey(d_id, w_id), nullptr, col_type(1 << 7 || 1 << 9));
-            auto ddv = dist->evaluateAndExecute(xact, neworder_distfn, nullptr);
-            status = neworder_distfn(this, ddv, nullptr);
+            new (&threadVar->distKey) DistrictKey(d_id, w_id);
+            new (&threadVar->dist) DistGet(distTable, &xact, threadVar->distKey, nullptr, col_type(1 << 7 || 1 << 9));
+            auto ddv = threadVar->dist.evaluateAndExecute(&xact, neworder_distfn);
+            status = neworder_distfn(this, ddv);
             if (status != SUCCESS) {
-                throw std::logic_error("NewOrder dist");
+                //                throw std::logic_error("NewOrder dist");
                 return status;
             }
 
-            ware = new (WareGet::store.add()) WareGet(&wareTable, xact, WarehouseKey(w_id), nullptr, col_type(1 << 7));
-            auto wdv = ware->evaluateAndExecute(xact, nullptr);
+            new (&threadVar->wareKey) WarehouseKey(w_id);
+            new (&threadVar->ware) WareGet(wareTable, &xact, threadVar->wareKey, nullptr, col_type(1 << 7));
+            auto wdv = threadVar->ware.evaluateAndExecute(&xact, nullptr); //TOFIX : No function associated
             auto w_tax = wdv->val._7;
 
-            cust = new (CustGet::store.add()) CustGet(&custTable, xact, CustomerKey(c_id, d_id, w_id), nullptr, col_type(1 << 13));
-            auto cdv = cust->evaluateAndExecute(xact, nullptr);
-            auto c_disc = cdv->val._13;
 
+            new (&threadVar->custKey) CustomerKey(c_id, d_id, w_id);
+            new (&threadVar->cust) CustGet(custTable, &xact, threadVar->custKey, nullptr, col_type(1 << 13));
+            auto cdv = threadVar->cust.evaluateAndExecute(&xact, nullptr); //TOFIX : No function associated
+            auto c_disc = cdv->val._13;
+            threadVar->MV3CNewOrderTotal = 0;
             for (uint8_t i = 0; i < o_ol_cnt; ++i) {
-                total += ol_amt[i];
+                threadVar->MV3CNewOrderTotal += threadVar->MV3CNewOrderOl_amt[i];
             }
-            total = total * (1 + w_tax + d_tax)*(1 - c_disc);
+            threadVar->MV3CNewOrderTotal *= (1 + w_tax + threadVar->MV3CNewOrderD_tax)*(1 - c_disc);
+            return SUCCESS;
         }
     };
 
-    forceinline TransactionReturnStatus neworder_itemfn(Program *p, const ItemDV *idv, ClosureState* cs) {
+    forceinline TransactionReturnStatus neworder_itemfn(Program *p, const ItemDV *idv, uint ol_number) {
         auto prg = (MV3CNewOrder *) p;
-        auto ics = (NewOrderCS *) cs;
-        auto ol_number = ics->ol_number;
+        auto threadVar = prg->threadVar;
         if (idv == nullptr) {
             //            throw std::logic_error("NewOrder Item missing");
             return ABORT;
         }
-        prg->price[ol_number] = idv->val._3;
-        prg->ol_amt[ol_number] = idv->val._3 * prg->quantity[ol_number];
+        threadVar->MV3CNewOrderOl_amt[ol_number] = idv->val._3 * prg->quantity[ol_number];
         auto ol_i_id = prg->itemid[ol_number];
         auto ol_supply_w_id = prg->supware[ol_number];
-        prg->stock[ol_number] = new (StockGet::store.add()) StockGet(&prg->stockTable, prg->xact, StockKey(ol_i_id, ol_supply_w_id), prg->item[ol_number], col_type((1 << 15) - 1));
-        auto scs = new (NewOrderCS::store.add()) NewOrderCS(ol_number);
-        auto sdv = prg->stock[ol_number]->evaluateAndExecute(prg->xact, neworder_stockfn, scs);
-        return neworder_stockfn(p, sdv, scs);
+
+        new (&threadVar->stockKey) StockKey(ol_i_id, ol_supply_w_id); //reusing multiple times within same transaction
+        new (&threadVar->MV3CNewOrderStock[ol_number]) StockGet(MV3CNewOrder::stockTable, &prg->xact, threadVar->stockKey, &threadVar->MV3CNewOrderItem[ol_number], col_type((1 << 15) - 1));
+        auto sdv = threadVar->MV3CNewOrderStock[ol_number].evaluateAndExecute(&prg->xact, neworder_stockfn, ol_number);
+        return neworder_stockfn(p, sdv, ol_number);
     }
 
-    forceinline TransactionReturnStatus neworder_stockfn(Program *p, const StockDV *sdv, ClosureState *cs) {
+    forceinline TransactionReturnStatus neworder_stockfn(Program *p, const StockDV *sdv, uint ol_number) {
         auto prg = (MV3CNewOrder*) p;
-        auto scs = (NewOrderCS *) cs;
-        auto ol_number = scs->ol_number;
+        auto threadVar = prg->threadVar;
         auto ol_qty = prg->quantity[ol_number];
-        StockVal newsv = sdv->val;
-        if (newsv._1 >= ol_qty + 10) {
-            newsv._1 -= ol_qty;
+
+        CreateValUpdate(Stock, newsv, sdv);
+
+        if (newsv->_1 >= ol_qty + 10) {
+            newsv->_1 -= ol_qty;
         } else {
-            newsv._1 += (91 - ol_qty);
+            newsv->_1 += (91 - ol_qty);
         }
-        newsv._12 += prg->quantity[ol_number];
-        newsv._13++;
+        newsv->_12 += prg->quantity[ol_number];
+        newsv->_13++;
         if (prg->w_id != prg->supware[ol_number]) {
-            newsv._14++;
+            newsv->_14++;
         }
-        switch (prg->d_id) {
-            case 1: prg->dist_info[ol_number] = &newsv._2;
-                break;
-            case 2: prg->dist_info[ol_number] = &newsv._3;
-                break;
-            case 3: prg->dist_info[ol_number] = &newsv._4;
-                break;
-            case 4: prg->dist_info[ol_number] = &newsv._5;
-                break;
-            case 5: prg->dist_info[ol_number] = &newsv._6;
-                break;
-            case 6: prg->dist_info[ol_number] = &newsv._7;
-                break;
-            case 7: prg->dist_info[ol_number] = &newsv._8;
-                break;
-            case 8: prg->dist_info[ol_number] = &newsv._9;
-                break;
-            case 9: prg->dist_info[ol_number] = &newsv._10;
-                break;
-            case 10: prg->dist_info[ol_number] = &newsv._11;
-                break;
-        }
-        if (prg->stockTable.update(prg->xact, sdv->entry, newsv, prg->stock[ol_number], ALLOW_WW, col_type(1 << 1 | 1 << 12 | 1 << 13 | 1 << 14)) != OP_SUCCESS) {
+
+        threadVar->MV3CNewOrderDist_info[ol_number] = &newsv->_2 + (prg->d_id - 1);
+
+        if (MV3CNewOrder::stockTable->update(&prg->xact, sdv->entry, MakeRecord(newsv), &threadVar->MV3CNewOrderStock[ol_number], ALLOW_WW, col_type(1 << 1 | 1 << 12 | 1 << 13 | 1 << 14)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("NewOrder stock");
             //            else
@@ -176,29 +162,41 @@ namespace tpcc_ns {
         return SUCCESS;
     }
 
-    forceinline TransactionReturnStatus neworder_distfn(Program *p, const DistDV *ddv, ClosureState* cs) {
+    forceinline TransactionReturnStatus neworder_distfn(Program *p, const DistDV *ddv, uint cs) {
         auto prg = (MV3CNewOrder *) p;
-        DistrictVal newdv = ddv->val;
-        prg->d_tax = newdv._7;
-        auto o_id = newdv._9;
-        newdv._9++;
-        if (prg->distTable.update(prg->xact, ddv->entry, newdv, prg->dist, ALLOW_WW, col_type(1 << 9)) != OP_SUCCESS) {
+        auto threadVar = p->threadVar;
+        CreateValUpdate(District, newdv, ddv);
+        threadVar->MV3CNewOrderD_tax = newdv->_7;
+        auto o_id = newdv->_9;
+        newdv->_9++;
+
+        if (MV3CNewOrder::distTable->update(&prg->xact, ddv->entry, MakeRecord(newdv), &threadVar->dist, ALLOW_WW, col_type(1 << 9)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("NewOrder stock");
             //            else
             //                return WW_ABORT;
         }
-        if (prg->orderTable.insert(prg->xact, OrderKey(o_id, prg->d_id, prg->w_id), OrderVal(prg->c_id, prg->datetime, 0, prg->o_ol_cnt, prg->o_all_local), prg->dist) != OP_SUCCESS) {
+
+        new(&threadVar->orderKey) OrderKey(o_id, prg->d_id, prg->w_id);
+        CreateValInsert(Order, newov, prg->c_id, prg->datetime, 0, prg->o_ol_cnt, prg->o_all_local);
+        if (MV3CNewOrder::orderTable->insert(&prg->xact, threadVar->orderKey, MakeRecord(newov), &threadVar->dist) != OP_SUCCESS) {
             //            throw std::logic_error("NewOrder order");
             //            return WW_ABORT;
         }
 
-        if (prg->newOrdTable.insert(prg->xact, NewOrderKey(o_id, prg->d_id, prg->w_id), NewOrderVal(true), prg->dist) != OP_SUCCESS) {
+        new(&threadVar->newOrderKey) NewOrderKey(o_id, prg->d_id, prg->w_id);
+        CreateValInsert(NewOrder, newnov, true);
+        if (MV3CNewOrder::newOrdTable->insert(&prg->xact, threadVar->newOrderKey, MakeRecord(newnov), &threadVar->dist) != OP_SUCCESS) {
             //            throw std::logic_error("NewOrder neworder");
             //            return WW_ABORT;
         }
+
         for (uint8_t ol_number = 0; ol_number < prg->o_ol_cnt; ol_number++) {
-            if (prg->ordLTable.insert(prg->xact, OrderLineKey(o_id, prg->d_id, prg->w_id, ol_number + 1), OrderLineVal(prg->itemid[ol_number], prg->supware[ol_number], nulldate, prg->quantity[ol_number], prg->ol_amt[ol_number], *prg->dist_info[ol_number]), prg->dist) != OP_SUCCESS) {
+
+            new (&threadVar->orderLineKey) OrderLineKey(o_id, prg->d_id, prg->w_id, ol_number + 1);
+            CreateValInsert(OrderLine, newolv, prg->itemid[ol_number], prg->supware[ol_number], nulldate, prg->quantity[ol_number], threadVar->MV3CNewOrderOl_amt[ol_number], *threadVar->MV3CNewOrderDist_info[ol_number]);
+
+            if (MV3CNewOrder::ordLTable->insert(&prg->xact, threadVar->orderLineKey, MakeRecord(newolv), &threadVar->dist) != OP_SUCCESS) {
                 //throw std::logic_error("NewORder orderline");
                 //return WW_ABORTM
             }
@@ -206,50 +204,53 @@ namespace tpcc_ns {
         return SUCCESS;
     }
 
-    forceinline TransactionReturnStatus payment_distfn(Program *p, const DistDV * ddv, ClosureState* cs);
-    forceinline TransactionReturnStatus payment_warefn(Program *p, const WareDV * wdv, ClosureState* cs);
-    forceinline TransactionReturnStatus payment_custfn(Program *p, const CustDV * cdv, ClosureState* cs);
+    forceinline TransactionReturnStatus payment_distfn(Program *p, const DistDV * ddv, uint cs = -1);
+    forceinline TransactionReturnStatus payment_warefn(Program *p, const WareDV * wdv, uint cs = -1);
+    forceinline TransactionReturnStatus payment_custfn(Program *p, const CustDV * cdv, uint cs = -1);
 
     struct MV3CPayment : PaymentById {
-        TABLE(Customer) &custTable;
-        TABLE(District) &distTable;
-        TABLE(Warehouse) &wareTable;
-        TABLE(History) &histTable;
-        DistGet * dist;
-        WareGet * ware;
-        CustGet *cust;
+        static TABLE(Customer) * custTable;
+        static TABLE(District) * distTable;
+        static TABLE(Warehouse) * wareTable;
+        static TABLE(History) * histTable;
 
-        MV3CPayment(Program *p, TABLE(Customer) & c, TABLE(District) & d, TABLE(Warehouse) & w, TABLE(History) & h) : PaymentById(p), custTable(c), distTable(d), wareTable(w), histTable(h) {
-        }
-        void cleanUp() override{
-            dist->free();
-            ware->free();
-            cust->free(); 
+        MV3CPayment(const Program* p) :
+        PaymentById(p) {
         }
 
         TransactionReturnStatus execute() override {
-            return SUCCESS;
-            dist = new (DistGet::store.add()) DistGet(&distTable, xact, DistrictKey(d_id, w_id), nullptr, col_type(1 << 8));
-            auto ddv = dist->evaluateAndExecute(xact, payment_distfn);
-            auto status = payment_distfn(this, ddv, nullptr);
-            if (status != SUCCESS) {
-                return status;
-            }
-            ware = new (WareGet::store.add()) WareGet(&wareTable, xact, WarehouseKey(w_id), nullptr, col_type(1 << 8));
-            auto wdv = ware -> evaluateAndExecute(xact, payment_warefn);
-            status = payment_warefn(this, wdv, nullptr);
+            //            return SUCCESS;
+            TransactionReturnStatus status = SUCCESS;
+
+            new (&threadVar->distKey) DistrictKey(d_id, w_id);
+            new (&threadVar->dist) DistGet(distTable, &xact, threadVar->distKey, nullptr, col_type(1 << 8));
+            auto ddv = threadVar->dist.evaluateAndExecute(&xact, payment_distfn);
+            status = payment_distfn(this, ddv);
             if (status != SUCCESS) {
                 return status;
             }
 
-            cust = new (CustGet::store.add()) CustGet(&custTable, xact, CustomerKey(c_id, c_d_id, c_w_id), nullptr, (1 << 14 | 1 << 15 | 1 << 16));
-            auto cdv = cust -> evaluateAndExecute(xact, payment_custfn);
-            status = payment_custfn(this, cdv, nullptr);
+            new(&threadVar->wareKey) WarehouseKey(w_id);
+
+            new (&threadVar->ware) WareGet(wareTable, &xact, threadVar->wareKey, nullptr, col_type(1 << 8));
+            auto wdv = threadVar->ware.evaluateAndExecute(&xact, payment_warefn);
+            status = payment_warefn(this, wdv);
+            if (status != SUCCESS) {
+                return status;
+            }
+            //
+
+            new(&threadVar->custKey)CustomerKey(c_id, c_d_id, c_w_id);
+            new (&threadVar->cust) CustGet(custTable, &xact, threadVar->custKey, nullptr, (1 << 14 | 1 << 15 | 1 << 16));
+            auto cdv = threadVar->cust.evaluateAndExecute(&xact, payment_custfn);
+            status = payment_custfn(this, cdv);
             if (status != SUCCESS) {
                 return status;
             }
 
-            if (histTable.insert(xact, HistoryKey(c_id, c_d_id, c_w_id, d_id, w_id, datetime, h_amount, String<24>()), HistoryVal(true)) != OP_SUCCESS) {
+            new (&threadVar->histKey) HistoryKey(c_id, c_d_id, c_w_id, d_id, w_id, datetime, h_amount, String<24>());
+            CreateValInsert(History, newhv, true);
+            if (histTable->insert(&xact, threadVar->histKey, MakeRecord(newhv)) != OP_SUCCESS) {
                 //                throw std::logic_error("payment hist");
                 //                return WW_ABORT;
             }
@@ -259,11 +260,11 @@ namespace tpcc_ns {
 
     };
 
-    forceinline TransactionReturnStatus payment_distfn(Program* p, const DistDV* ddv, ClosureState* cs) {
+    forceinline TransactionReturnStatus payment_distfn(Program* p, const DistDV* ddv, uint cs) {
         auto prg = (MV3CPayment *) p;
-        DistrictVal newdv = ddv->val;
-        newdv._8 += prg->h_amount;
-        if (prg->distTable.update(prg->xact, ddv->entry, newdv, prg->dist, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
+        CreateValUpdate(District, newdv, ddv);
+        newdv->_8 += prg->h_amount;
+        if (MV3CPayment::distTable->update(&prg->xact, ddv->entry, MakeRecord(newdv), &prg->threadVar->dist, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment dist");
             //            else
@@ -273,13 +274,13 @@ namespace tpcc_ns {
 
     }
 
-    forceinline TransactionReturnStatus payment_custfn(Program* p, const CustDV* cdv, ClosureState* cs) {
+    forceinline TransactionReturnStatus payment_custfn(Program* p, const CustDV* cdv, uint cs) {
         auto prg = (MV3CPayment *) p;
-        CustomerVal newcv = cdv->val;
-        newcv._14 -= prg->h_amount;
-        newcv._15 += prg->h_amount;
-        newcv._16++;
-        if (prg->custTable.update(prg->xact, cdv->entry, newcv, prg->cust, ALLOW_WW, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
+        CreateValUpdate(Customer, newcv, cdv);
+        newcv->_14 -= prg->h_amount;
+        newcv->_15 += prg->h_amount;
+        newcv->_16++;
+        if (MV3CPayment::custTable->update(&prg->xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, ALLOW_WW, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment cust");
             //            else
@@ -288,11 +289,11 @@ namespace tpcc_ns {
         return SUCCESS;
     }
 
-    forceinline TransactionReturnStatus payment_warefn(Program* p, const WareDV* wdv, ClosureState* cs) {
+    forceinline TransactionReturnStatus payment_warefn(Program* p, const WareDV* wdv, uint cs) {
         auto prg = (MV3CPayment *) p;
-        WarehouseVal newwv = wdv->val;
-        newwv._8 += prg->h_amount;
-        if (prg->wareTable.update(prg->xact, wdv->entry, newwv, prg->ware, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
+        CreateValUpdate(Warehouse, newwv, wdv);
+        newwv->_8 += prg->h_amount;
+        if (MV3CPayment::wareTable->update(&prg->xact, wdv->entry, MakeRecord(newwv), &prg->threadVar->ware, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment ware");
             //            else
@@ -300,145 +301,106 @@ namespace tpcc_ns {
         }
         return SUCCESS;
     }
-    forceinline TransactionReturnStatus delivery_distneworderfn(Program *p, const DistNODV* dnodv, ClosureState* cs);
-    forceinline TransactionReturnStatus delivery_orderfn(Program *p, const OrderDV* odv, ClosureState* cs);
-    forceinline TransactionReturnStatus delivery_custfn(Program *p, const CustDV* cdv, ClosureState* cs);
 
-    struct DeliveryDistrictNewOrderCS : ClosureState {
-        DistNOGet * const distno;
-        typedef ConcurrentStore<DeliveryDistrictNewOrderCS> StoreType;
-        static  StoreType store;
+    //    forceinline TransactionReturnStatus delivery_distneworderfn(Program *p, const DistNODV* dnodv, ClosureState* cs);
+    //    forceinline TransactionReturnStatus delivery_orderfn(Program *p, const OrderDV* odv, ClosureState* cs);
+    //    forceinline TransactionReturnStatus delivery_custfn(Program *p, const CustDV* cdv, ClosureState* cs);
+    //
+    //
+    //    struct MV3CDelivery : Delivery {
+    //        //        static TABLE(OrderLine) &ordLTable;
+    //        static TABLE(DistrictNewOrder) & distNewOrdTable;
+    //        static TABLE(NewOrder) & newOrdTable;
+    //        static TABLE(Order) &orderTable;
+    //        static TABLE(Customer) &custTable;
+    //
+    //        MV3CDelivery(Program *p, Table<DistrictNewOrderKey, DistrictNewOrderVal>& distNewOrdTable, Table<NewOrderKey, NewOrderVal>& newOrdTable, Table<OrderKey, OrderVal>& orderTable, Table<CustomerKey, CustomerVal>& custTable) :
+    //        Delivery(p), distNewOrdTable(distNewOrdTable), newOrdTable(newOrdTable), orderTable(orderTable), custTable(custTable) {
+    //        }
+    //
+    //        TransactionReturnStatus execute() override {
+    //            for (uint8_t d_id = 1; d_id <= 10; ++d_id) {
+    //                auto distno = new (DistNOGet::store.add()) DistNOGet(&distNewOrdTable, &xact, DistrictNewOrderKey(d_id, w_id), nullptr, col_type(1 << 1));
+    //                auto dnocs = new (DeliveryDistrictNewOrderCS::store.add()) DeliveryDistrictNewOrderCS(distno);
+    //                auto dnodv = distno->evaluateAndExecute(&xact, delivery_distneworderfn, dnocs);
+    //                auto status = delivery_distneworderfn(this, dnodv, dnocs);
+    //                if (status != SUCCESS) {
+    //                    return status;
+    //                }
+    //            }
+    //        }
+    //
+    //    };
+    //
+    //    forceinline TransactionReturnStatus delivery_distneworderfn(Program* p, const DistNODV* dnodv, ClosureState* cs) {
+    //        auto prg = (MV3CDelivery *) p;
+    //        auto dnocs = (DeliveryDistrictNewOrderCS *) cs;
+    //        auto d_id = dnocs->distno->key._1;
+    //        DistrictNewOrderVal newdnov = dnodv->val;
+    //        auto o_id = newdnov._1++;
+    //        if (prg->distNewOrdTable.update(&prg->xact, dnodv->entry, newdnov, dnocs->distno, ALLOW_WW, col_type(1 << 1)) != OP_SUCCESS) {
+    //            //            if (ALLOW_WW)
+    //            //                throw std::logic_error("delivery dist-neworder");
+    //            //            else
+    //            //                return WW_ABORT;
+    //        }
+    //        //        prg->newOrdTable.remove(.............)
+    //        auto order = new (OrderGet::store.add()) OrderGet(&prg->orderTable, &prg->xact, OrderKey(o_id, d_id, prg->w_id), dnocs->distno, col_type(1 << 1 | 1 << 3));
+    //        auto ocs = new (DeliveryOrderCS::store.add()) DeliveryOrderCS(order, d_id);
+    //        auto odv = order->evaluateAndExecute(&prg->xact, delivery_orderfn, ocs);
+    //        return delivery_orderfn(p, odv, ocs);
+    //
+    //    }
+    //
+    //    forceinline TransactionReturnStatus delivery_orderfn(Program* p, const OrderDV* odv, ClosureState* cs) {
+    //        auto prg = (MV3CDelivery *) p;
+    //        auto ocs = (DeliveryOrderCS *) cs;
+    //        OrderVal newov = odv->val;
+    //        auto c_id = newov._1;
+    //        newov._3 = prg->o_carrier_id;
+    //        if (prg->orderTable.update(&prg->xact, odv->entry, newov, ocs->order, ALLOW_WW, col_type(1 << 3)) != OP_SUCCESS) {
+    //            //            if (ALLOW_WW)
+    //            //                throw std::logic_error("delivery order");
+    //            //            else
+    //            //                return WW_ABORT;
+    //        }
+    //        auto cust = new (CustGet::store.add()) CustGet(&prg->custTable, &prg->xact, CustomerKey(c_id, ocs->d_id, prg->w_id), ocs->order, col_type(1 << 14 | 1 << 17));
+    //        auto ccs = new (DeliveryCustCS::store.add()) DeliveryCustCS(cust);
+    //        auto cdv = cust->evaluateAndExecute(&prg->xact, delivery_custfn, ccs);
+    //        return delivery_custfn(p, cdv, ccs);
+    //    }
+    //
+    //    forceinline TransactionReturnStatus delivery_custfn(Program* p, const CustDV* cdv, ClosureState* cs) {
+    //        auto prg = (MV3CDelivery *) p;
+    //        auto ccs = (DeliveryCustCS *) cs;
+    //        CustomerVal newcv = cdv->val;
+    //        float ol_total = 1; //SHOULD BE OBTAINED from OrderlIne instead;
+    //        newcv._14 += ol_total;
+    //        newcv._17++;
+    //        if (prg->custTable.update(&prg->xact, cdv->entry, newcv, ccs->cust, ALLOW_WW, col_type(1 << 14 | 1 << 17))) {
+    //            //            if (ALLOW_WW)
+    //            //                throw std::logic_error("delivery cust");
+    //            //            else
+    //            //                return WW_ABORT;
+    //        }
+    //        return SUCCESS;
+    //    }
+    //
+    //    struct MV3COrderStatus : OrderStatusById {
+    //        static TABLE(Order) &orderTable;
+    //
+    //        TransactionReturnStatus execute() override {
+    //            auto osdv = orderTable.getReadOnly(&xact, OrderKey(-1, d_id, w_id)); // && cid = cid
+    //            //FIND MAX with given cid
+    //            auto o_id = osdv->val._1;
+    //
+    //        }
+    //
+    //    };
 
-        void free() override {
-            store.remove(this);
-        }
 
-        DeliveryDistrictNewOrderCS(DistNOGet* distno) :
-        distno(distno) {
-        }
-
-
-    };
-
-    struct DeliveryOrderCS : ClosureState {
-        OrderGet * const order;
-        const uint8_t d_id;
-        typedef  ConcurrentStore<DeliveryOrderCS> StoreType;
-        static StoreType store;
-
-        void free() override {
-            store.remove(this);
-        }
-
-        DeliveryOrderCS(OrderGet* order, uint8_t d_id) :
-        order(order), d_id(d_id) {
-        }
-
-
-    };
-
-    struct DeliveryCustCS : ClosureState {
-        CustGet * const cust;
-        typedef  ConcurrentStore<DeliveryCustCS> StoreType;
-        static StoreType store;
-
-        DeliveryCustCS(CustGet* cust) : cust(cust) {
-        }
-
-        void free() override {
-            store.remove(this);
-        }
-
-    };
-
-    struct MV3CDelivery : Delivery {
-        //        TABLE(OrderLine) &ordLTable;
-        TABLE(DistrictNewOrder) & distNewOrdTable;
-        TABLE(NewOrder) & newOrdTable;
-        TABLE(Order) &orderTable;
-        TABLE(Customer) &custTable;
-
-        MV3CDelivery(Program *p, Table<DistrictNewOrderKey, DistrictNewOrderVal>& distNewOrdTable, Table<NewOrderKey, NewOrderVal>& newOrdTable, Table<OrderKey, OrderVal>& orderTable, Table<CustomerKey, CustomerVal>& custTable) :
-        Delivery(p), distNewOrdTable(distNewOrdTable), newOrdTable(newOrdTable), orderTable(orderTable), custTable(custTable) {
-        }
-
-        TransactionReturnStatus execute() override {
-            for (uint8_t d_id = 1; d_id <= 10; ++d_id) {
-                auto distno = new (DistNOGet::store.add()) DistNOGet(&distNewOrdTable, xact, DistrictNewOrderKey(d_id, w_id), nullptr, col_type(1 << 1));
-                auto dnocs = new (DeliveryDistrictNewOrderCS::store.add()) DeliveryDistrictNewOrderCS(distno);
-                auto dnodv = distno->evaluateAndExecute(xact, delivery_distneworderfn, dnocs);
-                auto status = delivery_distneworderfn(this, dnodv, dnocs);
-                if (status != SUCCESS) {
-                    return status;
-                }
-            }
-        }
-
-    };
-
-    forceinline TransactionReturnStatus delivery_distneworderfn(Program* p, const DistNODV* dnodv, ClosureState* cs) {
-        auto prg = (MV3CDelivery *) p;
-        auto dnocs = (DeliveryDistrictNewOrderCS *) cs;
-        auto d_id = dnocs->distno->key._1;
-        DistrictNewOrderVal newdnov = dnodv->val;
-        auto o_id = newdnov._1++;
-        if (prg->distNewOrdTable.update(prg->xact, dnodv->entry, newdnov, dnocs->distno, ALLOW_WW, col_type(1 << 1)) != OP_SUCCESS) {
-            //            if (ALLOW_WW)
-            //                throw std::logic_error("delivery dist-neworder");
-            //            else
-            //                return WW_ABORT;
-        }
-        //        prg->newOrdTable.remove(.............)
-        auto order = new (OrderGet::store.add()) OrderGet(&prg->orderTable, prg->xact, OrderKey(o_id, d_id, prg->w_id), dnocs->distno, col_type(1 << 1 | 1 << 3));
-        auto ocs = new (DeliveryOrderCS::store.add()) DeliveryOrderCS(order, d_id);
-        auto odv = order->evaluateAndExecute(prg->xact, delivery_orderfn, ocs);
-        return delivery_orderfn(p, odv, ocs);
-
-    }
-
-    forceinline TransactionReturnStatus delivery_orderfn(Program* p, const OrderDV* odv, ClosureState* cs) {
-        auto prg = (MV3CDelivery *) p;
-        auto ocs = (DeliveryOrderCS *) cs;
-        OrderVal newov = odv->val;
-        auto c_id = newov._1;
-        newov._3 = prg->o_carrier_id;
-        if (prg->orderTable.update(prg->xact, odv->entry, newov, ocs->order, ALLOW_WW, col_type(1 << 3)) != OP_SUCCESS) {
-            //            if (ALLOW_WW)
-            //                throw std::logic_error("delivery order");
-            //            else
-            //                return WW_ABORT;
-        }
-        auto cust = new (CustGet::store.add()) CustGet(&prg->custTable, prg->xact, CustomerKey(c_id, ocs->d_id, prg->w_id), ocs->order, col_type(1 << 14 | 1 << 17));
-        auto ccs = new (DeliveryCustCS::store.add()) DeliveryCustCS(cust);
-        auto cdv = cust->evaluateAndExecute(prg->xact, delivery_custfn, ccs);
-        return delivery_custfn(p, cdv, ccs);
-    }
-
-    forceinline TransactionReturnStatus delivery_custfn(Program* p, const CustDV* cdv, ClosureState* cs) {
-        auto prg = (MV3CDelivery *) p;
-        auto ccs = (DeliveryCustCS *) cs;
-        CustomerVal newcv = cdv->val;
-        float ol_total = 1; //SHOULD BE OBTAINED from OrderlIne instead;
-        newcv._14 += ol_total;
-        newcv._17++;
-        if (prg->custTable.update(prg->xact, cdv->entry, newcv, ccs->cust, ALLOW_WW, col_type(1 << 14 | 1 << 17))) {
-            //            if (ALLOW_WW)
-            //                throw std::logic_error("delivery cust");
-            //            else
-            //                return WW_ABORT;
-        }
-        return SUCCESS;
-    }
-    struct MV3COrderStatus: OrderStatusById{
-        TABLE(Order) &orderTable;
-        TransactionReturnStatus execute() override{
-            auto osdv = orderTable.getReadOnly(xact, OrderKey(-1, d_id, w_id)); // && cid = cid
-            //FIND MAX with given cid
-            auto o_id = osdv->val._1;
-            
-        }
-
-    };
 }
+
+
 #endif /* NEWMV3CTPCC_H */
 

@@ -9,6 +9,7 @@
 #include <vector>
 #include "Timer.h"
 #include "TransactionManager.h"
+#include "NewMV3CTpcc.h"
 
 struct ConcurrentExecutor {
     std::thread* workers;
@@ -78,24 +79,31 @@ struct ConcurrentExecutor {
         if (s != 0) {
             throw std::runtime_error("Cannot set affinity");
         }
-
-        isReady[thread_id] = true;
-        while (!startExecution);
-        uint pid = 0;
+        ThreadLocal threadVar;
         Program ** threadPrgs = programs[thread_id];
         Program *p;
         auto ppt = progPerThread;
+        uint pid = 0;
+
+        while (pid < ppt && (p = threadPrgs[pid])) {
+            threadPrgs[pid]->threadVar = &threadVar;
+            pid++;
+        }
+        isReady[thread_id] = true;
+        while (!startExecution);
+        pid = 0;
+
         while (pid < ppt && (p = threadPrgs[pid])) {
             executeProgram(p);
             pid++;
         }
     }
 
-    void executeProgram(Program *p) {
+    forceinline void executeProgram(Program *p) {
         //        p->xact = tm.begin();
         p->execute();
         //        tm.commit(p->xact);
-//        p->cleanUp();
+        //        p->cleanUp();
     }
 
     ~ConcurrentExecutor() {

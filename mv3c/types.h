@@ -7,7 +7,7 @@ using std::endl;
 using std::cerr;
 struct Transaction;
 struct TransactionManager;
-
+#include "Store.h"
 template<typename K, typename V>
 struct Table;
 template<typename K, typename V>
@@ -23,6 +23,8 @@ template<typename T>
 struct Equals;
 template<typename T>
 struct ConcurrentStore;
+
+struct ThreadLocal;
 
 enum TransactionReturnStatus : char {
     SUCCESS, ABORT, WW_ABORT, COMMIT_FAILURE

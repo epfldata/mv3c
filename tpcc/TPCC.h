@@ -135,11 +135,7 @@ namespace tpcc_ns {
         uint32_t itemid[15];
         uint8_t quantity[15], supware[15];
 
-        //NOT INPUT PARAMATERS   
         bool o_all_local;
-        float ol_amt[15];
-        String<24>* dist_info[15];
-        float price[15];
 
         NewOrder() : Program(NEWORDER) {
             o_all_local = true;

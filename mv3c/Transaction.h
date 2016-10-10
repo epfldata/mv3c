@@ -5,10 +5,10 @@
 struct Transaction {
     DELTA* undoBufferHead;
     PRED* predicateHead;
-    TransactionManager& tm;
+    static TransactionManager& tm;
     timestamp startTS;
-
-    Transaction(TransactionManager& TM, timestamp st) : undoBufferHead(nullptr), predicateHead(nullptr), tm(TM), startTS(st) {
+    Transaction(){}
+    Transaction(timestamp st) : undoBufferHead(nullptr), predicateHead(nullptr), startTS(st) {
     }
 };
 

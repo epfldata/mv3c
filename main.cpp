@@ -5,41 +5,81 @@
 #include "ConcurrentExecutor.h"
 #include <cstdlib>
 #include "NewMV3CTpcc.h"
-#include <stdexcept>
+#include <iomanip>
+#include <locale>
 using namespace std;
 using namespace tpcc_ns;
-template<>
-CustGet::StoreType CustGet::store(100, "CustomerPredicateStore");
-template<>
-DistGet::StoreType DistGet::store(100, "DistrictPredicateStore");
-template<>
-WareGet::StoreType WareGet::store(100, "WarehousePredicateStore");
-template<>
-OrderGet::StoreType OrderGet::store(100, "OrderPredicateStore");
-template<>
-ItemGet::StoreType ItemGet::store(1000, "ItemPredicateStore");
-template<>
-StockGet::StoreType StockGet::store(1000, "StockPredicateStore");
-template<>
-DistNOGet::StoreType DistNOGet::store(100, "Dist-NO PredicateStore");
 
-NewOrderCS::StoreType NewOrderCS::store(1000, "NewOrderCS");
-DeliveryDistrictNewOrderCS::StoreType DeliveryDistrictNewOrderCS::store(100, "DeliveryDistNO CS");
-DeliveryOrderCS::StoreType DeliveryOrderCS::store(100, "DeliveryOrderCS");
-DeliveryCustCS::StoreType DeliveryCustCS::store(100, "DeliveryCustCS");
+
+
+template<>
+TABLE(Customer)::dvStoreType TABLE(Customer)::dvStore(CustSize * 3, "CustomerDV");
+template<>
+TABLE(Customer)::entryStoreType TABLE(Customer)::entryStore(CustSize, "CustomerEntry");
+template<>
+TABLE(District)::dvStoreType TABLE(District)::dvStore(DistSize * 3, "DistrictDV");
+template<>
+TABLE(District)::entryStoreType TABLE(District)::entryStore(DistSize, "DistrictEntry");
+template<>
+TABLE(Warehouse)::dvStoreType TABLE(Warehouse)::dvStore(WareSize * 3, "WarehouseDV");
+template<>
+TABLE(Warehouse)::entryStoreType TABLE(Warehouse)::entryStore(WareSize, "WarehouseEntry");
+template<>
+TABLE(NewOrder)::dvStoreType TABLE(NewOrder)::dvStore(NewOrderSize * 3, "NewOrderDV");
+template<>
+TABLE(NewOrder)::entryStoreType TABLE(NewOrder)::entryStore(NewOrderSize, "NewOrderEntry");
+template<>
+TABLE(Order)::dvStoreType TABLE(Order)::dvStore(OrderSize * 3, "OrderDV");
+template<>
+TABLE(Order)::entryStoreType TABLE(Order)::entryStore(OrderSize, "OrderEntry");
+template<>
+TABLE(OrderLine)::dvStoreType TABLE(OrderLine)::dvStore(OrdLineSize * 3, "OrderLineDV");
+template<>
+TABLE(OrderLine)::entryStoreType TABLE(OrderLine)::entryStore(OrdLineSize, "OrderLineEntry");
+template<>
+TABLE(Stock)::dvStoreType TABLE(Stock)::dvStore(StockSize * 3, "StockDV");
+template<>
+TABLE(Stock)::entryStoreType TABLE(Stock)::entryStore(StockSize, "StockEntry");
+template<>
+TABLE(Item)::dvStoreType TABLE(Item)::dvStore(ItemSize * 3, "ItemDV");
+template<>
+TABLE(Item)::entryStoreType TABLE(Item)::entryStore(ItemSize, "ItemEntry");
+template<>
+TABLE(History)::dvStoreType TABLE(History)::dvStore(HistSize * 3, "HistDV");
+template<>
+TABLE(History)::entryStoreType TABLE(History)::entryStore(HistSize, "HistEntry");
+template<>
+TABLE(DistrictNewOrder)::dvStoreType TABLE(DistrictNewOrder)::dvStore(DistSize * 3, "DistNODV");
+template<>
+TABLE(DistrictNewOrder)::entryStoreType TABLE(DistrictNewOrder)::entryStore(DistSize, "DistNOEntry");
+TransactionManager transactionManager;
+TransactionManager& Transaction::tm(transactionManager);
+TABLE(Customer)* MV3CNewOrder::custTable;
+TABLE(District)* MV3CNewOrder::distTable;
+TABLE(Warehouse)* MV3CNewOrder::wareTable;
+TABLE(Item)* MV3CNewOrder::itemTable;
+TABLE(Stock)* MV3CNewOrder::stockTable;
+TABLE(Order) * MV3CNewOrder::orderTable;
+TABLE(OrderLine)* MV3CNewOrder::ordLTable;
+TABLE(NewOrder) *MV3CNewOrder::newOrdTable;
+
+TABLE(Customer)* MV3CPayment::custTable;
+TABLE(District)* MV3CPayment::distTable;
+TABLE(Warehouse)* MV3CPayment::wareTable;
+TABLE(History)* MV3CPayment::histTable;
 
 int main(int argc, char** argv) {
     TPCCDataGen tpcc;
-    TABLE(Customer) custTbl(CustSize, 3, "CustomerTable");
-    TABLE(District) distTbl(DistSize, 3, "DistrictTable");
-    TABLE(Warehouse) wareTbl(WareSize, 3, "WareTable");
-    TABLE(NewOrder) newOrdTbl(NewOrderSize, 2, "NewOrderTable");
-    TABLE(Order) ordTbl(OrderSize, 2, "OrderTable");
-    TABLE(OrderLine) ordLTbl(OrdLineSize, 2, "OrderLineTable");
-    TABLE(Item) itemTbl(ItemSize, 1, "ItemTable");
-    TABLE(Stock) stockTbl(StockSize, 3, "StockTable");
-    TABLE(History) historyTbl(HistSize, 1, "HistoryTable");
-    TABLE(DistrictNewOrder) DistNoTbl(DistSize, 2, "DistrictNO Table");
+    TABLE(Customer) custTbl;
+    TABLE(District) distTbl;
+    TABLE(Warehouse) wareTbl;
+    TABLE(NewOrder) newOrdTbl;
+    TABLE(Order) ordTbl;
+    TABLE(OrderLine) ordLTbl;
+    TABLE(Item) itemTbl;
+    TABLE(Stock) stockTbl;
+    TABLE(History) historyTbl;
+    TABLE(DistrictNewOrder) distNoTbl;
     tpcc.loadPrograms();
     tpcc.loadCust();
     tpcc.loadDist();
@@ -51,67 +91,82 @@ int main(int argc, char** argv) {
     tpcc.loadStocks();
     tpcc.loadWare();
 
-    TransactionManager tm;
-    Transaction *t0 = tm.begin();
+    Transaction t;
+    Transaction *t0 = &t;
+    transactionManager.begin(t0);
     for (const auto&it : tpcc.iCustomer) {
-        custTbl.insert(t0, it.first, it.second);
+        custTbl.insertVal(t0, it.first, it.second);
     }
     for (const auto&it : tpcc.iDistrict) {
-        distTbl.insert(t0, it.first, it.second);
-        DistNoTbl.insert(t0, it.first, DistrictNewOrderVal(3001));
+        distTbl.insertVal(t0, it.first, it.second);
+        distNoTbl.insertVal(t0, it.first, DistrictNewOrderVal(3001));
     }
     for (const auto&it : tpcc.iHistory) {
-        historyTbl.insert(t0, it.first, it.second);
+        historyTbl.insertVal(t0, it.first, it.second);
     }
     for (const auto&it : tpcc.iItem) {
-        itemTbl.insert(t0, it.first, it.second);
+        itemTbl.insertVal(t0, it.first, it.second);
     }
     for (const auto&it : tpcc.iNewOrder) {
-        newOrdTbl.insert(t0, it.first, it.second);
+        newOrdTbl.insertVal(t0, it.first, it.second);
     }
     for (const auto&it : tpcc.iOrderLine) {
-        ordLTbl.insert(t0, it.first, it.second);
+        ordLTbl.insertVal(t0, it.first, it.second);
     }
     for (const auto&it : tpcc.iOrder) {
-        ordTbl.insert(t0, it.first, it.second);
+        ordTbl.insertVal(t0, it.first, it.second);
     }
     for (const auto&it : tpcc.iStock) {
-        stockTbl.insert(t0, it.first, it.second);
+        stockTbl.insertVal(t0, it.first, it.second);
     }
     for (const auto&it : tpcc.iWarehouse) {
-        wareTbl.insert(t0, it.first, it.second);
+        wareTbl.insertVal(t0, it.first, it.second);
     }
     int neworder = 0;
     int payment = 0;
     Program ** programs = new Program*[numPrograms];
+    MV3CNewOrder::custTable = &custTbl;
+    MV3CNewOrder::distTable = &distTbl;
+    MV3CNewOrder::wareTable = &wareTbl;
+    MV3CNewOrder::itemTable = &itemTbl;
+    MV3CNewOrder::stockTable = &stockTbl;
+    MV3CNewOrder::orderTable = &ordTbl;
+    MV3CNewOrder::ordLTable = &ordLTbl;
+    MV3CNewOrder::newOrdTable = &newOrdTbl;
+
+    MV3CPayment::custTable = &custTbl;
+    MV3CPayment::distTable = &distTbl;
+    MV3CPayment::wareTable = &wareTbl;
+    MV3CPayment::histTable = &historyTbl;
 
     for (uint i = 0; i < numPrograms; ++i) {
         Program *p = tpcc.programs[i];
         Program *newp;
         switch (p->prgType) {
             case NEWORDER:
-                newp = new MV3CNewOrder(p, custTbl, distTbl, wareTbl, itemTbl, stockTbl, ordTbl, ordLTbl, newOrdTbl);
+                newp = new MV3CNewOrder(p);
                 neworder++;
                 break;
             case PAYMENTBYID:
-                newp = new MV3CPayment(p, custTbl, distTbl, wareTbl, historyTbl);
+                newp = new MV3CPayment(p);
                 payment++;
                 break;
             default:
                 throw std::runtime_error("Unknown program");
 
         }
-        newp->xact = t0;
+
         programs[i] = newp;
 
 
     }
     cout << "NewOrder =" << neworder << endl;
     cout << "Payment =" << payment << endl;
-    ConcurrentExecutor exec(10, tm);
+    ConcurrentExecutor exec(10, transactionManager);
     exec.execute(programs, numPrograms);
     cout << "Duration = " << exec.timeMs << endl;
-    cout << "Throughput = " << numPrograms*1000.0 / exec.timeMs << " K tps" << endl;
+    std::cout.imbue(std::locale(""));
+    cout << "Throughput = " << (uint)(numPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
     return 0;
 }
 

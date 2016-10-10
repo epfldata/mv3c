@@ -2,21 +2,20 @@
 #define TRANSACTIONMANAGER_H
 #include <atomic>
 #include "types.h"
-#include "ConcurrentStore.h"
 
 struct TransactionManager {
     std::atomic<timestamp> timestampGen;
-    ConcurrentStore<Transaction> store;
+    
+    TransactionManager() : timestampGen(0) {
+    }
 
-    TransactionManager() : timestampGen(0), store(100000, "TransactionStore"){}
-    Transaction* begin() {
+    void begin(Transaction *xact) {
         auto ts = timestampGen++;
-        auto xact = new(store.add()) Transaction(*this, ts);
-        return xact;
+        new(xact) Transaction(ts);
     }
 
     bool commit(Transaction *xact) {
-        
+
         return true;
     }
 };
