@@ -2,10 +2,11 @@
 #define TRANSACTIONMANAGER_H
 #include <atomic>
 #include "types.h"
+#include "Transaction.h"
 
 struct TransactionManager {
     std::atomic<timestamp> timestampGen;
-    
+
     TransactionManager() : timestampGen(0) {
     }
 
@@ -15,7 +16,7 @@ struct TransactionManager {
     }
 
     bool commit(Transaction *xact) {
-
+        xact->commitTS = timestampGen++;
         return true;
     }
 };

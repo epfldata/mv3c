@@ -72,7 +72,6 @@ namespace tpcc_ns {
         }
 
         TransactionReturnStatus execute() override {
-            //            return SUCCESS;
             TransactionReturnStatus status;
             for (uint8_t ol_number = 0; ol_number < o_ol_cnt; ol_number++) {
                 uint32_t ol_i_id = itemid[ol_number];
@@ -219,7 +218,6 @@ namespace tpcc_ns {
         }
 
         TransactionReturnStatus execute() override {
-            //            return SUCCESS;
             TransactionReturnStatus status = SUCCESS;
 
             new (&threadVar->distKey) DistrictKey(d_id, w_id);
@@ -255,7 +253,7 @@ namespace tpcc_ns {
                 //                return WW_ABORT;
             }
             return SUCCESS;
-
+            
         }
 
     };

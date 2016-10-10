@@ -94,8 +94,10 @@ struct ConcurrentExecutor {
         pid = 0;
 
         while (pid < ppt && (p = threadPrgs[pid])) {
+            tm.begin(&p->xact);
             executeProgram(p);
             pid++;
+            tm.commit(&p->xact);
         }
     }
 

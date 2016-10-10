@@ -6,7 +6,7 @@ struct Transaction {
     DELTA* undoBufferHead;
     PRED* predicateHead;
     static TransactionManager& tm;
-    timestamp startTS;
+    timestamp startTS, commitTS;
     Transaction(){}
     Transaction(timestamp st) : undoBufferHead(nullptr), predicateHead(nullptr), startTS(st) {
     }
