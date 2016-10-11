@@ -6,9 +6,11 @@
 template<typename K, typename V>
 struct Entry {
     const K key;
+    typedef Store<Entry<K,V>> StoreType;
+    static StoreType store;
     Table<K, V> * const tbl;
     DeltaVersion<K, V>* dv;
-
+    
     Entry(Table<K, V> * tb, const K&k) : key(k), tbl(tb), dv(nullptr) {
     }
 

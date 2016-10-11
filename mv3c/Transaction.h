@@ -7,8 +7,12 @@ struct Transaction {
     PRED* predicateHead;
     static TransactionManager& tm;
     timestamp startTS, commitTS;
-    Transaction(){}
-    Transaction(timestamp st) : undoBufferHead(nullptr), predicateHead(nullptr), startTS(st) {
+    uint8_t threadId;
+
+    Transaction() {
+        threadId = 0;
+        undoBufferHead = nullptr;
+        predicateHead = nullptr;
     }
 };
 

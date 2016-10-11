@@ -10,7 +10,7 @@ struct DELTA {
     DELTA* nextInDVsInClosure;
     timestamp xactId;
     Operation op;
-    virtual void free() = 0;
+    virtual void free(uint8_t tid) = 0;
 
     DELTA(timestamp id, DELTA* ub, Operation o, PRED* par) {
         nextInUndoBuffer = ub;
@@ -30,6 +30,8 @@ template <typename K, typename V>
 struct DeltaVersion : DELTA {
     Entry<K, V>* entry;
     V val;
+    typedef Store<DeltaVersion<K,V>> StoreType;
+    static StoreType store;
 #ifdef ATTRIB_LEVEL
     col_type cols;
 
@@ -50,9 +52,9 @@ struct DeltaVersion : DELTA {
     }
 
 #endif
-//TODO: ADd static ref to dvstore
-    void free() override {
-        entry->tbl->dvStore.remove(this);
+
+    void free(uint8_t tid) override {
+        store.remove(this, tid);
 
     }
 

@@ -10,48 +10,17 @@
 using namespace std;
 using namespace tpcc_ns;
 
+DefineStore(Customer);
+DefineStore(District);
+DefineStore(Warehouse);
+DefineStore(Item);
+DefineStore(Stock);
+DefineStore(History);
+DefineStore(NewOrder);
+DefineStore(Order);
+DefineStore(OrderLine);
+DefineStore(DistrictNewOrder);
 
-
-template<>
-TABLE(Customer)::dvStoreType TABLE(Customer)::dvStore(CustSize * 3, "CustomerDV");
-template<>
-TABLE(Customer)::entryStoreType TABLE(Customer)::entryStore(CustSize, "CustomerEntry");
-template<>
-TABLE(District)::dvStoreType TABLE(District)::dvStore(DistSize * 3, "DistrictDV");
-template<>
-TABLE(District)::entryStoreType TABLE(District)::entryStore(DistSize, "DistrictEntry");
-template<>
-TABLE(Warehouse)::dvStoreType TABLE(Warehouse)::dvStore(WareSize * 3, "WarehouseDV");
-template<>
-TABLE(Warehouse)::entryStoreType TABLE(Warehouse)::entryStore(WareSize, "WarehouseEntry");
-template<>
-TABLE(NewOrder)::dvStoreType TABLE(NewOrder)::dvStore(NewOrderSize * 3, "NewOrderDV");
-template<>
-TABLE(NewOrder)::entryStoreType TABLE(NewOrder)::entryStore(NewOrderSize, "NewOrderEntry");
-template<>
-TABLE(Order)::dvStoreType TABLE(Order)::dvStore(OrderSize * 3, "OrderDV");
-template<>
-TABLE(Order)::entryStoreType TABLE(Order)::entryStore(OrderSize, "OrderEntry");
-template<>
-TABLE(OrderLine)::dvStoreType TABLE(OrderLine)::dvStore(OrdLineSize * 3, "OrderLineDV");
-template<>
-TABLE(OrderLine)::entryStoreType TABLE(OrderLine)::entryStore(OrdLineSize, "OrderLineEntry");
-template<>
-TABLE(Stock)::dvStoreType TABLE(Stock)::dvStore(StockSize * 3, "StockDV");
-template<>
-TABLE(Stock)::entryStoreType TABLE(Stock)::entryStore(StockSize, "StockEntry");
-template<>
-TABLE(Item)::dvStoreType TABLE(Item)::dvStore(ItemSize * 3, "ItemDV");
-template<>
-TABLE(Item)::entryStoreType TABLE(Item)::entryStore(ItemSize, "ItemEntry");
-template<>
-TABLE(History)::dvStoreType TABLE(History)::dvStore(HistSize * 3, "HistDV");
-template<>
-TABLE(History)::entryStoreType TABLE(History)::entryStore(HistSize, "HistEntry");
-template<>
-TABLE(DistrictNewOrder)::dvStoreType TABLE(DistrictNewOrder)::dvStore(DistSize * 3, "DistNODV");
-template<>
-TABLE(DistrictNewOrder)::entryStoreType TABLE(DistrictNewOrder)::entryStore(DistSize, "DistNOEntry");
 TransactionManager transactionManager;
 TransactionManager& Transaction::tm(transactionManager);
 TABLE(Customer)* MV3CNewOrder::custTable;
@@ -70,16 +39,16 @@ TABLE(History)* MV3CPayment::histTable;
 
 int main(int argc, char** argv) {
     TPCCDataGen tpcc;
-    TABLE(Customer) custTbl;
-    TABLE(District) distTbl;
-    TABLE(Warehouse) wareTbl;
-    TABLE(NewOrder) newOrdTbl;
-    TABLE(Order) ordTbl;
-    TABLE(OrderLine) ordLTbl;
-    TABLE(Item) itemTbl;
-    TABLE(Stock) stockTbl;
-    TABLE(History) historyTbl;
-    TABLE(DistrictNewOrder) distNoTbl;
+    TABLE(Customer) custTbl(CustomerIndexSize);
+    TABLE(District) distTbl(DistrictIndexSize);
+    TABLE(Warehouse) wareTbl(WarehouseIndexSize);
+    TABLE(NewOrder) newOrdTbl(NewOrderIndexSize);
+    TABLE(Order) ordTbl(OrderIndexSize);
+    TABLE(OrderLine) ordLTbl(OrderLineIndexSize);
+    TABLE(Item) itemTbl(ItemIndexSize);
+    TABLE(Stock) stockTbl(StockIndexSize);
+    TABLE(History) historyTbl(HistoryIndexSize);
+    TABLE(DistrictNewOrder) distNoTbl(DistrictIndexSize);
     tpcc.loadPrograms();
     tpcc.loadCust();
     tpcc.loadDist();
@@ -166,7 +135,7 @@ int main(int argc, char** argv) {
     exec.execute(programs, numPrograms);
     cout << "Duration = " << exec.timeMs << endl;
     std::cout.imbue(std::locale(""));
-    cout << "Throughput = " << (uint)(numPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
+    cout << "Throughput = " << (uint) (numPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
     return 0;
 }
 

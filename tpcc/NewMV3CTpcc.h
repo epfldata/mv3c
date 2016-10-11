@@ -7,6 +7,14 @@ namespace tpcc_ns {
 #define  TABLE(x) Table<x##Key, x##Val>
 #define GETP(x) GetPred<x##Key,x##Val>
 #define DV(x) DeltaVersion<x##Key,x##Val>
+
+#define DefineStore(type)\
+  template<>\
+  DeltaVersion<type##Key, type##Val>::StoreType DeltaVersion<type##Key, type##Val>::store(type##DVSize, STRINGIFY(type)"DV", numThreads);\
+  template<>\
+  Entry<type##Key, type##Val>::StoreType Entry<type##Key, type##Val>::store(type##EntrySize, STRINGIFY(type)"Entry", numThreads)
+
+
     typedef GETP(Item) ItemGet;
     typedef DV(Item) ItemDV;
     typedef GETP(Stock) StockGet;
@@ -117,6 +125,7 @@ namespace tpcc_ns {
 
     forceinline TransactionReturnStatus neworder_itemfn(Program *p, const ItemDV *idv, uint ol_number) {
         auto prg = (MV3CNewOrder *) p;
+        Transaction& xact = p->xact;
         auto threadVar = prg->threadVar;
         if (idv == nullptr) {
             //            throw std::logic_error("NewOrder Item missing");
@@ -127,13 +136,14 @@ namespace tpcc_ns {
         auto ol_supply_w_id = prg->supware[ol_number];
 
         new (&threadVar->stockKey) StockKey(ol_i_id, ol_supply_w_id); //reusing multiple times within same transaction
-        new (&threadVar->MV3CNewOrderStock[ol_number]) StockGet(MV3CNewOrder::stockTable, &prg->xact, threadVar->stockKey, &threadVar->MV3CNewOrderItem[ol_number], col_type((1 << 15) - 1));
-        auto sdv = threadVar->MV3CNewOrderStock[ol_number].evaluateAndExecute(&prg->xact, neworder_stockfn, ol_number);
+        new (&threadVar->MV3CNewOrderStock[ol_number]) StockGet(MV3CNewOrder::stockTable, &xact, threadVar->stockKey, &threadVar->MV3CNewOrderItem[ol_number], col_type((1 << 15) - 1));
+        auto sdv = threadVar->MV3CNewOrderStock[ol_number].evaluateAndExecute(&xact, neworder_stockfn, ol_number);
         return neworder_stockfn(p, sdv, ol_number);
     }
 
     forceinline TransactionReturnStatus neworder_stockfn(Program *p, const StockDV *sdv, uint ol_number) {
         auto prg = (MV3CNewOrder*) p;
+        Transaction& xact = p->xact;
         auto threadVar = prg->threadVar;
         auto ol_qty = prg->quantity[ol_number];
 
@@ -152,7 +162,7 @@ namespace tpcc_ns {
 
         threadVar->MV3CNewOrderDist_info[ol_number] = &newsv->_2 + (prg->d_id - 1);
 
-        if (MV3CNewOrder::stockTable->update(&prg->xact, sdv->entry, MakeRecord(newsv), &threadVar->MV3CNewOrderStock[ol_number], ALLOW_WW, col_type(1 << 1 | 1 << 12 | 1 << 13 | 1 << 14)) != OP_SUCCESS) {
+        if (MV3CNewOrder::stockTable->update(&xact, sdv->entry, MakeRecord(newsv), &threadVar->MV3CNewOrderStock[ol_number], ALLOW_WW, col_type(1 << 1 | 1 << 12 | 1 << 13 | 1 << 14)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("NewOrder stock");
             //            else
@@ -163,13 +173,14 @@ namespace tpcc_ns {
 
     forceinline TransactionReturnStatus neworder_distfn(Program *p, const DistDV *ddv, uint cs) {
         auto prg = (MV3CNewOrder *) p;
+        Transaction& xact = p->xact;
         auto threadVar = p->threadVar;
         CreateValUpdate(District, newdv, ddv);
         threadVar->MV3CNewOrderD_tax = newdv->_7;
         auto o_id = newdv->_9;
         newdv->_9++;
 
-        if (MV3CNewOrder::distTable->update(&prg->xact, ddv->entry, MakeRecord(newdv), &threadVar->dist, ALLOW_WW, col_type(1 << 9)) != OP_SUCCESS) {
+        if (MV3CNewOrder::distTable->update(&xact, ddv->entry, MakeRecord(newdv), &threadVar->dist, ALLOW_WW, col_type(1 << 9)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("NewOrder stock");
             //            else
@@ -178,16 +189,16 @@ namespace tpcc_ns {
 
         new(&threadVar->orderKey) OrderKey(o_id, prg->d_id, prg->w_id);
         CreateValInsert(Order, newov, prg->c_id, prg->datetime, 0, prg->o_ol_cnt, prg->o_all_local);
-        if (MV3CNewOrder::orderTable->insert(&prg->xact, threadVar->orderKey, MakeRecord(newov), &threadVar->dist) != OP_SUCCESS) {
+        if (MV3CNewOrder::orderTable->insert(&xact, threadVar->orderKey, MakeRecord(newov), &threadVar->dist) != OP_SUCCESS) {
             //            throw std::logic_error("NewOrder order");
-            //            return WW_ABORT;
+            return WW_ABORT;
         }
 
         new(&threadVar->newOrderKey) NewOrderKey(o_id, prg->d_id, prg->w_id);
         CreateValInsert(NewOrder, newnov, true);
-        if (MV3CNewOrder::newOrdTable->insert(&prg->xact, threadVar->newOrderKey, MakeRecord(newnov), &threadVar->dist) != OP_SUCCESS) {
+        if (MV3CNewOrder::newOrdTable->insert(&xact, threadVar->newOrderKey, MakeRecord(newnov), &threadVar->dist) != OP_SUCCESS) {
             //            throw std::logic_error("NewOrder neworder");
-            //            return WW_ABORT;
+            return WW_ABORT;
         }
 
         for (uint8_t ol_number = 0; ol_number < prg->o_ol_cnt; ol_number++) {
@@ -195,9 +206,9 @@ namespace tpcc_ns {
             new (&threadVar->orderLineKey) OrderLineKey(o_id, prg->d_id, prg->w_id, ol_number + 1);
             CreateValInsert(OrderLine, newolv, prg->itemid[ol_number], prg->supware[ol_number], nulldate, prg->quantity[ol_number], threadVar->MV3CNewOrderOl_amt[ol_number], *threadVar->MV3CNewOrderDist_info[ol_number]);
 
-            if (MV3CNewOrder::ordLTable->insert(&prg->xact, threadVar->orderLineKey, MakeRecord(newolv), &threadVar->dist) != OP_SUCCESS) {
+            if (MV3CNewOrder::ordLTable->insert(&xact, threadVar->orderLineKey, MakeRecord(newolv), &threadVar->dist) != OP_SUCCESS) {
                 //throw std::logic_error("NewORder orderline");
-                //return WW_ABORTM
+                return WW_ABORT;
             }
         }
         return SUCCESS;
@@ -250,19 +261,20 @@ namespace tpcc_ns {
             CreateValInsert(History, newhv, true);
             if (histTable->insert(&xact, threadVar->histKey, MakeRecord(newhv)) != OP_SUCCESS) {
                 //                throw std::logic_error("payment hist");
-                //                return WW_ABORT;
+                return WW_ABORT;
             }
             return SUCCESS;
-            
+
         }
 
     };
 
     forceinline TransactionReturnStatus payment_distfn(Program* p, const DistDV* ddv, uint cs) {
         auto prg = (MV3CPayment *) p;
+        Transaction& xact = p->xact;
         CreateValUpdate(District, newdv, ddv);
         newdv->_8 += prg->h_amount;
-        if (MV3CPayment::distTable->update(&prg->xact, ddv->entry, MakeRecord(newdv), &prg->threadVar->dist, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
+        if (MV3CPayment::distTable->update(&xact, ddv->entry, MakeRecord(newdv), &prg->threadVar->dist, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment dist");
             //            else
@@ -274,11 +286,12 @@ namespace tpcc_ns {
 
     forceinline TransactionReturnStatus payment_custfn(Program* p, const CustDV* cdv, uint cs) {
         auto prg = (MV3CPayment *) p;
+        Transaction& xact = p->xact;
         CreateValUpdate(Customer, newcv, cdv);
         newcv->_14 -= prg->h_amount;
         newcv->_15 += prg->h_amount;
         newcv->_16++;
-        if (MV3CPayment::custTable->update(&prg->xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, ALLOW_WW, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
+        if (MV3CPayment::custTable->update(&xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, ALLOW_WW, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment cust");
             //            else
@@ -289,9 +302,10 @@ namespace tpcc_ns {
 
     forceinline TransactionReturnStatus payment_warefn(Program* p, const WareDV* wdv, uint cs) {
         auto prg = (MV3CPayment *) p;
+        Transaction& xact = p->xact;
         CreateValUpdate(Warehouse, newwv, wdv);
         newwv->_8 += prg->h_amount;
-        if (MV3CPayment::wareTable->update(&prg->xact, wdv->entry, MakeRecord(newwv), &prg->threadVar->ware, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
+        if (MV3CPayment::wareTable->update(&xact, wdv->entry, MakeRecord(newwv), &prg->threadVar->ware, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment ware");
             //            else
@@ -336,16 +350,16 @@ namespace tpcc_ns {
     //        auto d_id = dnocs->distno->key._1;
     //        DistrictNewOrderVal newdnov = dnodv->val;
     //        auto o_id = newdnov._1++;
-    //        if (prg->distNewOrdTable.update(&prg->xact, dnodv->entry, newdnov, dnocs->distno, ALLOW_WW, col_type(1 << 1)) != OP_SUCCESS) {
+    //        if (prg->distNewOrdTable.update(&xact, dnodv->entry, newdnov, dnocs->distno, ALLOW_WW, col_type(1 << 1)) != OP_SUCCESS) {
     //            //            if (ALLOW_WW)
     //            //                throw std::logic_error("delivery dist-neworder");
     //            //            else
     //            //                return WW_ABORT;
     //        }
     //        //        prg->newOrdTable.remove(.............)
-    //        auto order = new (OrderGet::store.add()) OrderGet(&prg->orderTable, &prg->xact, OrderKey(o_id, d_id, prg->w_id), dnocs->distno, col_type(1 << 1 | 1 << 3));
+    //        auto order = new (OrderGet::store.add()) OrderGet(&prg->orderTable, &xact, OrderKey(o_id, d_id, prg->w_id), dnocs->distno, col_type(1 << 1 | 1 << 3));
     //        auto ocs = new (DeliveryOrderCS::store.add()) DeliveryOrderCS(order, d_id);
-    //        auto odv = order->evaluateAndExecute(&prg->xact, delivery_orderfn, ocs);
+    //        auto odv = order->evaluateAndExecute(&xact, delivery_orderfn, ocs);
     //        return delivery_orderfn(p, odv, ocs);
     //
     //    }
@@ -356,15 +370,15 @@ namespace tpcc_ns {
     //        OrderVal newov = odv->val;
     //        auto c_id = newov._1;
     //        newov._3 = prg->o_carrier_id;
-    //        if (prg->orderTable.update(&prg->xact, odv->entry, newov, ocs->order, ALLOW_WW, col_type(1 << 3)) != OP_SUCCESS) {
+    //        if (prg->orderTable.update(&xact, odv->entry, newov, ocs->order, ALLOW_WW, col_type(1 << 3)) != OP_SUCCESS) {
     //            //            if (ALLOW_WW)
     //            //                throw std::logic_error("delivery order");
     //            //            else
     //            //                return WW_ABORT;
     //        }
-    //        auto cust = new (CustGet::store.add()) CustGet(&prg->custTable, &prg->xact, CustomerKey(c_id, ocs->d_id, prg->w_id), ocs->order, col_type(1 << 14 | 1 << 17));
+    //        auto cust = new (CustGet::store.add()) CustGet(&prg->custTable, &xact, CustomerKey(c_id, ocs->d_id, prg->w_id), ocs->order, col_type(1 << 14 | 1 << 17));
     //        auto ccs = new (DeliveryCustCS::store.add()) DeliveryCustCS(cust);
-    //        auto cdv = cust->evaluateAndExecute(&prg->xact, delivery_custfn, ccs);
+    //        auto cdv = cust->evaluateAndExecute(&xact, delivery_custfn, ccs);
     //        return delivery_custfn(p, cdv, ccs);
     //    }
     //
@@ -375,7 +389,7 @@ namespace tpcc_ns {
     //        float ol_total = 1; //SHOULD BE OBTAINED from OrderlIne instead;
     //        newcv._14 += ol_total;
     //        newcv._17++;
-    //        if (prg->custTable.update(&prg->xact, cdv->entry, newcv, ccs->cust, ALLOW_WW, col_type(1 << 14 | 1 << 17))) {
+    //        if (prg->custTable.update(&xact, cdv->entry, newcv, ccs->cust, ALLOW_WW, col_type(1 << 14 | 1 << 17))) {
     //            //            if (ALLOW_WW)
     //            //                throw std::logic_error("delivery cust");
     //            //            else

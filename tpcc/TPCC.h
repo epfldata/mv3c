@@ -17,7 +17,7 @@
 #include <iomanip>
 #include "types.h"
 
-
+#include <algorithm>
 
 namespace tpcc_ns {
 
@@ -35,15 +35,47 @@ namespace tpcc_ns {
 #else
     const size_t numPrograms = 100;
 #endif
-    const size_t WareSize = 8 * (numWare / 8 + 1);
-    const size_t ItemSize = 100000;
-    const size_t DistSize = 8 * ((numWare * 10) / 8 + 1);
-    const size_t CustSize = DistSize * 3000;
-    const size_t OrderSize = CustSize * 1.5 + 0.5 * numPrograms;
-    const size_t NewOrderSize = OrderSize * 0.3 + 0.5 * numPrograms;
-    const size_t OrdLineSize = OrderSize * 12;
-    const size_t StockSize = numWare * ItemSize;
-    const size_t HistSize = OrderSize;
+    const uint8_t numThreads = 10;
+
+    const size_t WarehouseEntrySize = numWare;
+    const size_t WarehouseDVSize = 2 * numPrograms / numThreads;
+
+    const size_t DistrictEntrySize = numWare * 10;
+    const size_t DistrictDVSize = 2 * numPrograms / numThreads;
+    
+    const size_t DistrictNewOrderEntrySize = numWare * 10;
+    const size_t DistrictNewOrderDVSize = 2 * numPrograms / numThreads;
+
+    const size_t CustomerEntrySize = DistrictEntrySize * 3000;
+    const size_t CustomerDVSize = std::max(2 * numPrograms / numThreads, CustomerEntrySize);
+
+    const size_t ItemEntrySize = 100000;
+    const size_t ItemDVSize = 100000;
+
+    const size_t StockEntrySize = numWare * ItemEntrySize;
+    const size_t StockDVSize = std::max(2 * numPrograms / numThreads, StockEntrySize);
+
+    const size_t OrderEntrySize = std::max(CustomerEntrySize, 2 * numPrograms / numThreads);
+    const size_t OrderDVSize = OrderEntrySize;
+
+    const size_t OrderLineEntrySize = OrderEntrySize * 12;
+    const size_t OrderLineDVSize = OrderLineEntrySize;
+
+    const size_t NewOrderEntrySize = OrderEntrySize;
+    const size_t NewOrderDVSize = OrderEntrySize;
+
+    const size_t HistoryEntrySize = OrderEntrySize;
+    const size_t HistoryDVSize = OrderEntrySize;
+
+    const size_t WarehouseIndexSize = 8 * (numWare / 8 + 1);
+    const size_t ItemIndexSize = 100000;
+    const size_t DistrictIndexSize = 8 * ((numWare * 10) / 8 + 1);
+    const size_t CustomerIndexSize = DistrictIndexSize * 3000;
+    const size_t OrderIndexSize = CustomerIndexSize * 1.5 + 0.5 * numPrograms;
+    const size_t NewOrderIndexSize = OrderIndexSize * 0.3 + 0.5 * numPrograms;
+    const size_t OrderLineIndexSize = OrderIndexSize * 12;
+    const size_t StockIndexSize = numWare * ItemIndexSize;
+    const size_t HistoryIndexSize = OrderIndexSize;
 
 #ifdef PROJECT_ROOT
     const std::string TStore = PROJECT_ROOT;
@@ -411,9 +443,11 @@ namespace tpcc_ns {
 #define fp "%f"
 #define dp "%lf"
 #define nullable "%[^,]"   
-        TPCCDataGen(){
+
+        TPCCDataGen() {
             programs = new Program*[numPrograms];
         }
+
         ~TPCCDataGen() {
             for (size_t i = 0; i < numPrograms; i++)
                 delete programs[i];

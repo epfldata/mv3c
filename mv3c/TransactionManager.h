@@ -3,6 +3,7 @@
 #include <atomic>
 #include "types.h"
 #include "Transaction.h"
+#include "DeltaVersion.h"
 
 struct TransactionManager {
     std::atomic<timestamp> timestampGen;
@@ -12,12 +13,19 @@ struct TransactionManager {
 
     void begin(Transaction *xact) {
         auto ts = timestampGen++;
-        new(xact) Transaction(ts);
+        xact->startTS = ts;
     }
 
     bool commit(Transaction *xact) {
         xact->commitTS = timestampGen++;
         return true;
+    }
+    void rollback(Transaction *xact){
+        while(xact->undoBufferHead){
+            auto dv = xact->undoBufferHead;
+            xact->undoBufferHead = xact->undoBufferHead->nextInUndoBuffer;
+            dv->free(xact->threadId);
+        }
     }
 };
 
