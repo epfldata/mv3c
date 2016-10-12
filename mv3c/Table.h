@@ -9,6 +9,7 @@
 
 #define CreateValInsert(type, name, args...)\
   auto name##DV = DeltaVersion<type##Key, type##Val>::store.add(xact.threadId);\
+  new (name##DV) DeltaVersion<type##Key, type##Val>();\
   type##Val * name = &name##DV->val;\
   new (name) type##Val(args)
 

@@ -11,7 +11,7 @@ struct DELTA {
     timestamp xactId;
     Operation op;
     virtual void free(uint8_t tid) = 0;
-
+    DELTA() = default;
     DELTA(timestamp id, DELTA* ub, Operation o, PRED* par) {
         nextInUndoBuffer = ub;
         xactId = id;
@@ -52,7 +52,7 @@ struct DeltaVersion : DELTA {
     }
 
 #endif
-
+    DeltaVersion() = default;
     void free(uint8_t tid) override {
         store.remove(this, tid);
 
