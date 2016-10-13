@@ -11,6 +11,7 @@ struct Transaction {
 
     Transaction() {
         threadId = 0;
+        commitTS = initCommitTS;
         undoBufferHead = nullptr;
         predicateHead = nullptr;
     }

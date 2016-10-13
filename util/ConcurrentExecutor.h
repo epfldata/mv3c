@@ -14,7 +14,9 @@
 struct ConcurrentExecutor {
     std::thread* workers;
     volatile bool* isReady;
-    volatile bool startExecution;
+    volatile bool startExecution, hasFinished;
+    std::atomic<uint> finishedPrograms;
+    std::atomic<uint> abortedPrograms;
     uint8_t numThreads;
     Timepoint startTime, endTime;
     uint progPerThread;
@@ -24,6 +26,7 @@ struct ConcurrentExecutor {
 
     ConcurrentExecutor(uint8_t numThr, TransactionManager& TM) : tm(TM) {
         numThreads = numThr;
+        hasFinished = false;
         programs = new Program**[numThreads];
         workers = new std::thread[numThreads];
         isReady = new volatile bool[numThreads];
@@ -62,6 +65,7 @@ struct ConcurrentExecutor {
                 startExecution = true;
                 break;
             }
+
             all_ready = true;
         }
         for (uint8_t i = 0; i < numThreads; ++i) {
@@ -85,7 +89,7 @@ struct ConcurrentExecutor {
         Program *p;
         auto ppt = progPerThread;
         uint pid = 0;
-
+        uint aborted = 0, finished = 0;
         while (pid < ppt && (p = threadPrgs[pid])) {
             threadPrgs[pid]->threadVar = &threadVar;
             threadPrgs[pid]->xact.threadId = thread_id + 1;
@@ -95,26 +99,33 @@ struct ConcurrentExecutor {
         while (!startExecution);
         pid = 0;
 
-        while (pid < ppt && (p = threadPrgs[pid])) {
-            executeProgram(p);
-            pid++;
+        while (pid < ppt && (p = threadPrgs[pid]) && !hasFinished) {
+            tm.begin(&p->xact);
+            auto status = p->execute();
+            if (status != SUCCESS) {
+//                 cerr << "Thread "<<thread_id<< " aborted " << pid << endl;
+                tm.rollback(&p->xact);
+                aborted++;
+            } else {
+                tm.commit(&p->xact);
+                finished++;
+//                cerr << "Thread "<<thread_id<< " finished " << pid << endl;
+                pid++;
+            }
 
         }
-    }
-
-    forceinline void executeProgram(Program *p) {
-        tm.begin(&p->xact);
-        auto status = p->execute();
-        if (status != SUCCESS)
-            tm.rollback(&p->xact);
-        else
-            tm.commit(&p->xact);
-
+        hasFinished = true;
+        finishedPrograms += finished;
+        abortedPrograms += aborted;
     }
 
     ~ConcurrentExecutor() {
         delete[] isReady;
         delete[] workers;
+        for (uint8_t i = 0; i < numThreads; ++i) {
+            delete[] programs[i];
+        }
+        delete[] programs;
     }
 };
 

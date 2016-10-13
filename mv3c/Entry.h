@@ -9,7 +9,7 @@ struct Entry {
     typedef Store<Entry<K,V>> StoreType;
     static StoreType store;
     Table<K, V> * const tbl;
-    DeltaVersion<K, V>* dv;
+    std::atomic<DeltaVersion<K, V>*> dv;
     
     Entry(Table<K, V> * tb, const K&k) : key(k), tbl(tb), dv(nullptr) {
     }

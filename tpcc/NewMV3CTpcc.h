@@ -90,7 +90,7 @@ namespace tpcc_ns {
                 auto idv = threadVar->MV3CNewOrderItem[ol_number].evaluateAndExecute(&xact, neworder_itemfn, ol_number);
                 status = neworder_itemfn(this, idv, ol_number);
                 if (status != SUCCESS) {
-                    cerr << "NewOrder Item" << endl;
+                    //                    cerr << "NewOrder Item" << endl;
                     return status;
                 }
             }
@@ -128,7 +128,7 @@ namespace tpcc_ns {
         Transaction& xact = p->xact;
         auto threadVar = prg->threadVar;
         if (idv == nullptr) {
-            //            throw std::logic_error("NewOrder Item missing");
+            cerr << "NewOrder Item missing" << endl;
             return ABORT;
         }
         threadVar->MV3CNewOrderOl_amt[ol_number] = idv->val._3 * prg->quantity[ol_number];
@@ -166,7 +166,7 @@ namespace tpcc_ns {
             //            if (ALLOW_WW)
             //                throw std::logic_error("NewOrder stock");
             //            else
-            //                return WW_ABORT;
+            return WW_ABORT;
         }
         return SUCCESS;
     }
@@ -184,7 +184,7 @@ namespace tpcc_ns {
             //            if (ALLOW_WW)
             //                throw std::logic_error("NewOrder stock");
             //            else
-            //                return WW_ABORT;
+            return WW_ABORT;
         }
 
         new(&threadVar->orderKey) OrderKey(o_id, prg->d_id, prg->w_id);
@@ -230,7 +230,7 @@ namespace tpcc_ns {
 
         TransactionReturnStatus execute() override {
             TransactionReturnStatus status = SUCCESS;
-
+            
             new (&threadVar->distKey) DistrictKey(d_id, w_id);
             new (&threadVar->dist) DistGet(distTable, &xact, threadVar->distKey, nullptr, col_type(1 << 8));
             auto ddv = threadVar->dist.evaluateAndExecute(&xact, payment_distfn);
@@ -278,7 +278,7 @@ namespace tpcc_ns {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment dist");
             //            else
-            //                return WW_ABORT;
+            return WW_ABORT;
         }
         return SUCCESS;
 
@@ -295,7 +295,7 @@ namespace tpcc_ns {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment cust");
             //            else
-            //                return WW_ABORT;
+            return WW_ABORT;
         }
         return SUCCESS;
     }
@@ -309,7 +309,7 @@ namespace tpcc_ns {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment ware");
             //            else
-            //                return WW_ABORT;
+            return WW_ABORT;
         }
         return SUCCESS;
     }

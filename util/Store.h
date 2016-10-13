@@ -60,10 +60,10 @@ public:
     Element<T>** freeLists;
     const std::string name;
 
-    Store(size_t size, const std::string& n, uint8_t numT) : start((numT + 1) * size), numThreads(numT), poolsize(size), name(n) {
-        freeLists = new Element<T>*[numT + 1];
-        currentArrayIndex = new size_t[numT + 1];
-        for (uint i = 0; i < numT; ++i) {
+    Store(size_t size, const std::string& n, uint8_t numT) : start((numT + 1) * size), numThreads(numT +1), poolsize(size), name(n) {
+        freeLists = new Element<T>*[numThreads];
+        currentArrayIndex = new size_t[numThreads];
+        for (uint i = 0; i < numT + 1; ++i) {
             freeLists[i] = nullptr;
             currentArrayIndex[i] = 0;
         }
@@ -71,6 +71,11 @@ public:
     }
 
     ~Store() {
+//        cerr << name << "about to  be deleted "<<endl;
+        delete[] freeLists;
+        delete[] currentArrayIndex;
+//        cerr << name << "deleted "<<endl;
+        
         //        Pool<T>* cur;
         //        currentPool = start.next;
         //        while (currentPool != nullptr) {
@@ -96,7 +101,8 @@ public:
             currentArrayIndex[tid]++;
         } else {
             ptr = freeLists[tid];
-            freeLists[tid] = freeLists[tid]->cell.next;
+            freeLists[tid] = ptr->cell.next;
+
         }
         assert(ptr->isActive == false);
         ptr->isActive = true;
@@ -107,14 +113,15 @@ public:
         if (optr == nullptr)
             return;
 
-        optr->~T();
         Element<T>* ptr = (Element<T>*)optr;
         //TO REMOVE:
-        uint8_t tid = (ptr - start.array) / poolsize;
-        assert(tid == thread_id); // or thread_id == GC_tid
+        assert(thread_id != 0);
+        assert(thread_id == ((ptr - start.array) / poolsize));
+        assert(ptr->isActive);
+//        memset(&ptr->cell, 0xff, sizeof (ptr->cell));
         ptr->isActive = false;
-        ptr->cell.next = freeLists[tid];
-        freeLists[tid] = ptr;
+        ptr->cell.next = freeLists[thread_id];
+        freeLists[thread_id] = ptr;
     }
 
     //    void forEach(const std::function<void(T&) >& func) const {

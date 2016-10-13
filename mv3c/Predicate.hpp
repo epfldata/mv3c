@@ -61,8 +61,10 @@ private:
         Entry<K, V> *e;
         isInvalid = false;
         if (tbl->primaryIndex.find(key, e)) {
-            return e->dv;
+            assert(e->dv);
+           return tbl->getCorrectDV(xact, e);
         } else {
+            assert(false);
             return nullptr;
         }
     }

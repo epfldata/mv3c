@@ -91,8 +91,13 @@ int main(int argc, char** argv) {
     for (const auto&it : tpcc.iWarehouse) {
         wareTbl.insertVal(t0, it.first, it.second);
     }
+    transactionManager.commit(t0);
     int neworder = 0;
     int payment = 0;
+    cout << "Number of programs = "<<numPrograms << endl;
+    cout << "Number of warehouse = "<<numWare << endl;
+    cout << "Number of threads = "<<numThreads << endl;
+    
     Program ** programs = new Program*[numPrograms];
     MV3CNewOrder::custTable = &custTbl;
     MV3CNewOrder::distTable = &distTbl;
@@ -131,11 +136,18 @@ int main(int argc, char** argv) {
     }
     cout << "NewOrder =" << neworder << endl;
     cout << "Payment =" << payment << endl;
-    ConcurrentExecutor exec(10, transactionManager);
+    ConcurrentExecutor exec(numThreads, transactionManager);
     exec.execute(programs, numPrograms);
     cout << "Duration = " << exec.timeMs << endl;
+    cout << "Committed = " << exec.finishedPrograms << endl;
+    cout << "Aborted  = " << exec.abortedPrograms << endl;
     std::cout.imbue(std::locale(""));
-    cout << "Throughput = " << (uint) (numPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
+    cout << "Abort rate = " << 1.0 * exec.abortedPrograms / exec.finishedPrograms << endl;
+    cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
+    for (uint i = 0; i < numPrograms; ++i) {
+        delete programs[i];
+    }
+    delete[] programs;
     return 0;
 }
 

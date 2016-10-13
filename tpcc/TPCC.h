@@ -38,24 +38,24 @@ namespace tpcc_ns {
     const uint8_t numThreads = 10;
 
     const size_t WarehouseEntrySize = numWare;
-    const size_t WarehouseDVSize = 2 * numPrograms / numThreads;
+    const size_t WarehouseDVSize = numPrograms;
 
     const size_t DistrictEntrySize = numWare * 10;
-    const size_t DistrictDVSize = 2 * numPrograms / numThreads;
-    
+    const size_t DistrictDVSize =  numPrograms;
+
     const size_t DistrictNewOrderEntrySize = numWare * 10;
-    const size_t DistrictNewOrderDVSize = 2 * numPrograms / numThreads;
+    const size_t DistrictNewOrderDVSize =  numPrograms;
 
     const size_t CustomerEntrySize = DistrictEntrySize * 3000;
-    const size_t CustomerDVSize = std::max(2 * numPrograms / numThreads, CustomerEntrySize);
+    const size_t CustomerDVSize = std::max( numPrograms, CustomerEntrySize);
 
     const size_t ItemEntrySize = 100000;
     const size_t ItemDVSize = 100000;
 
     const size_t StockEntrySize = numWare * ItemEntrySize;
-    const size_t StockDVSize = std::max(2 * numPrograms / numThreads, StockEntrySize);
+    const size_t StockDVSize = std::max(15 * numPrograms, StockEntrySize);
 
-    const size_t OrderEntrySize = std::max(CustomerEntrySize, 2 * numPrograms / numThreads);
+    const size_t OrderEntrySize = std::max(CustomerEntrySize,  numPrograms);
     const size_t OrderDVSize = OrderEntrySize;
 
     const size_t OrderLineEntrySize = OrderEntrySize * 12;
@@ -452,6 +452,7 @@ namespace tpcc_ns {
             for (size_t i = 0; i < numPrograms; i++)
                 delete programs[i];
             delete programs;
+            cerr << "TPCC deleted" << endl;
         }
 
         void loadPrograms() {
