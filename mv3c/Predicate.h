@@ -10,26 +10,29 @@ enum PredicateID {
 
 struct PRED {
     const PredicateID predType;
-    PRED* child, *next;
+    PRED* firstChild, *nextChild;
     DELTA* DVsInClosureHead;
     uint closureState;
-    bool isInvalid, shouldValidate, isEvaluated;
+    bool isInvalid, isEvaluated;
     virtual bool matchesAny(Transaction *t) = 0;
-    PRED():predType(UNINITIALIZED){}
-    PRED(Transaction *x, PRED* par, bool validate, PredicateID pid) : predType(pid) {
+
+    PRED() : predType(UNINITIALIZED) {
+    }
+
+    PRED(Transaction *x, PRED* par, PredicateID pid) : predType(pid) {
         isInvalid = true;
         isEvaluated = false;
-        shouldValidate = validate;
+        //        shouldValidate = validate; always true
         closureState = -1;
-        child = nullptr;
+        firstChild = nullptr;
         DVsInClosureHead = nullptr;
-//        if (par == nullptr) {
-//            next = x->predicateHead;
-//            x->predicateHead = this;
-//        } else {
-//            next = par->child;
-//            par->child = this;
-//        }
+        //        if (par == nullptr) {
+        //            next = x->predicateHead;
+        //            x->predicateHead = this;
+        //        } else {
+        //            next = par->child;
+        //            par->child = this;
+        //        }
     }
 
     virtual ~PRED() {

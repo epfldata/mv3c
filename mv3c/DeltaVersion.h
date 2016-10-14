@@ -10,7 +10,7 @@ struct DELTA {
     DELTA* nextInDVsInClosure;
     timestamp xactId;
     Operation op;
-    virtual void removeFromVersionChainAndDelete(uint8_t tid) = 0;
+    virtual void removeFromVersionChain() = 0;
     DELTA() = default;
 
     DELTA(timestamp id, DELTA* ub, Operation o, PRED* par) {
@@ -54,7 +54,7 @@ struct DeltaVersion : DELTA {
 #endif
     DeltaVersion() = default;
 
-    void removeFromVersionChainAndDelete(uint8_t tid) override {
+    void removeFromVersionChain() override {
         DeltaVersion<K, V>* dv = this;
         if (!entry->dv.compare_exchange_strong(dv, (DeltaVersion<K, V>*)olderVersion)) {
             cerr << "DV being removed is not the first version" << endl;

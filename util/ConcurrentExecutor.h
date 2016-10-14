@@ -16,7 +16,8 @@ struct ConcurrentExecutor {
     volatile bool* isReady;
     volatile bool startExecution, hasFinished;
     std::atomic<uint> finishedPrograms;
-    std::atomic<uint> abortedPrograms;
+    std::atomic<uint> failedExecution;
+    std::atomic<uint> failedValidation;
     uint8_t numThreads;
     Timepoint startTime, endTime;
     uint progPerThread;
@@ -27,6 +28,8 @@ struct ConcurrentExecutor {
     ConcurrentExecutor(uint8_t numThr, TransactionManager& TM) : tm(TM) {
         numThreads = numThr;
         hasFinished = false;
+        failedExecution = 0;
+        failedValidation = 0;
         programs = new Program**[numThreads];
         workers = new std::thread[numThreads];
         isReady = new volatile bool[numThreads];
@@ -89,7 +92,7 @@ struct ConcurrentExecutor {
         Program *p;
         auto ppt = progPerThread;
         uint pid = 0;
-        uint aborted = 0, finished = 0;
+        uint failedex = 0, finished = 0, failedval = 0;
         while (pid < ppt && (p = threadPrgs[pid])) {
             threadPrgs[pid]->threadVar = &threadVar;
             threadPrgs[pid]->xact.threadId = thread_id + 1;
@@ -103,20 +106,25 @@ struct ConcurrentExecutor {
             tm.begin(&p->xact);
             auto status = p->execute();
             if (status != SUCCESS) {
-//                 cerr << "Thread "<<thread_id<< " aborted " << pid << endl;
+                //                 cerr << "Thread "<<thread_id<< " aborted " << pid << endl;
                 tm.rollback(&p->xact);
-                aborted++;
+                failedex++;
             } else {
-                tm.commit(&p->xact);
-                finished++;
-//                cerr << "Thread "<<thread_id<< " finished " << pid << endl;
-                pid++;
+
+                if (tm.validateAndCommit(&p->xact)) {
+                    finished++;
+                    //                cerr << "Thread "<<thread_id<< " finished " << pid << endl;
+                    pid++;
+                } else {
+                    failedval++;
+                }
             }
 
         }
         hasFinished = true;
         finishedPrograms += finished;
-        abortedPrograms += aborted;
+        failedExecution += failedex;
+        failedValidation += failedval;
     }
 
     ~ConcurrentExecutor() {

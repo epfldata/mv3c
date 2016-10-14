@@ -78,11 +78,11 @@ struct Table {
     }
 
     forceinline OperationReturnStatus update(Transaction *xact, Entry<K, V> *e, DeltaVersion<K, V> * dv, PRED* parent = nullptr, const bool allowWW = false, const col_type& colsChanged = col_type(-1)) {
-        
+
         dv->initialize(e, PTRtoTS(xact), xact->undoBufferHead, UPDATE, parent);
 
         DVType * old = e->dv.load();
-       
+
         if (!isVisible(xact, old)) {//can cause problems if old is reclaimed by some thread
             DVType::store.remove(dv, xact->threadId);
             return WW_VALUE;
@@ -93,7 +93,7 @@ struct Table {
             return WW_VALUE;
         }
         xact->undoBufferHead = dv;
-       
+
         return OP_SUCCESS;
     }
 
@@ -122,7 +122,7 @@ struct Table {
 
     forceinline DVType* getCorrectDV(Transaction *xact, EntryType *e) {
         DVType* dv = e->dv.load(); //dv != nullptr as there will always be one version
-   
+
         while (dv != nullptr) {
             if (isVisible(xact, dv))
                 return dv;

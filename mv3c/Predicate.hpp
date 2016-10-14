@@ -13,11 +13,11 @@ struct GetPred : public PRED {
 #ifdef ATTRIB_LEVEL
     const col_type colsToBeChecked;
 
-    GetPred(Table<K, V>* id, Transaction* n, const K& k, PRED* par = nullptr, const col_type& cols = col_type(-1), bool shouldValidate = true) : PRED(n, par, shouldValidate, GET), key(k), tbl(id), colsToBeChecked(cols) {
+    GetPred(Table<K, V>* id, Transaction* n, const K& k, PRED* par = nullptr, const col_type& cols = col_type(-1)) : PRED(n, par, GET), key(k), tbl(id), colsToBeChecked(cols) {
     }
 #else
 
-    GetPred(Table<K, V>* id, Transaction* n, const K& k, PRED* par = nullptr, const col_type& cols = col_type(-1), bool shouldValidate = true) : PRED(n, par, shouldValidate, GET), key(k), tbl(id) {
+    GetPred(Table<K, V>* id, Transaction* n, const K& k, PRED* par = nullptr, const col_type& cols = col_type(-1)) : PRED(n, par, GET), key(k), tbl(id) {
     }
 #endif
     GetPred(){}

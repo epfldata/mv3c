@@ -6,7 +6,9 @@ struct Transaction {
     DELTA* undoBufferHead;
     PRED* predicateHead;
     static TransactionManager& tm;
-    timestamp startTS, commitTS;
+    timestamp startTS;
+    volatile timestamp commitTS;
+    Transaction * prevCommitted;
     uint8_t threadId;
 
     Transaction() {

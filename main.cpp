@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
     for (const auto&it : tpcc.iWarehouse) {
         wareTbl.insertVal(t0, it.first, it.second);
     }
-    transactionManager.commit(t0);
+    transactionManager.validateAndCommit(t0);
     int neworder = 0;
     int payment = 0;
     cout << "Number of programs = "<<numPrograms << endl;
@@ -140,9 +140,11 @@ int main(int argc, char** argv) {
     exec.execute(programs, numPrograms);
     cout << "Duration = " << exec.timeMs << endl;
     cout << "Committed = " << exec.finishedPrograms << endl;
-    cout << "Aborted  = " << exec.abortedPrograms << endl;
+    cout << "FailedExecution  = " << exec.failedExecution << endl;
+    cout << "FailedValidation  = " << exec.failedValidation << endl;
     std::cout.imbue(std::locale(""));
-    cout << "Abort rate = " << 1.0 * exec.abortedPrograms / exec.finishedPrograms << endl;
+    cout << "FailedEx rate = " << 1.0 * exec.failedExecution / exec.finishedPrograms << endl;
+    cout << "FailedVal rate = " << 1.0 * exec.failedValidation / exec.finishedPrograms << endl;
     cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];
