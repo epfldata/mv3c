@@ -1,6 +1,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 #include<iostream>
+#include<sstream>
 #include "Tuple.h"
 #include <atomic>
 using std::cout;

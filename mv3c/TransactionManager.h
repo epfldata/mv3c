@@ -9,9 +9,12 @@ struct TransactionManager {
     std::atomic<timestamp> timestampGen;
     std::atomic_flag commitLock;
     std::atomic<Transaction *> committedXactsTail;
+    std::atomic<size_t> numValidations, numXactsValidatedAgainst;
 
     TransactionManager() : timestampGen(0) {
         committedXactsTail = nullptr;
+        numValidations = 0;
+        numXactsValidatedAgainst = 0;
     }
 
     forceinline void begin(Transaction *xact) {
@@ -32,15 +35,17 @@ struct TransactionManager {
         bool validated = true;
         Transaction *startXact = committedXactsTail, *endXact = nullptr, *currentXact;
         uint round = 0;
+        numValidations++;
+        size_t xactCount = 0;
         do {
             round++;
             assert(round < 10);
             if (startXact != nullptr) {
                 currentXact = startXact;
                 //wait until committed??  current->xact->status == COMMITTED
-                while (currentXact->commitTS == initCommitTS);
-                timestamp currentXactCommitTS = currentXact->commitTS;
-                while (currentXact != nullptr && currentXact != endXact && currentXactCommitTS > xact->startTS) {
+                //                while (currentXact->commitTS == initCommitTS);
+                
+                while (currentXact != nullptr && currentXact != endXact && currentXact->commitTS > xact->startTS) {
                     auto head = xact->predicateHead;
                     while (head != nullptr) {
                         bool headMatches = head->matchesAny(currentXact); //shouldValidate always true
@@ -76,6 +81,8 @@ struct TransactionManager {
                         head = head->nextChild;
                     }
                     currentXact = currentXact->prevCommitted;
+                    xactCount++;
+                    //                    currentXact = nullptr;
                 }
             }
             endXact = startXact;
@@ -99,6 +106,7 @@ struct TransactionManager {
                 dv->xactId = xact->commitTS;
                 dv = dv->nextInUndoBuffer;
             }
+            numXactsValidatedAgainst += xactCount;
             return true;
         } while (true);
     }

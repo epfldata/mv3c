@@ -6,7 +6,7 @@
 template <typename K, typename V>
 struct GetPred : public PRED {
     typedef const DeltaVersion<K, V>* DvPtr;
-    typedef TransactionReturnStatus(*FuncType)(Program *p,  DvPtr, uint cs);
+    typedef TransactionReturnStatus(*FuncType)(Program *p, DvPtr, uint cs);
     Table<K, V> * tbl;
     FuncType andThenFn;
     const K key;
@@ -20,7 +20,9 @@ struct GetPred : public PRED {
     GetPred(Table<K, V>* id, Transaction* n, const K& k, PRED* par = nullptr, const col_type& cols = col_type(-1)) : PRED(n, par, GET), key(k), tbl(id) {
     }
 #endif
-    GetPred(){}
+
+    GetPred() {
+    }
 
     virtual bool matchesAny(Transaction *t) {
         if (isInvalid)
@@ -62,7 +64,7 @@ private:
         isInvalid = false;
         if (tbl->primaryIndex.find(key, e)) {
             assert(e->dv);
-           return tbl->getCorrectDV(xact, e);
+            return tbl->getCorrectDV(xact, e);
         } else {
             assert(false);
             return nullptr;

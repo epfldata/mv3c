@@ -146,6 +146,9 @@ int main(int argc, char** argv) {
     cout << "FailedEx rate = " << 1.0 * exec.failedExecution / exec.finishedPrograms << endl;
     cout << "FailedVal rate = " << 1.0 * exec.failedValidation / exec.finishedPrograms << endl;
     cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
+    cout << "Num validations  = " << transactionManager.numValidations << endl;
+    cout << "Num validations against = " << transactionManager.numXactsValidatedAgainst << endl;
+    cout << "avg validations against = " << transactionManager.numXactsValidatedAgainst/(1.0 * transactionManager.numValidations) << endl;
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];
     }
