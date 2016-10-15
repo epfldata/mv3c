@@ -7,7 +7,7 @@
 
 struct TransactionManager {
     std::atomic<timestamp> timestampGen;
-    std::atomic_flag commitLock;
+    std::atomic_flag commitLock, counterLock;
     std::atomic<Transaction *> committedXactsTail;
     std::atomic<size_t> numValidations, numXactsValidatedAgainst;
 
@@ -18,8 +18,10 @@ struct TransactionManager {
     }
 
     forceinline void begin(Transaction *xact) {
+        while(!counterLock.test_and_set());
         auto ts = timestampGen++;
         xact->startTS = ts;
+        counterLock.clear();
     }
 
     forceinline void rollback(Transaction * xact) {
@@ -98,8 +100,9 @@ struct TransactionManager {
                 continue;
             }
             xact->prevCommitted = startXact;
+            while(!counterLock.test_and_set());
             xact->commitTS = timestampGen.fetch_add(1);
-
+            counterLock.clear();
             //TODO: Move next to committed for WW values
             commitLock.clear();
             auto dv = xact->undoBufferHead;
