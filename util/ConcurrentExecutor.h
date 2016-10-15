@@ -28,6 +28,7 @@ struct ConcurrentExecutor {
     ConcurrentExecutor(uint8_t numThr, TransactionManager& TM) : tm(TM) {
         numThreads = numThr;
         hasFinished = false;
+        finishedPrograms = 0;
         failedExecution = 0;
         failedValidation = 0;
         programs = new Program**[numThreads];
