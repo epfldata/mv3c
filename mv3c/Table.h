@@ -79,7 +79,7 @@ struct Table {
 
     forceinline OperationReturnStatus update(Transaction *xact, Entry<K, V> *e, DeltaVersion<K, V> * dv, PRED* parent = nullptr, const bool allowWW = false, const col_type& colsChanged = col_type(-1)) {
 
-        dv->initialize(e, PTRtoTS(xact), xact->undoBufferHead, UPDATE, parent);
+        dv->initialize(e, PTRtoTS(xact), xact->undoBufferHead, UPDATE, parent, colsChanged);
 
         DVType * old = e->dv.load();
 

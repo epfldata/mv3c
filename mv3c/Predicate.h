@@ -26,13 +26,13 @@ struct PRED {
         closureState = -1;
         firstChild = nullptr;
         DVsInClosureHead = nullptr;
-        //        if (par == nullptr) {
-        //            next = x->predicateHead;
-        //            x->predicateHead = this;
-        //        } else {
-        //            next = par->child;
-        //            par->child = this;
-        //        }
+        if (par == nullptr) {
+            nextChild = x->predicateHead;
+            x->predicateHead = this;
+        } else {
+            nextChild = par->firstChild;
+            par->firstChild = this;
+        }
     }
 
     virtual ~PRED() {

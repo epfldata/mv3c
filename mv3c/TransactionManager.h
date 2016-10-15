@@ -28,6 +28,7 @@ struct TransactionManager {
             xact->undoBufferHead = xact->undoBufferHead->nextInUndoBuffer;
             dv->removeFromVersionChain();
         }
+        xact->predicateHead = nullptr;
     }
 
     forceinline bool validateAndCommit(Transaction *xact) {

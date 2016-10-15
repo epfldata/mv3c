@@ -41,13 +41,13 @@ namespace tpcc_ns {
     const size_t WarehouseDVSize = numPrograms;
 
     const size_t DistrictEntrySize = numWare * 10;
-    const size_t DistrictDVSize =  2*numPrograms;
+    const size_t DistrictDVSize = 2 * numPrograms;
 
     const size_t DistrictNewOrderEntrySize = numWare * 10;
     const size_t DistrictNewOrderDVSize = numPrograms;
 
     const size_t CustomerEntrySize = DistrictEntrySize * 3000;
-    const size_t CustomerDVSize = std::max( numPrograms, CustomerEntrySize);
+    const size_t CustomerDVSize = std::max(numPrograms, CustomerEntrySize);
 
     const size_t ItemEntrySize = 100000;
     const size_t ItemDVSize = 100000;
