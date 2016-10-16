@@ -53,17 +53,17 @@ const timestamp initCommitTS = mask + 5;
 
 template<typename T>
 forceinline bool isMarked(T t) {
-    return ((long) t & 0x1L);
+    return ((size_t) t & mask);
 }
 
 template<typename T>
 forceinline T mark(T t) {
-    return (T) ((long) t | 0x1L);
+    return (T) ((size_t) t | mask);
 }
 
 template<typename T>
 forceinline T unmark(T t) {
-    return (T) ((long) t & ~0x1L);
+    return (T) ((size_t) t & ~mask);
 }
 
 #ifndef ALLOW_WW

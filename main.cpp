@@ -94,10 +94,10 @@ int main(int argc, char** argv) {
     transactionManager.validateAndCommit(t0);
     int neworder = 0;
     int payment = 0;
-    cout << "Number of programs = "<<numPrograms << endl;
-    cout << "Number of warehouse = "<<numWare << endl;
-    cout << "Number of threads = "<<numThreads << endl;
-    
+    cout << "Number of programs = " << numPrograms << endl;
+    cout << "Number of warehouse = " << numWare << endl;
+    cout << "Number of threads = " << numThreads << endl;
+
     Program ** programs = new Program*[numPrograms];
     MV3CNewOrder::custTable = &custTbl;
     MV3CNewOrder::distTable = &distTbl;
@@ -148,11 +148,16 @@ int main(int argc, char** argv) {
     cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
     cout << "Num validations  = " << transactionManager.numValidations << endl;
     cout << "Num validations against = " << transactionManager.numXactsValidatedAgainst << endl;
-    cout << "avg validations against = " << transactionManager.numXactsValidatedAgainst/(1.0 * transactionManager.numValidations) << endl;
+    cout << "avg validations against = " << transactionManager.numXactsValidatedAgainst / (1.0 * transactionManager.numValidations) << endl;
+    cout << "avg validation rounds = " << transactionManager.numRounds / (1.0 * transactionManager.numValidations) << endl;
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];
     }
     delete[] programs;
+
+    for (int i = 0; i < numThreads; ++i) {
+        cout << "Thread " << i << " " << exec.failedPerThread[0][i] << "  " << exec.failedPerThread[1][i] << endl;
+    }
     return 0;
 }
 

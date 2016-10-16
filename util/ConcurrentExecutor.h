@@ -19,6 +19,7 @@ struct ConcurrentExecutor {
     std::atomic<uint> failedExecution;
     std::atomic<uint> failedValidation;
     uint8_t numThreads;
+    uint* failedPerThread[2];
     Timepoint startTime, endTime;
     uint progPerThread;
     size_t timeMs;
@@ -35,6 +36,8 @@ struct ConcurrentExecutor {
         workers = new std::thread[numThreads];
         isReady = new volatile bool[numThreads];
         startExecution = false;
+        failedPerThread[0] = new uint[numThreads];
+        failedPerThread[1] = new uint[numThreads];
         for (uint8_t i = 0; i < numThreads; ++i) {
             isReady[i] = 0;
         }
@@ -94,6 +97,9 @@ struct ConcurrentExecutor {
         auto ppt = progPerThread;
         uint pid = 0;
         uint failedex = 0, finished = 0, failedval = 0;
+        uint failed2[2];
+        failed2[0] = 0;
+        failed2[1] = 0;
         while (pid < ppt && (p = threadPrgs[pid])) {
             threadPrgs[pid]->threadVar = &threadVar;
             threadPrgs[pid]->xact.threadId = thread_id + 1;
@@ -110,6 +116,11 @@ struct ConcurrentExecutor {
                 //                 cerr << "Thread "<<thread_id<< " aborted " << pid << endl;
                 tm.rollback(&p->xact);
                 failedex++;
+                failed2[p->prgType]++;
+                if (p->xact.failureCtr > 100) {
+                    cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!" << endl;
+                    hasFinished = true;
+                }
             } else {
 
                 if (tm.validateAndCommit(&p->xact)) {
@@ -126,6 +137,8 @@ struct ConcurrentExecutor {
         finishedPrograms += finished;
         failedExecution += failedex;
         failedValidation += failedval;
+        failedPerThread[0][thread_id] = failed2[0];
+        failedPerThread[1][thread_id] = failed2[1];
     }
 
     ~ConcurrentExecutor() {

@@ -36,6 +36,11 @@ struct ValTuple<T1> {
     if(!cols[1]) _1 = that._1;
   }
  
+  void copyColsFrom(const ValTuple<T1>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+  }
+ 
   bool operator ==(const ValTuple<T1>& that) const { 
     if(!(isNotNull && that.isNotNull))  return !(isNotNull || that.isNotNull);
     return _1 == that._1;
@@ -83,6 +88,12 @@ struct ValTuple<T1, T2> {
     if(!cols[0]) isNotNull = that.isNotNull;
     if(!cols[1]) _1 = that._1;
     if(!cols[2]) _2 = that._2;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
   }
  
   bool operator ==(const ValTuple<T1, T2>& that) const { 
@@ -137,6 +148,13 @@ struct ValTuple<T1, T2, T3> {
     if(!cols[1]) _1 = that._1;
     if(!cols[2]) _2 = that._2;
     if(!cols[3]) _3 = that._3;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3>& that) const { 
@@ -196,6 +214,14 @@ struct ValTuple<T1, T2, T3, T4> {
     if(!cols[2]) _2 = that._2;
     if(!cols[3]) _3 = that._3;
     if(!cols[4]) _4 = that._4;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4>& that) const { 
@@ -260,6 +286,15 @@ struct ValTuple<T1, T2, T3, T4, T5> {
     if(!cols[3]) _3 = that._3;
     if(!cols[4]) _4 = that._4;
     if(!cols[5]) _5 = that._5;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5>& that) const { 
@@ -329,6 +364,16 @@ struct ValTuple<T1, T2, T3, T4, T5, T6> {
     if(!cols[4]) _4 = that._4;
     if(!cols[5]) _5 = that._5;
     if(!cols[6]) _6 = that._6;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5, T6>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
+    if(cols[6]) _6 = that._6;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5, T6>& that) const { 
@@ -403,6 +448,17 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7> {
     if(!cols[5]) _5 = that._5;
     if(!cols[6]) _6 = that._6;
     if(!cols[7]) _7 = that._7;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5, T6, T7>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
+    if(cols[6]) _6 = that._6;
+    if(cols[7]) _7 = that._7;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5, T6, T7>& that) const { 
@@ -482,6 +538,18 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8> {
     if(!cols[6]) _6 = that._6;
     if(!cols[7]) _7 = that._7;
     if(!cols[8]) _8 = that._8;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
+    if(cols[6]) _6 = that._6;
+    if(cols[7]) _7 = that._7;
+    if(cols[8]) _8 = that._8;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8>& that) const { 
@@ -566,6 +634,19 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9> {
     if(!cols[7]) _7 = that._7;
     if(!cols[8]) _8 = that._8;
     if(!cols[9]) _9 = that._9;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
+    if(cols[6]) _6 = that._6;
+    if(cols[7]) _7 = that._7;
+    if(cols[8]) _8 = that._8;
+    if(cols[9]) _9 = that._9;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>& that) const { 
@@ -655,6 +736,20 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> {
     if(!cols[8]) _8 = that._8;
     if(!cols[9]) _9 = that._9;
     if(!cols[10]) _10 = that._10;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
+    if(cols[6]) _6 = that._6;
+    if(cols[7]) _7 = that._7;
+    if(cols[8]) _8 = that._8;
+    if(cols[9]) _9 = that._9;
+    if(cols[10]) _10 = that._10;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>& that) const { 
@@ -761,6 +856,25 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
     if(!cols[13]) _13 = that._13;
     if(!cols[14]) _14 = that._14;
     if(!cols[15]) _15 = that._15;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
+    if(cols[6]) _6 = that._6;
+    if(cols[7]) _7 = that._7;
+    if(cols[8]) _8 = that._8;
+    if(cols[9]) _9 = that._9;
+    if(cols[10]) _10 = that._10;
+    if(cols[11]) _11 = that._11;
+    if(cols[12]) _12 = that._12;
+    if(cols[13]) _13 = that._13;
+    if(cols[14]) _14 = that._14;
+    if(cols[15]) _15 = that._15;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>& that) const { 
@@ -880,6 +994,26 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
     if(!cols[14]) _14 = that._14;
     if(!cols[15]) _15 = that._15;
     if(!cols[16]) _16 = that._16;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
+    if(cols[6]) _6 = that._6;
+    if(cols[7]) _7 = that._7;
+    if(cols[8]) _8 = that._8;
+    if(cols[9]) _9 = that._9;
+    if(cols[10]) _10 = that._10;
+    if(cols[11]) _11 = that._11;
+    if(cols[12]) _12 = that._12;
+    if(cols[13]) _13 = that._13;
+    if(cols[14]) _14 = that._14;
+    if(cols[15]) _15 = that._15;
+    if(cols[16]) _16 = that._16;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>& that) const { 
@@ -1007,6 +1141,28 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
     if(!cols[16]) _16 = that._16;
     if(!cols[17]) _17 = that._17;
     if(!cols[18]) _18 = that._18;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
+    if(cols[6]) _6 = that._6;
+    if(cols[7]) _7 = that._7;
+    if(cols[8]) _8 = that._8;
+    if(cols[9]) _9 = that._9;
+    if(cols[10]) _10 = that._10;
+    if(cols[11]) _11 = that._11;
+    if(cols[12]) _12 = that._12;
+    if(cols[13]) _13 = that._13;
+    if(cols[14]) _14 = that._14;
+    if(cols[15]) _15 = that._15;
+    if(cols[16]) _16 = that._16;
+    if(cols[17]) _17 = that._17;
+    if(cols[18]) _18 = that._18;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>& that) const { 
@@ -1180,6 +1336,42 @@ struct ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
     if(!cols[30]) _30 = that._30;
     if(!cols[31]) _31 = that._31;
     if(!cols[32]) _32 = that._32;
+  }
+ 
+  void copyColsFrom(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32>& that, const col_type& cols){
+    if(cols[0]) isNotNull = that.isNotNull;
+    if(cols[1]) _1 = that._1;
+    if(cols[2]) _2 = that._2;
+    if(cols[3]) _3 = that._3;
+    if(cols[4]) _4 = that._4;
+    if(cols[5]) _5 = that._5;
+    if(cols[6]) _6 = that._6;
+    if(cols[7]) _7 = that._7;
+    if(cols[8]) _8 = that._8;
+    if(cols[9]) _9 = that._9;
+    if(cols[10]) _10 = that._10;
+    if(cols[11]) _11 = that._11;
+    if(cols[12]) _12 = that._12;
+    if(cols[13]) _13 = that._13;
+    if(cols[14]) _14 = that._14;
+    if(cols[15]) _15 = that._15;
+    if(cols[16]) _16 = that._16;
+    if(cols[17]) _17 = that._17;
+    if(cols[18]) _18 = that._18;
+    if(cols[19]) _19 = that._19;
+    if(cols[20]) _20 = that._20;
+    if(cols[21]) _21 = that._21;
+    if(cols[22]) _22 = that._22;
+    if(cols[23]) _23 = that._23;
+    if(cols[24]) _24 = that._24;
+    if(cols[25]) _25 = that._25;
+    if(cols[26]) _26 = that._26;
+    if(cols[27]) _27 = that._27;
+    if(cols[28]) _28 = that._28;
+    if(cols[29]) _29 = that._29;
+    if(cols[30]) _30 = that._30;
+    if(cols[31]) _31 = that._31;
+    if(cols[32]) _32 = that._32;
   }
  
   bool operator ==(const ValTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32>& that) const { 

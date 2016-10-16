@@ -162,7 +162,7 @@ namespace tpcc_ns {
 
         threadVar->MV3CNewOrderDist_info[ol_number] = &newsv->_2 + (prg->d_id - 1);
 
-        if (MV3CNewOrder::stockTable->update(&xact, sdv->entry, MakeRecord(newsv), &threadVar->MV3CNewOrderStock[ol_number], ALLOW_WW, col_type(1 << 1 | 1 << 12 | 1 << 13 | 1 << 14)) != OP_SUCCESS) {
+        if (MV3CNewOrder::stockTable->update(&xact, sdv->entry, MakeRecord(newsv), &threadVar->MV3CNewOrderStock[ol_number], false, col_type(1 << 1 | 1 << 12 | 1 << 13 | 1 << 14)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("NewOrder stock");
             //            else
@@ -191,6 +191,7 @@ namespace tpcc_ns {
         CreateValInsert(Order, newov, prg->c_id, prg->datetime, 0, prg->o_ol_cnt, prg->o_all_local);
         if (MV3CNewOrder::orderTable->insert(&xact, threadVar->orderKey, MakeRecord(newov), &threadVar->dist) != OP_SUCCESS) {
             //            throw std::logic_error("NewOrder order");
+            xact.failureCtr++;
             return WW_ABORT;
         }
 
@@ -230,7 +231,7 @@ namespace tpcc_ns {
 
         TransactionReturnStatus execute() override {
             TransactionReturnStatus status = SUCCESS;
-            
+
             new (&threadVar->distKey) DistrictKey(d_id, w_id);
             new (&threadVar->dist) DistGet(distTable, &xact, threadVar->distKey, nullptr, col_type(1 << 8));
             auto ddv = threadVar->dist.evaluateAndExecute(&xact, payment_distfn);
@@ -260,7 +261,7 @@ namespace tpcc_ns {
             new (&threadVar->histKey) HistoryKey(c_id, c_d_id, c_w_id, d_id, w_id, datetime, h_amount, String<24>());
             CreateValInsert(History, newhv, true);
             if (histTable->insert(&xact, threadVar->histKey, MakeRecord(newhv)) != OP_SUCCESS) {
-                //                throw std::logic_error("payment hist");
+                cerr << "History Insertion failed" << endl;
                 return WW_ABORT;
             }
             return SUCCESS;
@@ -276,7 +277,7 @@ namespace tpcc_ns {
         newdv->_8 += prg->h_amount;
         if (MV3CPayment::distTable->update(&xact, ddv->entry, MakeRecord(newdv), &prg->threadVar->dist, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
-            //                throw std::logic_error("payment dist");
+            //            throw std::logic_error("payment dist");
             //            else
             return WW_ABORT;
         }
@@ -291,7 +292,7 @@ namespace tpcc_ns {
         newcv->_14 -= prg->h_amount;
         newcv->_15 += prg->h_amount;
         newcv->_16++;
-        if (MV3CPayment::custTable->update(&xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, ALLOW_WW, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
+        if (MV3CPayment::custTable->update(&xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, false, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment cust");
             //            else

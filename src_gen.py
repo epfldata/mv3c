@@ -55,6 +55,13 @@ for i in range(1,numTuples+1)+otherTuples:
   print "  }"
   print " "
 
+  print "  void copyColsFrom(const "+valtype+"& that, const col_type& cols){"
+  print "    if(cols[0]) isNotNull = that.isNotNull;"
+  for j in cols:
+    print "    if(cols["+str(j)+"]) _"+str(j)+" = that._"+str(j)+";"
+  print "  }"
+  print " "
+
   print "  bool operator ==(const "+valtype+"& that) const { "
   print "    if(!(isNotNull && that.isNotNull))  return !(isNotNull || that.isNotNull);"
   print "    return "+" && ".join(map(lambda x: "_"+str(x)+" == that._"+str(x), cols)) +";"

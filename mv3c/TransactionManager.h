@@ -9,27 +9,35 @@ struct TransactionManager {
     std::atomic<timestamp> timestampGen;
     std::atomic_flag commitLock, counterLock;
     std::atomic<Transaction *> committedXactsTail;
-    std::atomic<size_t> numValidations, numXactsValidatedAgainst;
+    std::atomic<size_t> numValidations, numXactsValidatedAgainst, numRounds;
 
     TransactionManager() : timestampGen(0) {
         committedXactsTail = nullptr;
         numValidations = 0;
         numXactsValidatedAgainst = 0;
+        numRounds = 0;
     }
 
     forceinline void begin(Transaction *xact) {
-        while(!counterLock.test_and_set());
+        while (!counterLock.test_and_set());
         auto ts = timestampGen++;
         xact->startTS = ts;
         counterLock.clear();
     }
 
     forceinline void rollback(Transaction * xact) {
-        while (xact->undoBufferHead) {
-            auto dv = xact->undoBufferHead;
-            xact->undoBufferHead = xact->undoBufferHead->nextInUndoBuffer;
-            dv->removeFromVersionChain();
+        auto dv = xact->undoBufferHead;
+        while (dv) {
+            if (dv->op == INSERT) {
+                dv->removeEntry(xact->threadId);
+            } else {
+                DELTA * dvold = dv->olderVersion.load();
+                while (!dv->olderVersion.compare_exchange_weak(dvold, mark(dvold)));
+            }
+            dv = dv->nextInUndoBuffer;
+
         }
+        xact->undoBufferHead = nullptr;
         xact->predicateHead = nullptr;
     }
 
@@ -42,12 +50,12 @@ struct TransactionManager {
         size_t xactCount = 0;
         do {
             round++;
-            assert(round < 10);
             if (startXact != nullptr) {
                 currentXact = startXact;
                 //wait until committed??  current->xact->status == COMMITTED
                 //                while (currentXact->commitTS == initCommitTS);
-                
+                //Required only when we have slice on value, as the value may not be ready
+
                 while (currentXact != nullptr && currentXact != endXact && currentXact->commitTS > xact->startTS) {
                     auto head = xact->predicateHead;
                     while (head != nullptr) {
@@ -100,17 +108,45 @@ struct TransactionManager {
                 continue;
             }
             xact->prevCommitted = startXact;
-            while(!counterLock.test_and_set());
+
+            //In case of WW, we need to move versions next to committed.
+            // In case of attribute level validation, we  need to copy cols from prev committed
+            auto dv = xact->undoBufferHead;
+            while (dv) {
+                DELTA* dvOld = dv->olderVersion.load(); //dvOld could possibly be marked for deletion
+                if (dv->isWWversion) {
+                    //Will have a older version as it is update                    
+
+                    if (dvOld->isUncommitted()) {
+                        dv->moveNextToCommitted(xact);
+                    } else {
+#ifdef ATTRIB_LEVEL
+                        dv->mergeWithPrevCommitted(xact);
+#endif
+                    }
+                }
+#ifdef ATTRIB_LEVEL
+                //else if(dv->op == UPDATE && dvOld->isWWversion && tbl->allowWW)  //Needed when we have table which have both WW and non-WW updates.
+                //dv->mergeWithPrevCommitted();
+#endif
+                dv = dv->nextInUndoBuffer;
+            }
+            //Should acquire commitTS only after copying cols from prev committed
+            //Otherwsie new transactions read incorrect value for other fields
+
+
+            while (counterLock.test_and_set());
             xact->commitTS = timestampGen.fetch_add(1);
             counterLock.clear();
-            //TODO: Move next to committed for WW values
+
             commitLock.clear();
-            auto dv = xact->undoBufferHead;
+            dv = xact->undoBufferHead;
             while (dv) {
                 dv->xactId = xact->commitTS;
                 dv = dv->nextInUndoBuffer;
             }
             numXactsValidatedAgainst += xactCount;
+            numRounds += round;
             return true;
         } while (true);
     }

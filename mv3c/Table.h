@@ -80,17 +80,24 @@ struct Table {
     forceinline OperationReturnStatus update(Transaction *xact, Entry<K, V> *e, DeltaVersion<K, V> * dv, PRED* parent = nullptr, const bool allowWW = false, const col_type& colsChanged = col_type(-1)) {
 
         dv->initialize(e, PTRtoTS(xact), xact->undoBufferHead, UPDATE, parent, colsChanged);
-
+        //When we have a table that can have both WW and non-WW updates, mergeWithPrev or moveNextToCOmmitted must be called on all dvs of table
         DVType * old = e->dv.load();
+        dv->olderVersion.store(old);
+        if (allowWW) {
+            dv->isWWversion = true;
+            while (!e->dv.compare_exchange_weak(old, dv)) {
+                dv->olderVersion.store(old);
+            }
+        } else {
+            if (!isVisible(xact, old)) {//can cause problems if old is reclaimed by some thread
+                DVType::store.remove(dv, xact->threadId);
+                return WW_VALUE;
+            }
 
-        if (!isVisible(xact, old)) {//can cause problems if old is reclaimed by some thread
-            DVType::store.remove(dv, xact->threadId);
-            return WW_VALUE;
-        }
-        dv->olderVersion = old;
-        if (!e->dv.compare_exchange_strong(old, dv)) {
-            DVType::store.remove(dv, xact->threadId);
-            return WW_VALUE;
+            if (!e->dv.compare_exchange_strong(old, dv)) {
+                DVType::store.remove(dv, xact->threadId);
+                return WW_VALUE;
+            }
         }
         xact->undoBufferHead = dv;
 
@@ -121,15 +128,35 @@ struct Table {
     }
 
     forceinline DVType* getCorrectDV(Transaction *xact, EntryType *e) {
-        DVType* dv = e->dv.load(); //dv != nullptr as there will always be one version
-
-        while (dv != nullptr) {
-            if (isVisible(xact, dv))
-                return dv;
-            dv = (DVType *) dv->olderVersion;
+        DELTA* dv = e->dv.load(); //dv != nullptr as there will always be one version
+        DELTA* dvOld = dv->olderVersion;
+        DELTA *old = nullptr;
+        DELTA *oldOld = dv;
+        while (isMarked(dvOld) || !isVisible(xact, (DVType *) dv)) {
+            if (!isMarked(dvOld)) {
+                if (oldOld != dv) {
+                    if (old == nullptr) {
+                        DVType * oldOldKV = (DVType *) oldOld;
+                        e->dv.compare_exchange_strong(oldOldKV, (DVType *) dv); //dont care abt result
+                    } else
+                        old->olderVersion.compare_exchange_strong(oldOld, dv); //dont care abt result
+                }
+                old = dv;
+                oldOld = dvOld;
+                dv = dvOld;
+            } else {
+                dv = unmark(dvOld);
+            }
+            dvOld = dv->olderVersion.load();
         }
-        assert(false);
-        return nullptr;
+        if (oldOld != dv) {
+            if (old == nullptr) {
+                DVType * oldOldKV = (DVType *) oldOld;
+                e->dv.compare_exchange_strong(oldOldKV, (DVType *) dv); //dont care abt result
+            } else
+                old->olderVersion.compare_exchange_strong(oldOld, dv); //dont care abt result
+        }
+        return (DVType *) dv;
     }
 };
 
