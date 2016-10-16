@@ -59,7 +59,18 @@ int main(int argc, char** argv) {
     tpcc.loadOrders();
     tpcc.loadStocks();
     tpcc.loadWare();
-
+#ifdef ATTRIB_LEVEL
+    cout << "Attribute level validation " << endl;
+#else
+    cout << "Record level validation" << endl;
+#endif
+    if (ALLOW_WW)
+        cout << "WW  handling enabled" << endl;
+    else cout << "WW handling disabled" << endl;
+    if (CRITICAL_COMPENSATE)
+        cout << "Compensate done inside critical section" << endl;
+    else
+        cout << "Compensate done outside critical section" << endl;
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);
@@ -156,7 +167,9 @@ int main(int argc, char** argv) {
     delete[] programs;
 
     for (int i = 0; i < numThreads; ++i) {
-        cout << "Thread " << i << " " << exec.failedPerThread[0][i] << "  " << exec.failedPerThread[1][i] << endl;
+        cout << "Thread " << i << endl;
+        cout << "\t FailedEx  " << exec.failedExPerThread[0][i] << "  " << exec.failedExPerThread[1][i] << endl;
+        cout << "\t FailedVal  " << exec.failedValPerThread[0][i] << "  " << exec.failedValPerThread[1][i] << endl;
     }
     return 0;
 }

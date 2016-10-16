@@ -70,6 +70,10 @@ private:
             return nullptr;
         }
     }
+    TransactionReturnStatus compensateAndExecute(Transaction* xact, Program* state) override{
+        DvPtr result = evaluateInternal(xact);
+        return andThenFn(state, result, closureState);
+    }
 
 };
 //P2 , P1 and then bundle

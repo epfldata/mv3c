@@ -34,7 +34,7 @@ struct PRED {
             par->firstChild = this;
         }
     }
-
+    virtual TransactionReturnStatus compensateAndExecute(Transaction *xact, Program *state) = 0;
     virtual ~PRED() {
     }
 };

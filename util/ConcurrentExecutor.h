@@ -19,7 +19,8 @@ struct ConcurrentExecutor {
     std::atomic<uint> failedExecution;
     std::atomic<uint> failedValidation;
     uint8_t numThreads;
-    uint* failedPerThread[2];
+    uint* failedExPerThread[2];
+    uint* failedValPerThread[2];
     Timepoint startTime, endTime;
     uint progPerThread;
     size_t timeMs;
@@ -36,8 +37,10 @@ struct ConcurrentExecutor {
         workers = new std::thread[numThreads];
         isReady = new volatile bool[numThreads];
         startExecution = false;
-        failedPerThread[0] = new uint[numThreads];
-        failedPerThread[1] = new uint[numThreads];
+        failedExPerThread[0] = new uint[numThreads];
+        failedExPerThread[1] = new uint[numThreads];
+        failedValPerThread[0] = new uint[numThreads];
+        failedValPerThread[1] = new uint[numThreads];
         for (uint8_t i = 0; i < numThreads; ++i) {
             isReady[i] = 0;
         }
@@ -96,10 +99,13 @@ struct ConcurrentExecutor {
         Program *p;
         auto ppt = progPerThread;
         uint pid = 0;
-        uint failedex = 0, finished = 0, failedval = 0;
-        uint failed2[2];
-        failed2[0] = 0;
-        failed2[1] = 0;
+        uint finished = 0;
+        uint failedExPerTxn[2];
+        uint failedValPerTxn[2];
+        failedExPerTxn[0] = 0;
+        failedExPerTxn[1] = 0;
+        failedValPerTxn[0] = 0;
+        failedValPerTxn[1] = 0;
         while (pid < ppt && (p = threadPrgs[pid])) {
             threadPrgs[pid]->threadVar = &threadVar;
             threadPrgs[pid]->xact.threadId = thread_id + 1;
@@ -115,30 +121,38 @@ struct ConcurrentExecutor {
             if (status != SUCCESS) {
                 //                 cerr << "Thread "<<thread_id<< " aborted " << pid << endl;
                 tm.rollback(&p->xact);
-                failedex++;
-                failed2[p->prgType]++;
+                failedExPerTxn[p->prgType]++;
                 if (p->xact.failureCtr > 100) {
                     cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!" << endl;
                     hasFinished = true;
                 }
             } else {
-
-                if (tm.validateAndCommit(&p->xact)) {
-                    finished++;
-                    //                cerr << "Thread "<<thread_id<< " finished " << pid << endl;
-                    pid++;
-                } else {
-                    failedval++;
+                uint thisPrgFailedVal = 0;
+                while (!tm.validateAndCommit(&p->xact, p)) {
+                    failedValPerTxn[p->prgType]++;
+                    thisPrgFailedVal++;
+                    if (thisPrgFailedVal > 20) {
+                        cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!TOO MANY VALIDATION FAILURE !!!!!!!" << endl;
+                        hasFinished = true;
+                    }
+                    auto status = tm.reexecute(&p->xact, p);
+                    if (status != SUCCESS) {
+                        cerr << "Cannot fail execution during reexecution" << endl;
+                        exit(-5);
+                    }
                 }
+                finished++;
+                pid++;
             }
-
         }
         hasFinished = true;
         finishedPrograms += finished;
-        failedExecution += failedex;
-        failedValidation += failedval;
-        failedPerThread[0][thread_id] = failed2[0];
-        failedPerThread[1][thread_id] = failed2[1];
+        failedExecution += failedExPerTxn[0] + failedExPerTxn[1];
+        failedValidation += failedValPerTxn[0] + failedValPerTxn[1];
+        failedExPerThread[0][thread_id] = failedExPerTxn[0];
+        failedExPerThread[1][thread_id] = failedExPerTxn[1];
+        failedValPerThread[0][thread_id] = failedValPerTxn[0];
+        failedValPerThread[1][thread_id] = failedValPerTxn[1];
     }
 
     ~ConcurrentExecutor() {
@@ -148,6 +162,10 @@ struct ConcurrentExecutor {
             delete[] programs[i];
         }
         delete[] programs;
+        delete[] failedExPerThread[0];
+        delete[] failedExPerThread[1];
+        delete[] failedValPerThread[0];
+        delete[] failedValPerThread[1];
     }
 };
 

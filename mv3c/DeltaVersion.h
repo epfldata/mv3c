@@ -11,6 +11,15 @@ struct DELTA {
     timestamp xactId;
     Operation op;
     bool isWWversion;
+
+    forceinline void removeFromVersionChain(uint8_t tid) {
+        if (op == INSERT)
+            removeEntry(tid);
+        else {
+            DELTA* old = olderVersion.load();
+            while (!olderVersion.compare_exchange_weak(old, mark(old)));
+        }
+    }
     virtual void removeEntry(uint8_t tid) = 0;
     virtual void moveNextToCommitted(Transaction* xact) = 0;
 #ifdef ATTRIB_LEVEL

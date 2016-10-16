@@ -29,7 +29,10 @@ namespace tpcc_ns {
 #define EXPAND(x) #x
 #define STRINGIFY(x) EXPAND(x)
 
-
+#ifndef CRITICAL_COMPENSATE
+#define CRITICAL_COMPENSATE true
+#endif
+    
 #ifdef NUMPROG
     const size_t numPrograms = NUMPROG;
 #else
@@ -38,7 +41,7 @@ namespace tpcc_ns {
     const uint8_t numThreads = 10;
 
     const size_t WarehouseEntrySize = numWare;
-    const size_t WarehouseDVSize = numPrograms;
+    const size_t WarehouseDVSize =  numPrograms;
 
     const size_t DistrictEntrySize = numWare * 10;
     const size_t DistrictDVSize = 2 * numPrograms;
