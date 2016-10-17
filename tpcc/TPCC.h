@@ -455,7 +455,7 @@ namespace tpcc_ns {
             for (size_t i = 0; i < numPrograms; i++)
                 delete programs[i];
             delete programs;
-            cerr << "TPCC deleted" << endl;
+//            cerr << "TPCC deleted" << endl;
         }
 
         void loadPrograms() {

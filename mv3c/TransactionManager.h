@@ -167,9 +167,9 @@ struct TransactionManager {
                 assert(head->firstChild == nullptr);
                 assert(head->DVsInClosureHead == nullptr);
                 auto status = head->compensateAndExecute(xact, state);
-                if (status != SUCCESS)
+                if (status != SUCCESS)                    
                     return status;
-
+      
             } else {
 
                 PRED * child = head->firstChild;
@@ -307,13 +307,7 @@ struct TransactionManager {
                 counterLock.clear();
 #if CRITICAL_COMPENSATE
                 while (dv != nullptr) {
-#if ALLOW_WW
-                    dvold = dv->olderVersion.load();
-                    bool DVisNotDeleted = !isMarked(dvold);
-#else                        
-                    bool DVisNotDeleted = dv->op != INVALID);
-#endif 
-                    if (DVisNotDeleted) {
+                    if (dv->op != INVALID) {
                         if (prev == nullptr)
                             xact->undoBufferHead = dv;
                         else
@@ -322,25 +316,26 @@ struct TransactionManager {
                     }
                     dv = dv->nextInUndoBuffer;
                 }
-                prev->nextInUndoBuffer = nullptr;
+                if (prev == nullptr)
+                    xact->undoBufferHead = nullptr;
+                else
+                    prev->nextInUndoBuffer = nullptr;
 
-                reexecute(xact, state);
+                auto status = reexecute(xact, state);
+                if(status  != SUCCESS){
+                    cerr << "Cannot fail execution during critical reexecution";
+                    exit(-6);
+                }
                 xact->prevCommitted = startXact;
                 committedXactsTail = xact;
                 commit(xact); //will release commitLock internally
                 numXactsValidatedAgainst += xactCount;
                 numRounds += round;
-                return true;
+                return false;
 #else
                 commitLock.clear();
                 while (dv != nullptr) {
-#if ALLOW_WW
-                    dvold = dv->olderVersion.load();
-                    bool DVisNotDeleted = !isMarked(dvold);
-#else                        
-                    bool DVisNotDeleted = dv->op != INVALID);
-#endif 
-                    if (DVisNotDeleted) {
+                    if (dv->op != INVALID) {
                         if (prev == nullptr)
                             xact->undoBufferHead = dv;
                         else
@@ -349,7 +344,11 @@ struct TransactionManager {
                     }
                     dv = dv->nextInUndoBuffer;
                 }
-                prev->nextInUndoBuffer = nullptr;
+                if (prev == nullptr)
+                    xact->undoBufferHead = nullptr;
+                else
+                    prev->nextInUndoBuffer = nullptr;
+
                 return false;
 #endif
 

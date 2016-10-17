@@ -40,8 +40,6 @@ struct ThreadLocal {
     StockGet MV3CNewOrderStock[15];
     ItemGet MV3CNewOrderItem[15];
     float MV3CNewOrderOl_amt[15];
-    float MV3CNewOrderTotal;
-    float MV3CNewOrderD_tax;
 
 
     //        DistGet dist;
@@ -59,8 +57,10 @@ struct ThreadLocal {
 };
 namespace tpcc_ns {
     forceinline TransactionReturnStatus neworder_itemfn(Program *p, const ItemDV * idv, uint cs);
-    forceinline TransactionReturnStatus neworder_stockfn(Program *p, const StockDV * idv, uint cs);
-    forceinline TransactionReturnStatus neworder_distfn(Program *p, const DistDV * idv, uint cs = -1);
+    forceinline TransactionReturnStatus neworder_stockfn(Program *p, const StockDV * sdv, uint cs);
+    forceinline TransactionReturnStatus neworder_distfn(Program *p, const DistDV * ddv, uint cs = -1);
+    forceinline TransactionReturnStatus neworder_warefn(Program *p, const WareDV * wdv, uint cs = -1);
+    forceinline TransactionReturnStatus neworder_custfn(Program *p, const CustDV * cdv, uint cs = -1);
 
     struct MV3CNewOrder : NewOrder {
         //Tables are not defined static because we can reuse program for verification by just changing tables
@@ -74,6 +74,8 @@ namespace tpcc_ns {
         static TABLE(OrderLine) * ordLTable;
         static TABLE(NewOrder) * newOrdTable;
         //NOT INPUT PARAMATERS  
+        float total;
+        float w_tax, d_tax, c_disc;
 
         MV3CNewOrder(const Program* p) :
         NewOrder(p) {
@@ -91,6 +93,7 @@ namespace tpcc_ns {
                 status = neworder_itemfn(this, idv, ol_number);
                 if (status != SUCCESS) {
                     //                    cerr << "NewOrder Item" << endl;
+//                    throw std::logic_error("New order item fn");
                     return status;
                 }
             }
@@ -106,19 +109,26 @@ namespace tpcc_ns {
 
             new (&threadVar->wareKey) WarehouseKey(w_id);
             new (&threadVar->ware) WareGet(wareTable, &xact, threadVar->wareKey, nullptr, col_type(1 << 7));
-            auto wdv = threadVar->ware.evaluateAndExecute(&xact, nullptr); //TOFIX : No function associated
-            auto w_tax = wdv->val._7;
-
+            auto wdv = threadVar->ware.evaluateAndExecute(&xact, neworder_warefn);
+            status = neworder_warefn(this, wdv);
+            if (status != SUCCESS) {
+//                throw std::logic_error("New order ware");
+                return status;
+            }
 
             new (&threadVar->custKey) CustomerKey(c_id, d_id, w_id);
             new (&threadVar->cust) CustGet(custTable, &xact, threadVar->custKey, nullptr, col_type(1 << 13));
-            auto cdv = threadVar->cust.evaluateAndExecute(&xact, nullptr); //TOFIX : No function associated
-            auto c_disc = cdv->val._13;
-            threadVar->MV3CNewOrderTotal = 0;
-            for (uint8_t i = 0; i < o_ol_cnt; ++i) {
-                threadVar->MV3CNewOrderTotal += threadVar->MV3CNewOrderOl_amt[i];
+            auto cdv = threadVar->cust.evaluateAndExecute(&xact, neworder_custfn);
+            status = neworder_custfn(this, cdv);
+            if (status != SUCCESS) {
+//                throw std::logic_error("New order cust");
+                return status;
             }
-            threadVar->MV3CNewOrderTotal *= (1 + w_tax + threadVar->MV3CNewOrderD_tax)*(1 - c_disc);
+            total = 0;
+            for (uint8_t i = 0; i < o_ol_cnt; ++i) {
+                total += threadVar->MV3CNewOrderOl_amt[i];
+            }
+            total *= (1 + w_tax + d_tax)*(1 - c_disc);
             return SUCCESS;
         }
     };
@@ -176,7 +186,7 @@ namespace tpcc_ns {
         Transaction& xact = p->xact;
         auto threadVar = p->threadVar;
         CreateValUpdate(District, newdv, ddv);
-        threadVar->MV3CNewOrderD_tax = newdv->_7;
+        prg->d_tax = newdv->_7;
         auto o_id = newdv->_9;
         newdv->_9++;
 
@@ -190,7 +200,7 @@ namespace tpcc_ns {
         new(&threadVar->orderKey) OrderKey(o_id, prg->d_id, prg->w_id);
         CreateValInsert(Order, newov, prg->c_id, prg->datetime, 0, prg->o_ol_cnt, prg->o_all_local);
         if (MV3CNewOrder::orderTable->insert(&xact, threadVar->orderKey, MakeRecord(newov), &threadVar->dist) != OP_SUCCESS) {
-            //            throw std::logic_error("NewOrder order");
+//            throw std::logic_error("NewOrder order");
             xact.failureCtr++;
             return WW_ABORT;
         }
@@ -198,7 +208,7 @@ namespace tpcc_ns {
         new(&threadVar->newOrderKey) NewOrderKey(o_id, prg->d_id, prg->w_id);
         CreateValInsert(NewOrder, newnov, true);
         if (MV3CNewOrder::newOrdTable->insert(&xact, threadVar->newOrderKey, MakeRecord(newnov), &threadVar->dist) != OP_SUCCESS) {
-            //            throw std::logic_error("NewOrder neworder");
+//            throw std::logic_error("NewOrder neworder");
             return WW_ABORT;
         }
 
@@ -208,13 +218,24 @@ namespace tpcc_ns {
             CreateValInsert(OrderLine, newolv, prg->itemid[ol_number], prg->supware[ol_number], nulldate, prg->quantity[ol_number], threadVar->MV3CNewOrderOl_amt[ol_number], *threadVar->MV3CNewOrderDist_info[ol_number]);
 
             if (MV3CNewOrder::ordLTable->insert(&xact, threadVar->orderLineKey, MakeRecord(newolv), &threadVar->dist) != OP_SUCCESS) {
-                //throw std::logic_error("NewORder orderline");
+//                throw std::logic_error("NewORder orderline");
                 return WW_ABORT;
             }
         }
         return SUCCESS;
     }
 
+    forceinline TransactionReturnStatus neworder_custfn(Program* p, const CustDV* cdv, uint cs) {
+        auto prg = (MV3CNewOrder *) p;
+        prg->c_disc = cdv->val._13;
+        return SUCCESS;
+    }
+
+    forceinline TransactionReturnStatus neworder_warefn(Program* p, const WareDV* wdv, uint cs) {
+        auto prg = (MV3CNewOrder *) p;
+        prg->w_tax = wdv->val._7;
+        return SUCCESS;
+    }
     forceinline TransactionReturnStatus payment_distfn(Program *p, const DistDV * ddv, uint cs = -1);
     forceinline TransactionReturnStatus payment_warefn(Program *p, const WareDV * wdv, uint cs = -1);
     forceinline TransactionReturnStatus payment_custfn(Program *p, const CustDV * cdv, uint cs = -1);

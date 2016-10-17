@@ -174,8 +174,11 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < numThreads; ++i) {
         cout << "Thread " << i << endl;
-        cout << "\t FailedEx  " << exec.failedExPerThread[0][i] << "  " << exec.failedExPerThread[1][i] << endl;
-        cout << "\t FailedVal  " << exec.failedValPerThread[0][i] << "  " << exec.failedValPerThread[1][i] << endl;
+        cout << "\t Finished     NO:" << exec.finishedPerThread[0][i] << "  PY:" << exec.finishedPerThread[1][i] << endl;
+        cout << "\t FailedEx     NO:" << exec.failedExPerThread[0][i] << "  PY:" << exec.failedExPerThread[1][i] << endl;
+        cout << "\t FailedVal    NO:" << exec.failedValPerThread[0][i] << "  PY:" << exec.failedValPerThread[1][i] << endl;
+        cout << "\t Max failed exec = " << exec.maxFailedExSingleProgram[i] << endl;
+        cout << "\t Max failed val = " << exec.maxFailedValSingleProgram[i] << endl;
     }
     return 0;
 }

@@ -20,6 +20,7 @@ struct DELTA {
             DELTA* old = olderVersion.load();
             while (!olderVersion.compare_exchange_weak(old, mark(old)));
         }
+        op = INVALID;
     }
 
     virtual void moveNextToCommitted(Transaction* xact) = 0;
@@ -95,6 +96,7 @@ struct DeltaVersion : DELTA {
             //        store.remove(this, tid);
 
         }
+        op = INVALID;
     }
 #else
 
