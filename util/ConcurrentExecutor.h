@@ -128,6 +128,13 @@ struct ConcurrentExecutor {
                 }
             } else {
                 uint thisPrgFailedVal = 0;
+#if OMVCC
+                if(!tm.validateAndCommit(&p->xact, p)){
+                    failedValPerTxn[p->prgType]++;
+                    thisPrgFailedVal++;
+                    continue;
+                }
+#else
                 while (!tm.validateAndCommit(&p->xact, p)) {
                     failedValPerTxn[p->prgType]++;
                     thisPrgFailedVal++;
@@ -141,6 +148,7 @@ struct ConcurrentExecutor {
                         exit(-5);
                     }
                 }
+#endif
                 finished++;
                 pid++;
             }

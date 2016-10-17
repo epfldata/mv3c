@@ -82,13 +82,15 @@ struct Table {
         dv->initialize(e, PTRtoTS(xact), xact->undoBufferHead, UPDATE, parent, colsChanged);
         //When we have a table that can have both WW and non-WW updates, mergeWithPrev or moveNextToCOmmitted must be called on all dvs of table
         DVType * old = e->dv.load();
-        dv->olderVersion.store(old);
+        dv->olderVersion = old;
+#if (ALLOW_WW)
         if (allowWW) {
             dv->isWWversion = true;
             while (!e->dv.compare_exchange_weak(old, dv)) {
                 dv->olderVersion.store(old);
             }
         } else {
+#endif
             if (!isVisible(xact, old)) {//can cause problems if old is reclaimed by some thread
                 DVType::store.remove(dv, xact->threadId);
                 return WW_VALUE;
@@ -98,7 +100,9 @@ struct Table {
                 DVType::store.remove(dv, xact->threadId);
                 return WW_VALUE;
             }
+#if (ALLOW_WW)
         }
+#endif
         xact->undoBufferHead = dv;
 
         return OP_SUCCESS;
@@ -126,6 +130,20 @@ struct Table {
         }
         return false;
     }
+#if (!ALLOW_WW)
+
+    forceinline DVType* getCorrectDV(Transaction *xact, EntryType *e) {
+        DVType* dv = e->dv.load(); //dv != nullptr as there will always be one version
+
+        while (dv != nullptr) {
+            if (isVisible(xact, dv))
+                return dv;
+            dv = (DVType *) dv->olderVersion;
+        }
+        assert(false);
+        return nullptr;
+    }
+#else
 
     forceinline DVType* getCorrectDV(Transaction *xact, EntryType *e) {
         DELTA* dv = e->dv.load(); //dv != nullptr as there will always be one version
@@ -158,6 +176,7 @@ struct Table {
         }
         return (DVType *) dv;
     }
+#endif
 };
 
 

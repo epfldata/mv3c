@@ -70,11 +70,12 @@ private:
             return nullptr;
         }
     }
+#if !OMVCC
     TransactionReturnStatus compensateAndExecute(Transaction* xact, Program* state) override{
         DvPtr result = evaluateInternal(xact);
         return andThenFn(state, result, closureState);
     }
-
+#endif
 };
 //P2 , P1 and then bundle
 

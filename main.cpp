@@ -59,6 +59,15 @@ int main(int argc, char** argv) {
     tpcc.loadOrders();
     tpcc.loadStocks();
     tpcc.loadWare();
+#if OMVCC
+    cout << "OMVCC" << endl;
+#else
+    cout << "MV3C" << endl;
+    if (CRITICAL_COMPENSATE)
+        cout << "Compensate done inside critical section" << endl;
+    else
+        cout << "Compensate done outside critical section" << endl;
+#endif
 #ifdef ATTRIB_LEVEL
     cout << "Attribute level validation " << endl;
 #else
@@ -67,10 +76,7 @@ int main(int argc, char** argv) {
     if (ALLOW_WW)
         cout << "WW  handling enabled" << endl;
     else cout << "WW handling disabled" << endl;
-    if (CRITICAL_COMPENSATE)
-        cout << "Compensate done inside critical section" << endl;
-    else
-        cout << "Compensate done outside critical section" << endl;
+
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);

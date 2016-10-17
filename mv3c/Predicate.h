@@ -34,7 +34,9 @@ struct PRED {
             par->firstChild = this;
         }
     }
+#if !OMVCC
     virtual TransactionReturnStatus compensateAndExecute(Transaction *xact, Program *state) = 0;
+#endif
     virtual ~PRED() {
     }
 };

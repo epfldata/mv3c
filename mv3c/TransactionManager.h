@@ -35,41 +35,32 @@ struct TransactionManager {
         xact->undoBufferHead = nullptr;
         xact->predicateHead = nullptr;
     }
+#if OMVCC
 
-    forceinline TransactionReturnStatus reexecute(Transaction *xact, Program *state) {
-        PRED* head = xact->predicateHead;
-        int rex = 0;
+    forceinline bool validate(Transaction *xact, Transaction *currentXact) {
+
+        auto head = xact->predicateHead;
         while (head != nullptr) {
-            if (head->isInvalid) {
-                rex++;
-                assert(head->firstChild == nullptr);
-                assert(head->DVsInClosureHead == nullptr);
-                auto status = head->compensateAndExecute(xact, state);
-                if (status != SUCCESS)
-                    return status;
-
+            bool headMatches = head->matchesAny(currentXact); //shouldValidate always true
+            if (headMatches) {
+                rollback(xact);
+                return false; //1<<63 is not valid commitTS , so used to denote failure
+                //Will do full rollback
+                //Rollback takes care of versions
             } else {
-
                 PRED * child = head->firstChild;
                 while (child != nullptr) {
-                    if (child->isInvalid) {
-                        rex++;
-                        assert(child->firstChild == nullptr);
-                        assert(child->DVsInClosureHead == nullptr);
-                        auto status = child->compensateAndExecute(xact, state);
-                        if (status != SUCCESS)
-                            return status;
+                    bool childMatches = child->matchesAny(currentXact); //shouldValidate always true
+                    if (childMatches) {
+                        rollback(xact);
+                        return false;
                     } else {
-                        PRED* childChild = child->firstChild;
+                        PRED * childChild = child->firstChild;
                         while (childChild != nullptr) {
-
-                            if (childChild->isInvalid) {
-                                rex++;
-                                assert(childChild->firstChild == nullptr);
-                                assert(childChild->DVsInClosureHead == nullptr);
-                                auto status = childChild->compensateAndExecute(xact, state);
-                                if (status != SUCCESS)
-                                    return status;
+                            bool childChildMatches = childChild->matchesAny(currentXact);
+                            if (childChildMatches) {
+                                rollback(xact);
+                                return false;
                             }
                             childChild = childChild->nextChild;
                         }
@@ -79,9 +70,10 @@ struct TransactionManager {
             }
             head = head->nextChild;
         }
-        assert(rex > 0);
-        return SUCCESS;
+        return true;
     }
+
+#else
 
     forceinline bool validate(Transaction *xact, Transaction *currentXact) {
         bool validated = true;
@@ -162,11 +154,63 @@ struct TransactionManager {
         }
         return validated;
     }
+#endif
+
+#if(!OMVCC)
+
+    forceinline TransactionReturnStatus reexecute(Transaction *xact, Program *state) {
+        PRED* head = xact->predicateHead;
+        int rex = 0;
+        while (head != nullptr) {
+            if (head->isInvalid) {
+                rex++;
+                assert(head->firstChild == nullptr);
+                assert(head->DVsInClosureHead == nullptr);
+                auto status = head->compensateAndExecute(xact, state);
+                if (status != SUCCESS)
+                    return status;
+
+            } else {
+
+                PRED * child = head->firstChild;
+                while (child != nullptr) {
+                    if (child->isInvalid) {
+                        rex++;
+                        assert(child->firstChild == nullptr);
+                        assert(child->DVsInClosureHead == nullptr);
+                        auto status = child->compensateAndExecute(xact, state);
+                        if (status != SUCCESS)
+                            return status;
+                    } else {
+                        PRED* childChild = child->firstChild;
+                        while (childChild != nullptr) {
+
+                            if (childChild->isInvalid) {
+                                rex++;
+                                assert(childChild->firstChild == nullptr);
+                                assert(childChild->DVsInClosureHead == nullptr);
+                                auto status = childChild->compensateAndExecute(xact, state);
+                                if (status != SUCCESS)
+                                    return status;
+                            }
+                            childChild = childChild->nextChild;
+                        }
+                    }
+                    child = child->nextChild;
+                }
+            }
+            head = head->nextChild;
+        }
+        assert(rex > 0);
+        return SUCCESS;
+    }
+#endif
 
     forceinline void commit(Transaction *xact) {
         //In case of WW, we need to move versions next to committed.
         // In case of attribute level validation, we  need to copy cols from prev committed
         auto dv = xact->undoBufferHead;
+#if(ALLOW_WW)
         while (dv) {
             DELTA* dvOld = dv->olderVersion.load(); //dvOld could possibly be marked for deletion
             if (dv->isWWversion) {
@@ -188,14 +232,15 @@ struct TransactionManager {
         }
         //Should acquire commitTS only after copying cols from prev committed
         //Otherwsie new transactions read incorrect value for other fields
-
+        dv = xact->undoBufferHead;
+#endif
 
         while (counterLock.test_and_set());
         xact->commitTS = timestampGen.fetch_add(1);
         counterLock.clear();
 
         commitLock.clear();
-        dv = xact->undoBufferHead;
+
         while (dv) {
             dv->xactId = xact->commitTS;
             dv = dv->nextInUndoBuffer;
@@ -218,7 +263,12 @@ struct TransactionManager {
                 //Required only when we have slice on value, as the value may not be ready
 
                 while (currentXact != nullptr && currentXact != endXact && currentXact->commitTS > xact->startTS) {
+#if OMVCC
+                    if (!validate(xact, currentXact))
+                        return false;
+#else
                     validated &= validate(xact, currentXact);
+#endif
                     currentXact = currentXact->prevCommitted;
                     xactCount++;
                 }
@@ -229,16 +279,20 @@ struct TransactionManager {
                 continue;
             }
             //we have the lock here
+#if !OMVCC
             if (validated) {
+#endif
+                xact->prevCommitted = startXact;
                 if (!committedXactsTail.compare_exchange_strong(startXact, xact)) {
                     commitLock.clear();
                     continue;
                 }
-                xact->prevCommitted = startXact;
+
                 commit(xact); //will release commitLock internally
                 numXactsValidatedAgainst += xactCount;
                 numRounds += round;
                 return true;
+#if (!OMVCC)
             } else {
                 //To validate against all transactions, even if we are sure we will fail
                 if (startXact != committedXactsTail) {
@@ -253,8 +307,13 @@ struct TransactionManager {
                 counterLock.clear();
 #if CRITICAL_COMPENSATE
                 while (dv != nullptr) {
+#if ALLOW_WW
                     dvold = dv->olderVersion.load();
-                    if (!isMarked(dvold)) {
+                    bool DVisNotDeleted = !isMarked(dvold);
+#else                        
+                    bool DVisNotDeleted = dv->op != INVALID);
+#endif 
+                    if (DVisNotDeleted) {
                         if (prev == nullptr)
                             xact->undoBufferHead = dv;
                         else
@@ -267,6 +326,7 @@ struct TransactionManager {
 
                 reexecute(xact, state);
                 xact->prevCommitted = startXact;
+                committedXactsTail = xact;
                 commit(xact); //will release commitLock internally
                 numXactsValidatedAgainst += xactCount;
                 numRounds += round;
@@ -274,8 +334,13 @@ struct TransactionManager {
 #else
                 commitLock.clear();
                 while (dv != nullptr) {
+#if ALLOW_WW
                     dvold = dv->olderVersion.load();
-                    if (!isMarked(dvold)) {
+                    bool DVisNotDeleted = !isMarked(dvold);
+#else                        
+                    bool DVisNotDeleted = dv->op != INVALID);
+#endif 
+                    if (DVisNotDeleted) {
                         if (prev == nullptr)
                             xact->undoBufferHead = dv;
                         else
@@ -289,6 +354,7 @@ struct TransactionManager {
 #endif
 
             }
+#endif
         } while (true);
     }
 };

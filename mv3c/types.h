@@ -65,9 +65,18 @@ template<typename T>
 forceinline T unmark(T t) {
     return (T) ((size_t) t & ~mask);
 }
+#ifndef OMVCC
+#define OMVCC false
+#endif
 
 #ifndef ALLOW_WW
 #define ALLOW_WW false
 #endif
+
+#if OMVCC
+#undef ALLOW_WW
+#define ALLOW_WW false
+#endif
+
 #endif /* TYPES_H */
 
