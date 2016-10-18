@@ -10,6 +10,8 @@ using std::cerr;
 struct Transaction;
 struct TransactionManager;
 #include "Store.h"
+#include <string>
+using namespace std;
 template<typename K, typename V>
 struct Table;
 template<typename K, typename V>

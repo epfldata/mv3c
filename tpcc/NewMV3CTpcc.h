@@ -93,7 +93,7 @@ namespace tpcc_ns {
                 status = neworder_itemfn(this, idv, ol_number);
                 if (status != SUCCESS) {
                     //                    cerr << "NewOrder Item" << endl;
-//                    throw std::logic_error("New order item fn");
+                    //                    throw std::logic_error("New order item fn");
                     return status;
                 }
             }
@@ -112,7 +112,7 @@ namespace tpcc_ns {
             auto wdv = threadVar->ware.evaluateAndExecute(&xact, neworder_warefn);
             status = neworder_warefn(this, wdv);
             if (status != SUCCESS) {
-//                throw std::logic_error("New order ware");
+                //                throw std::logic_error("New order ware");
                 return status;
             }
 
@@ -121,7 +121,7 @@ namespace tpcc_ns {
             auto cdv = threadVar->cust.evaluateAndExecute(&xact, neworder_custfn);
             status = neworder_custfn(this, cdv);
             if (status != SUCCESS) {
-//                throw std::logic_error("New order cust");
+                //                throw std::logic_error("New order cust");
                 return status;
             }
             total = 0;
@@ -200,7 +200,7 @@ namespace tpcc_ns {
         new(&threadVar->orderKey) OrderKey(o_id, prg->d_id, prg->w_id);
         CreateValInsert(Order, newov, prg->c_id, prg->datetime, 0, prg->o_ol_cnt, prg->o_all_local);
         if (MV3CNewOrder::orderTable->insert(&xact, threadVar->orderKey, MakeRecord(newov), &threadVar->dist) != OP_SUCCESS) {
-//            throw std::logic_error("NewOrder order");
+            //            throw std::logic_error("NewOrder order");
             xact.failureCtr++;
             return WW_ABORT;
         }
@@ -208,7 +208,7 @@ namespace tpcc_ns {
         new(&threadVar->newOrderKey) NewOrderKey(o_id, prg->d_id, prg->w_id);
         CreateValInsert(NewOrder, newnov, true);
         if (MV3CNewOrder::newOrdTable->insert(&xact, threadVar->newOrderKey, MakeRecord(newnov), &threadVar->dist) != OP_SUCCESS) {
-//            throw std::logic_error("NewOrder neworder");
+            //            throw std::logic_error("NewOrder neworder");
             return WW_ABORT;
         }
 
@@ -218,7 +218,7 @@ namespace tpcc_ns {
             CreateValInsert(OrderLine, newolv, prg->itemid[ol_number], prg->supware[ol_number], nulldate, prg->quantity[ol_number], threadVar->MV3CNewOrderOl_amt[ol_number], *threadVar->MV3CNewOrderDist_info[ol_number]);
 
             if (MV3CNewOrder::ordLTable->insert(&xact, threadVar->orderLineKey, MakeRecord(newolv), &threadVar->dist) != OP_SUCCESS) {
-//                throw std::logic_error("NewORder orderline");
+                //                throw std::logic_error("NewORder orderline");
                 return WW_ABORT;
             }
         }
@@ -253,6 +253,14 @@ namespace tpcc_ns {
         TransactionReturnStatus execute() override {
             TransactionReturnStatus status = SUCCESS;
 
+            new(&threadVar->custKey)CustomerKey(c_id, c_d_id, c_w_id);
+            new (&threadVar->cust) CustGet(custTable, &xact, threadVar->custKey, nullptr, (1 << 14 | 1 << 15 | 1 << 16));
+            auto cdv = threadVar->cust.evaluateAndExecute(&xact, payment_custfn);
+            status = payment_custfn(this, cdv);
+            if (status != SUCCESS) {
+                return status;
+            }
+
             new (&threadVar->distKey) DistrictKey(d_id, w_id);
             new (&threadVar->dist) DistGet(distTable, &xact, threadVar->distKey, nullptr, col_type(1 << 8));
             auto ddv = threadVar->dist.evaluateAndExecute(&xact, payment_distfn);
@@ -260,6 +268,7 @@ namespace tpcc_ns {
             if (status != SUCCESS) {
                 return status;
             }
+            std::string dname = to_string(h_amount) + to_string(c_id) + to_string(d_id);
 
             new(&threadVar->wareKey) WarehouseKey(w_id);
 
@@ -269,17 +278,13 @@ namespace tpcc_ns {
             if (status != SUCCESS) {
                 return status;
             }
-            //
+            std::string wname = to_string(datetime);
 
-            new(&threadVar->custKey)CustomerKey(c_id, c_d_id, c_w_id);
-            new (&threadVar->cust) CustGet(custTable, &xact, threadVar->custKey, nullptr, (1 << 14 | 1 << 15 | 1 << 16));
-            auto cdv = threadVar->cust.evaluateAndExecute(&xact, payment_custfn);
-            status = payment_custfn(this, cdv);
-            if (status != SUCCESS) {
-                return status;
-            }
+            std::string hdata = wname.substr(0, 10) + "    " + dname.substr(0, 10);
+            String<24> hval;
+            hval.insertAt(0, hdata.c_str(), 24);
 
-            new (&threadVar->histKey) HistoryKey(c_id, c_d_id, c_w_id, d_id, w_id, datetime, h_amount, String<24>());
+            new (&threadVar->histKey) HistoryKey(c_id, c_d_id, c_w_id, d_id, w_id, datetime, h_amount, hval);
             CreateValInsert(History, newhv, true);
             if (histTable->insert(&xact, threadVar->histKey, MakeRecord(newhv)) != OP_SUCCESS) {
                 cerr << "History Insertion failed" << endl;
@@ -313,6 +318,15 @@ namespace tpcc_ns {
         newcv->_14 -= prg->h_amount;
         newcv->_15 += prg->h_amount;
         newcv->_16++;
+        //
+        std::string newDATA = to_string(prg->c_id) + " " + to_string(prg->c_d_id) + " " + to_string(prg->c_w_id) + " " + to_string(prg->d_id) + " " + to_string(prg->w_id) + " " + to_string(prg->h_amount) + " " + to_string(prg->datetime) + " | ";
+        std::string olddata = cdv->val._18.c_str();
+        std::string newdata2 = newDATA + olddata.substr(0, 500 - newDATA.size());
+        String<500> newdata;
+        newdata.insertAt(0, newdata2.c_str(), 500);
+        newcv->_18 = newdata;
+
+
         if (MV3CPayment::custTable->update(&xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, false, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment cust");
