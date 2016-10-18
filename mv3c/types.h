@@ -48,6 +48,7 @@ enum OperationReturnStatus : char {
 #endif 
 typedef uint64_t timestamp;
 const timestamp mask = 1LL << 63;
+const timestamp nonAccessibleMemory = mask + 100;
 const timestamp initCommitTS = mask + 5;
 #define isTempTS(ts) (ts&mask)
 #define PTRtoTS(t) ((timestamp) t ^ mask)
@@ -79,6 +80,22 @@ forceinline T unmark(T t) {
 #undef ALLOW_WW
 #define ALLOW_WW false
 #endif
+#define EXPAND(x) #x
+#define STRINGIFY(x) EXPAND(x)
+
+#ifndef CRITICAL_COMPENSATE
+#define CRITICAL_COMPENSATE true
+#endif
+
+#define  TABLE(x) Table<x##Key, x##Val>
+#define GETP(x) GetPred<x##Key,x##Val>
+#define DV(x) DeltaVersion<x##Key,x##Val>
+
+#define DefineStore(type)\
+  template<>\
+  DeltaVersion<type##Key, type##Val>::StoreType DeltaVersion<type##Key, type##Val>::store(type##DVSize, STRINGIFY(type)"DV", numThreads);\
+  template<>\
+  Entry<type##Key, type##Val>::StoreType Entry<type##Key, type##Val>::store(type##EntrySize, STRINGIFY(type)"Entry", numThreads)
 
 #endif /* TYPES_H */
 

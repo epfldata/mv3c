@@ -25,14 +25,7 @@ namespace tpcc_ns {
 #define NUMWARE 1
 #endif
     const int numWare = NUMWARE;
-
-#define EXPAND(x) #x
-#define STRINGIFY(x) EXPAND(x)
-
-#ifndef CRITICAL_COMPENSATE
-#define CRITICAL_COMPENSATE true
-#endif
-    
+  
 #ifdef NUMPROG
     const size_t numPrograms = NUMPROG;
 #else

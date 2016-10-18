@@ -89,7 +89,6 @@ struct DeltaVersion : DELTA {
             removeEntry(tid);
         else {
             DeltaVersion<K, V>* dv = this;
-            op = INVALID;
             if (!entry->dv.compare_exchange_strong(dv, (DeltaVersion<K, V>*)olderVersion)) {
                 cerr << "DV being removed is not the first version" << endl;
             }
@@ -102,9 +101,19 @@ struct DeltaVersion : DELTA {
 
     void moveNextToCommitted(Transaction *xact) override {
         auto newdv = store.add(xact->threadId);
-
+#ifdef ATTRIB_LEVEL
+        //If attribute level, we need to copy value from committed version. Here we initialize the other fields
+        //If record level, we can duplicate this version entirely, so no need to initialize here.
+        newdv->entry = entry;
+        newdv->isWWversion = true;
+        newdv->nextInDVsInClosure = (DELTA*) nonAccessibleMemory;
+        newdv->nextInUndoBuffer = (DELTA*) nonAccessibleMemory;
+        assert(op == UPDATE);
+        newdv->op = UPDATE;
+        newdv->xactId = xactId;
+#endif
         DeltaVersion<K, V>* committed;
-        DELTA * old, *oldOld;
+        DELTA * old, *oldOld, *temp;
         bool first = true;
 
         do {
@@ -126,10 +135,13 @@ struct DeltaVersion : DELTA {
                 }
                 curOV = cur->olderVersion.load();
             }
-            if (oldOld != cur) {
-                old->olderVersion.compare_exchange_strong(oldOld, cur); //we dont care abt the result
-            }
             committed = (DeltaVersion<K, V> *) cur;
+            if (oldOld != cur) {
+                //we should use temp here, because we rely on the value of oldOld in the C&S in the loop below
+                temp = oldOld;
+                old->olderVersion.compare_exchange_strong(temp, cur); //we dont care abt the result
+            }
+
             if (old == this) { //no need to move
                 store.remove(newdv, xact->threadId);
 #ifdef ATTRIB_LEVEL
@@ -138,11 +150,13 @@ struct DeltaVersion : DELTA {
                 return;
             }
             if (first) {
-                newdv->olderVersion.store(committed);
-                memcpy(newdv, committed, sizeof (*this));
 #ifdef ATTRIB_LEVEL
+                memcpy(&newdv->val, &committed->val, sizeof (V));
                 newdv->val.copyColsFrom(val, cols);
+#else
+                memcpy(newdv, this, sizeof (*this));
 #endif
+                newdv->olderVersion.store(committed);
                 first = false;
             }
         } while (!old->olderVersion.compare_exchange_strong(oldOld, newdv));

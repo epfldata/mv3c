@@ -10,7 +10,7 @@ struct Transaction {
     volatile timestamp commitTS;
     Transaction * prevCommitted;
     uint8_t threadId;
-    
+
     /* DEBUGGING INFO*/
     std::stringstream ss;
     uint failureCtr;

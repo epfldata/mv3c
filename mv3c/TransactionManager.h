@@ -19,7 +19,7 @@ struct TransactionManager {
     }
 
     forceinline void begin(Transaction *xact) {
-        while (!counterLock.test_and_set());
+        while (counterLock.test_and_set());
         auto ts = timestampGen++;
         xact->startTS = ts;
         counterLock.clear();
@@ -167,9 +167,9 @@ struct TransactionManager {
                 assert(head->firstChild == nullptr);
                 assert(head->DVsInClosureHead == nullptr);
                 auto status = head->compensateAndExecute(xact, state);
-                if (status != SUCCESS)                    
+                if (status != SUCCESS)
                     return status;
-      
+
             } else {
 
                 PRED * child = head->firstChild;
@@ -242,7 +242,9 @@ struct TransactionManager {
         commitLock.clear();
 
         while (dv) {
-            dv->xactId = xact->commitTS;
+            dv->xactId = xact->commitTS; //TOFIX: DOES NOT SET TS on the moved version
+            //This is still correct , as the getCorrectDV looks up commit TS of transaction even if not set in version
+            // BUt this has performance overhead as in almost all cases, it will lookup transaction un necessarily
             dv = dv->nextInUndoBuffer;
         }
     }
@@ -302,10 +304,12 @@ struct TransactionManager {
                 }
                 DELTA *dv = xact->undoBufferHead, *prev = nullptr, *dvold;
 
-                while (!counterLock.test_and_set());
+                while (counterLock.test_and_set());
                 xact->startTS = timestampGen++;
                 counterLock.clear();
 #if CRITICAL_COMPENSATE
+
+                //Remove rolledback versions from undobuffer
                 while (dv != nullptr) {
                     if (dv->op != INVALID) {
                         if (prev == nullptr)
@@ -322,7 +326,7 @@ struct TransactionManager {
                     prev->nextInUndoBuffer = nullptr;
 
                 auto status = reexecute(xact, state);
-                if(status  != SUCCESS){
+                if (status != SUCCESS) {
                     cerr << "Cannot fail execution during critical reexecution";
                     exit(-6);
                 }
@@ -334,6 +338,7 @@ struct TransactionManager {
                 return false;
 #else
                 commitLock.clear();
+                //Remove rolledback versions from undobuffer
                 while (dv != nullptr) {
                     if (dv->op != INVALID) {
                         if (prev == nullptr)
@@ -348,7 +353,8 @@ struct TransactionManager {
                     xact->undoBufferHead = nullptr;
                 else
                     prev->nextInUndoBuffer = nullptr;
-
+                numXactsValidatedAgainst += xactCount;
+                numRounds += round;
                 return false;
 #endif
 

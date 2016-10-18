@@ -1,3 +1,4 @@
+#ifdef TPCC_TEST
 #include "Table.h"
 #include "Predicate.hpp"
 #include "Transaction.h"
@@ -76,7 +77,11 @@ int main(int argc, char** argv) {
     if (ALLOW_WW)
         cout << "WW  handling enabled" << endl;
     else cout << "WW handling disabled" << endl;
-
+#ifdef STORE_ENABLE
+    cout << "Store enabled " << endl;
+#else
+    cout << "Store disabled " << endl;
+#endif
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);
@@ -182,4 +187,4 @@ int main(int argc, char** argv) {
     }
     return 0;
 }
-
+#endif

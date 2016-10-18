@@ -59,8 +59,9 @@ public:
     size_t *currentArrayIndex;
     Element<T>** freeLists;
     const std::string name;
+#ifdef STORE_ENABLE
 
-    Store(size_t size, const std::string& n, uint8_t numT) : start((numT + 1) * size * 0), numThreads(numT +1), poolsize(size), name(n) {
+    Store(size_t size, const std::string& n, uint8_t numT) : start((numT + 1) * size), numThreads(numT + 1), poolsize(size), name(n) {
         freeLists = new Element<T>*[numThreads];
         currentArrayIndex = new size_t[numThreads];
         for (uint i = 0; i < numT + 1; ++i) {
@@ -71,11 +72,11 @@ public:
     }
 
     ~Store() {
-//        cerr << name << "about to  be deleted "<<endl;
+        //        cerr << name << "about to  be deleted "<<endl;
         delete[] freeLists;
         delete[] currentArrayIndex;
-//        cerr << name << "deleted "<<endl;
-        
+        //        cerr << name << "deleted "<<endl;
+
         //        Pool<T>* cur;
         //        currentPool = start.next;
         //        while (currentPool != nullptr) {
@@ -84,44 +85,55 @@ public:
         //            delete cur;
         //        }
     }
+#else
+
+    Store(size_t size, const std::string& n, uint8_t numT) : start(0), numThreads(numT + 1), poolsize(size), name(n) {
+    }
+#endif
 
     T* add(uint8_t tid) {
-        return (T*) malloc(sizeof(T));
-//        Element<T>* ptr;
-//        if (freeLists[tid] == nullptr) {
-//            if (currentArrayIndex[tid] == poolsize) {
-//                cerr << name << "Store size exceeded" << endl;
-//                exit(-1);
-//                //                Pool<T>* newPool = new Pool<T>(poolsize);
-//                //                currentPool->next = newPool;
-//                //                currentPool = newPool;
-//                //                currentArrayIndex = 0;
-//            }
-//            ptr = start.array + (tid * poolsize + currentArrayIndex[tid]);
-//            currentArrayIndex[tid]++;
-//        } else {
-//            ptr = freeLists[tid];
-//            freeLists[tid] = ptr->cell.next;
-//
-//        }
-//        assert(ptr->isActive == false);
-//        ptr->isActive = true;
-//        return (T*) ptr;
+#ifndef STORE_ENABLE
+        return (T*) malloc(sizeof (T));
+#else
+        Element<T>* ptr;
+        if (freeLists[tid] == nullptr) {
+            if (currentArrayIndex[tid] == poolsize) {
+                cerr << name << "Store size exceeded" << endl;
+                exit(-1);
+                //                Pool<T>* newPool = new Pool<T>(poolsize);
+                //                currentPool->next = newPool;
+                //                currentPool = newPool;
+                //                currentArrayIndex = 0;
+            }
+            ptr = start.array + (tid * poolsize + currentArrayIndex[tid]);
+            currentArrayIndex[tid]++;
+        } else {
+            ptr = freeLists[tid];
+            freeLists[tid] = ptr->cell.next;
+
+        }
+        assert(ptr->isActive == false);
+        ptr->isActive = true;
+        return (T*) ptr;
+#endif
     }
 
     void remove(const T* optr, uint8_t thread_id) {
         if (optr == nullptr)
             return;
-        free((void *)optr);
-//        Element<T>* ptr = (Element<T>*)optr;
-//        //TO REMOVE:
-//        assert(thread_id != 0);
-//        assert(thread_id == ((ptr - start.array) / poolsize));
-//        assert(ptr->isActive);
-////        memset(&ptr->cell, 0xff, sizeof (ptr->cell));
-//        ptr->isActive = false;
-//        ptr->cell.next = freeLists[thread_id];
-//        freeLists[thread_id] = ptr;
+#ifndef STORE_ENABLE
+        free((void *) optr);
+#else
+        Element<T>* ptr = (Element<T>*)optr;
+        //TO REMOVE:
+        assert(thread_id != 0);
+        assert(thread_id == ((ptr - start.array) / poolsize));
+        assert(ptr->isActive);
+        //        memset(&ptr->cell, 0xff, sizeof (ptr->cell));
+        ptr->isActive = false;
+        ptr->cell.next = freeLists[thread_id];
+        freeLists[thread_id] = ptr;
+#endif
     }
 
     //    void forEach(const std::function<void(T&) >& func) const {

@@ -1,20 +1,10 @@
+#ifdef TPCC_TEST
 #ifndef NEWMV3CTPCC_H
 #define NEWMV3CTPCC_H
 #include "TPCC.h"
 #include "Predicate.hpp"
 
 namespace tpcc_ns {
-#define  TABLE(x) Table<x##Key, x##Val>
-#define GETP(x) GetPred<x##Key,x##Val>
-#define DV(x) DeltaVersion<x##Key,x##Val>
-
-#define DefineStore(type)\
-  template<>\
-  DeltaVersion<type##Key, type##Val>::StoreType DeltaVersion<type##Key, type##Val>::store(type##DVSize, STRINGIFY(type)"DV", numThreads);\
-  template<>\
-  Entry<type##Key, type##Val>::StoreType Entry<type##Key, type##Val>::store(type##EntrySize, STRINGIFY(type)"Entry", numThreads)
-
-
     typedef GETP(Item) ItemGet;
     typedef DV(Item) ItemDV;
     typedef GETP(Stock) StockGet;
@@ -452,3 +442,4 @@ namespace tpcc_ns {
 
 #endif /* NEWMV3CTPCC_H */
 
+#endif

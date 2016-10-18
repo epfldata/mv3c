@@ -10,7 +10,7 @@
 #include "Timer.h"
 #include "TransactionManager.h"
 #include "NewMV3CTpcc.h"
-
+#include "MV3CBanking.h"
 struct ConcurrentExecutor {
     std::thread* workers;
     volatile bool* isReady;
@@ -96,7 +96,7 @@ struct ConcurrentExecutor {
         //        const int CPUS[] = {0, 1, 2, 3};
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(thread_id , &cpuset);
+        CPU_SET(2 * thread_id , &cpuset);
         auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);
         if (s != 0) {
             throw std::runtime_error("Cannot set affinity");
