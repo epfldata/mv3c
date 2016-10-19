@@ -37,7 +37,7 @@ namespace trading_ns {
     const uint32_t numPrograms = 100;
 #endif
 
-    const uint numThreads = 10;
+    const uint numThreads = NUMTHREADS;
 
     ECB_Mode< SKIPJACK>::Encryption encryptors[numThreads + 1];
     ECB_Mode< SKIPJACK>::Decryption decryptors[numThreads + 1];
@@ -213,7 +213,7 @@ namespace trading_ns {
             std::default_random_engine g5(s5); //custGen
 
             std::uniform_real_distribution<double> prgGen(0.0, 1.0);
-            std::uniform_int_distribution<uint8_t> numSecGen(3, 8);
+            std::uniform_int_distribution<uint8_t> numSecGen(1, 4);
             std::uniform_int_distribution<uint32_t> custGen(0, CustomerSize - 1);
             uint32_t t_id = 0;
             uint32_t datetime = 31536000 * 30;

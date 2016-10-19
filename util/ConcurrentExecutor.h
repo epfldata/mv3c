@@ -12,6 +12,7 @@
 #include "NewMV3CTpcc.h"
 #include "MV3CBanking.h"
 #include "mv3cTrading.h"
+
 struct ConcurrentExecutor {
     std::thread* workers;
     volatile bool* isReady;
@@ -97,7 +98,7 @@ struct ConcurrentExecutor {
         //        const int CPUS[] = {0, 1, 2, 3};
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(2 * thread_id , &cpuset);
+        CPU_SET(2 * thread_id, &cpuset);
         auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);
         if (s != 0) {
             throw std::runtime_error("Cannot set affinity");
@@ -123,19 +124,26 @@ struct ConcurrentExecutor {
             threadPrgs[pid]->xact.threadId = thread_id + 1;
             pid++;
         }
+        auto start = Now, end = Now;
+        do {
+            end = Now;
+        } while (DurationMS(end - start) <= 2000);
         isReady[thread_id] = true;
         while (!startExecution);
         pid = 0;
         uint thisPrgFailedExec = 0;
         while (pid < ppt && (p = threadPrgs[pid]) && !hasFinished) {
             tm.begin(&p->xact);
+            auto dstart = DNow;
             auto status = p->execute();
+            auto dend = DNow;
+            p->xact.executeTime += DDurationNS(dend - dstart);
             if (status != SUCCESS) {
                 //                 cerr << "Thread "<<thread_id<< " aborted " << pid << endl;
                 tm.rollback(&p->xact);
-                thisPrgFailedExec ++;
+                thisPrgFailedExec++;
                 failedExPerTxn[p->prgType]++;
-                if(thisPrgFailedExec > maxFailedExecutionProgram){
+                if (thisPrgFailedExec > maxFailedExecutionProgram) {
                     maxFailedExecutionProgram = thisPrgFailedExec;
                 }
                 if (p->xact.failureCtr > 1000) {
@@ -145,7 +153,7 @@ struct ConcurrentExecutor {
             } else {
                 uint thisPrgFailedVal = 0;
 #if OMVCC
-                if(!tm.validateAndCommit(&p->xact, p)){
+                if (!tm.validateAndCommit(&p->xact, p)) {
                     failedValPerTxn[p->prgType]++;
                     thisPrgFailedVal++;
                     continue;
@@ -154,7 +162,7 @@ struct ConcurrentExecutor {
                 while (!tm.validateAndCommit(&p->xact, p)) {
                     failedValPerTxn[p->prgType]++;
                     thisPrgFailedVal++;
-                    if(thisPrgFailedVal > maxFailedValidationProgram){
+                    if (thisPrgFailedVal > maxFailedValidationProgram) {
                         maxFailedValidationProgram = thisPrgFailedVal;
                     }
                     if (thisPrgFailedVal > 100) {
@@ -177,7 +185,7 @@ struct ConcurrentExecutor {
             }
         }
         hasFinished = true;
-        finishedPrograms +=  finishedPerTxn[0]+ finishedPerTxn[1];
+        finishedPrograms += finishedPerTxn[0] + finishedPerTxn[1];
         failedExecution += failedExPerTxn[0] + failedExPerTxn[1];
         failedValidation += failedValPerTxn[0] + failedValPerTxn[1];
         finishedPerThread[0][thread_id] = finishedPerTxn[0];

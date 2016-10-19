@@ -1,3 +1,4 @@
+#include "types.h"
 #ifdef TPCC_TEST
 #ifndef NEWMV3CTPCC_H
 #define NEWMV3CTPCC_H

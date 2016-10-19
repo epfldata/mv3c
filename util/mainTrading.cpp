@@ -1,3 +1,4 @@
+#include "types.h"
 #ifdef TRADING_TEST
 #include "Table.h"
 #include "Predicate.hpp"
@@ -30,7 +31,13 @@ TABLE(Security)* mv3cPriceUpdate::SecurityTable;
 
 int main(int argc, char** argv) {
     TradingDataGen trade;
-
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(2 * numThreads, &cpuset);
+    auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);
+    if (s != 0) {
+        throw std::runtime_error("Cannot set affinity");
+    }
     TABLE(Customer) custTable(CustomerSize);
     TABLE(Security) secTable(SecuritySize);
     TABLE(Trade) tradeTable(TradeSize);
@@ -38,7 +45,8 @@ int main(int argc, char** argv) {
     trade.loadCustomer();
     trade.loadPrograms();
     trade.loadSecurity();
-
+    std::cout.imbue(std::locale(""));
+    cout << "Trading" << endl;
 #if OMVCC
     cout << "OMVCC" << endl;
 #else
@@ -61,7 +69,7 @@ int main(int argc, char** argv) {
 #else
     cout << "Store disabled " << endl;
 #endif
-    cout << "Power factor = " <<POWER << endl;
+    cout << "Power factor = " << POWER << endl;
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);
@@ -105,7 +113,7 @@ int main(int argc, char** argv) {
     cout << "Committed = " << exec.finishedPrograms << endl;
     cout << "FailedExecution  = " << exec.failedExecution << endl;
     cout << "FailedValidation  = " << exec.failedValidation << endl;
-    std::cout.imbue(std::locale(""));
+
     cout << "FailedEx rate = " << 1.0 * exec.failedExecution / exec.finishedPrograms << endl;
     cout << "FailedVal rate = " << 1.0 * exec.failedValidation / exec.finishedPrograms << endl;
     cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
@@ -113,6 +121,32 @@ int main(int argc, char** argv) {
     cout << "Num validations against = " << transactionManager.numXactsValidatedAgainst << endl;
     cout << "avg validations against = " << transactionManager.numXactsValidatedAgainst / (1.0 * transactionManager.numValidations) << endl;
     cout << "avg validation rounds = " << transactionManager.numRounds / (1.0 * transactionManager.numValidations) << endl;
+    size_t commitTime = 0, validateTime = 0, executeTime = 0, compensateTime = 0;
+    size_t commitTimes[2], validateTimes[2], executeTimes[2], compensateTimes[2];
+    commitTimes[0] = validateTimes[0] = executeTimes[0] = compensateTimes[0] = 0;
+    commitTimes[1] = validateTimes[1] = executeTimes[1] = compensateTimes[1] = 0;
+
+    for (uint i = 0; i < numPrograms; ++i) {
+        Transaction& x = programs[i]->xact;
+        int id = programs[i]->prgType;
+        commitTime += x.commitTime;
+        executeTime += x.executeTime;
+        validateTime += x.validateTime;
+        compensateTime += x.compensateTime;
+        commitTimes[id] += x.commitTime;
+        executeTimes[id] += x.executeTime;
+        validateTimes[id] += x.validateTime;
+        compensateTimes[id] += x.compensateTime;
+    }
+    cout << "Execution time = " << executeTime / 1000000.0 << " ms" << endl;
+    cout << "Validation time = " << validateTime / 1000000.0 << " ms" << endl;
+    cout << "Commit time = " << commitTime / 1000000.0 << " ms" << endl;
+    cout << "Compensate time = " << compensateTime / 1000000.0 << " ms" << endl;
+
+    cout << "Execution times = " << executeTimes[0] / 1000000.0 << "   " << executeTimes[1] / 1000000.0 << " ms" << endl;
+    cout << "Validation times = " << validateTimes[0] / 1000000.0 << "   " << validateTimes[1] / 1000000.0 << " ms" << endl;
+    cout << "Commit times = " << commitTimes[0] / 1000000.0 << "   " << commitTimes[1] / 1000000.0 << " ms" << endl;
+    cout << "Compensate times = " << compensateTimes[0] / 1000000.0 << "   " << compensateTimes[1] / 1000000.0 << " ms" << endl;
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];
     }

@@ -1,3 +1,4 @@
+#include "types.h"
 #ifdef TPCC_TEST
 #include "Table.h"
 #include "Predicate.hpp"
@@ -39,6 +40,13 @@ TABLE(Warehouse)* MV3CPayment::wareTable;
 TABLE(History)* MV3CPayment::histTable;
 
 int main(int argc, char** argv) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(2 * numThreads, &cpuset);
+    auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);
+    if (s != 0) {
+        throw std::runtime_error("Cannot set affinity");
+    }
     TPCCDataGen tpcc;
     TABLE(Customer) custTbl(CustomerIndexSize);
     TABLE(District) distTbl(DistrictIndexSize);
@@ -60,6 +68,7 @@ int main(int argc, char** argv) {
     tpcc.loadOrders();
     tpcc.loadStocks();
     tpcc.loadWare();
+    cout << "TPCC" << endl;
 #if OMVCC
     cout << "OMVCC" << endl;
 #else
@@ -116,6 +125,7 @@ int main(int argc, char** argv) {
     transactionManager.validateAndCommit(t0);
     int neworder = 0;
     int payment = 0;
+    std::cout.imbue(std::locale(""));
     cout << "Number of programs = " << numPrograms << endl;
     cout << "Number of warehouse = " << numWare << endl;
     cout << "Number of threads = " << numThreads << endl;
@@ -164,7 +174,7 @@ int main(int argc, char** argv) {
     cout << "Committed = " << exec.finishedPrograms << endl;
     cout << "FailedExecution  = " << exec.failedExecution << endl;
     cout << "FailedValidation  = " << exec.failedValidation << endl;
-    std::cout.imbue(std::locale(""));
+
     cout << "FailedEx rate = " << 1.0 * exec.failedExecution / exec.finishedPrograms << endl;
     cout << "FailedVal rate = " << 1.0 * exec.failedValidation / exec.finishedPrograms << endl;
     cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;

@@ -1,5 +1,19 @@
 #ifndef TYPES_H
 #define TYPES_H
+//ALLOW_WW=true CRITICAL_COMPENSATE=true NUMPROG=5000000 NUMWARE=5 OMVCC=true POWER=2 TRADING_TEST
+
+#define ALLOW_WW true
+#define CRITICAL_COMPENSATE false
+#define NUMPROG 5000000
+#define NUMWARE 5
+#define OMVCC false
+#define POWER 2
+#define TRADING_TEST 1
+//#define BANKING_TEST 1
+//#define TPCC_TEST 1
+#define NUMTHREADS 4
+//#define ATTRIB_LEVEL 1
+//#define STORE_ENABLE 1
 #include<iostream>
 #include<sstream>
 #include "Tuple.h"

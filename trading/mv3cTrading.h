@@ -1,3 +1,4 @@
+#include "types.h"
 #ifdef TRADING_TEST
 #ifndef MV3CTRADING_H
 #define MV3CTRADING_H
@@ -69,7 +70,6 @@ namespace trading_ns {
         auto threadVar = p->threadVar;
         prg->key = cdv->val._1.data;
         decrypt((char*) &prg->req, prg->request, prg->key, sizeof (TradeRequest), xact.threadId);
-
         String<sizeof (TradeValue) > enc_tradeval;
         TradeValue tv;
         tv.datetime = prg->req.datetime;
@@ -121,7 +121,7 @@ namespace trading_ns {
             auto sdv = SecurityTable->getReadOnly(&xact, threadVar->secKey);
             auto symbol = sdv->val._2;
             //Blind write
-            CreateValInsert(Security, newSecVal,  price, symbol);
+            CreateValInsert(Security, newSecVal, price, symbol);
             if (SecurityTable->update(&xact, sdv->entry, MakeRecord(newSecVal), nullptr, true) != OP_SUCCESS)
                 return WW_ABORT;
             return SUCCESS;

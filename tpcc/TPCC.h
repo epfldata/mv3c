@@ -31,7 +31,7 @@ namespace tpcc_ns {
 #else
     const size_t numPrograms = 100;
 #endif
-    const uint8_t numThreads = 10;
+    const uint8_t numThreads = NUMTHREADS;
 
     const size_t WarehouseEntrySize = numWare;
     const size_t WarehouseDVSize =  numPrograms;

@@ -26,7 +26,7 @@ namespace Banking {
     const uint AccountDVSize = AccountSize + numPrograms;
 
 
-    const uint numThreads = 10;
+    const uint numThreads = NUMTHREADS;
 
     const AccountKey FeeAccount(AccountSize - 1);
 

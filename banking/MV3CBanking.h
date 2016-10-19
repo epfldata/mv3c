@@ -1,3 +1,4 @@
+#include "types.h"
 #ifdef BANKING_TEST
 #ifndef MV3CBANKING_H
 #define	MV3CBANKING_H

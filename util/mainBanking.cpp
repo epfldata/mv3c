@@ -1,3 +1,4 @@
+#include "types.h"
 #ifdef BANKING_TEST
 #include "Table.h"
 #include "Predicate.hpp"
@@ -20,12 +21,19 @@ TransactionManager& Transaction::tm(transactionManager);
 TABLE(Account)* mv3cTransfer::AccountTable;
 
 int main(int argc, char** argv) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(2 * numThreads, &cpuset);
+    auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);
+    if (s != 0) {
+        throw std::runtime_error("Cannot set affinity");
+    }
     BankDataGenerator bank;
     TABLE(Account) accountTable(AccountSize);
 
     bank.loadPrograms();
     bank.loadData();
-
+    cout << "Banking" << endl;
 #if OMVCC
     cout << "OMVCC" << endl;
 #else
@@ -45,9 +53,9 @@ int main(int argc, char** argv) {
     else cout << "WW handling disabled" << endl;
 
 #ifdef STORE_ENABLE
-    cout << "Store enabled "<<endl;
+    cout << "Store enabled " << endl;
 #else
-    cout << "Store disabled "<<endl;
+    cout << "Store disabled " << endl;
 #endif
     Transaction t;
     Transaction *t0 = &t;
@@ -96,7 +104,7 @@ int main(int argc, char** argv) {
     //    bank.checkData();
     auto val = bank.fAccounts.at(FeeAccount)._1;
     if (val != exec.finishedPrograms * 2) {
-        cerr << "Fee account is " << (size_t)val << "  instead of " << exec.finishedPrograms * 2 << endl;
+        cerr << "Fee account is " << (size_t) val << "  instead of " << exec.finishedPrograms * 2 << endl;
     }
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];

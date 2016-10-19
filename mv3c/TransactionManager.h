@@ -76,6 +76,7 @@ struct TransactionManager {
 #else
 
     forceinline bool validate(Transaction *xact, Transaction *currentXact) {
+        auto start = DNow;
         bool validated = true;
         auto head = xact->predicateHead;
         while (head != nullptr) {
@@ -152,6 +153,8 @@ struct TransactionManager {
             }
             head = head->nextChild;
         }
+        auto end = DNow;
+        xact->validateTime += DDurationNS(end-start);
         return validated;
     }
 #endif
@@ -159,6 +162,7 @@ struct TransactionManager {
 #if(!OMVCC)
 
     forceinline TransactionReturnStatus reexecute(Transaction *xact, Program *state) {
+        auto start = DNow;
         PRED* head = xact->predicateHead;
         int rex = 0;
         while (head != nullptr) {
@@ -202,11 +206,14 @@ struct TransactionManager {
             head = head->nextChild;
         }
         assert(rex > 0);
+        auto end = DNow;
+        xact->compensateTime += DDurationNS(end-start);
         return SUCCESS;
     }
 #endif
 
     forceinline void commit(Transaction *xact) {
+        auto start = DNow;
         //In case of WW, we need to move versions next to committed.
         // In case of attribute level validation, we  need to copy cols from prev committed
         auto dv = xact->undoBufferHead;
@@ -247,6 +254,8 @@ struct TransactionManager {
             // BUt this has performance overhead as in almost all cases, it will lookup transaction un necessarily
             dv = dv->nextInUndoBuffer;
         }
+        auto end = DNow;
+        xact->commitTime += DDurationNS(end-start);
     }
 
     forceinline bool validateAndCommit(Transaction *xact, Program *state = nullptr) {
@@ -256,6 +265,7 @@ struct TransactionManager {
         uint round = 0;
         numValidations++;
         size_t xactCount = 0;
+        
         do {
             round++;
             if (startXact != nullptr) {
