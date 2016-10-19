@@ -11,6 +11,7 @@
 #include "TransactionManager.h"
 #include "NewMV3CTpcc.h"
 #include "MV3CBanking.h"
+#include "mv3cTrading.h"
 struct ConcurrentExecutor {
     std::thread* workers;
     volatile bool* isReady;
