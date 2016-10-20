@@ -178,10 +178,39 @@ int main(int argc, char** argv) {
     cout << "FailedEx rate = " << 1.0 * exec.failedExecution / exec.finishedPrograms << endl;
     cout << "FailedVal rate = " << 1.0 * exec.failedValidation / exec.finishedPrograms << endl;
     cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
-    cout << "Num validations  = " << transactionManager.numValidations << endl;
-    cout << "Num validations against = " << transactionManager.numXactsValidatedAgainst << endl;
-    cout << "avg validations against = " << transactionManager.numXactsValidatedAgainst / (1.0 * transactionManager.numValidations) << endl;
-    cout << "avg validation rounds = " << transactionManager.numRounds / (1.0 * transactionManager.numValidations) << endl;
+
+    size_t commitTime = 0, validateTime = 0, executeTime = 0, compensateTime = 0;
+    size_t commitTimes[2], validateTimes[2], executeTimes[2], compensateTimes[2];
+    commitTimes[0] = validateTimes[0] = executeTimes[0] = compensateTimes[0] = 0;
+    commitTimes[1] = validateTimes[1] = executeTimes[1] = compensateTimes[1] = 0;
+    size_t numValidations = 0;
+    size_t numXactsValidatedAgainst = 0;
+    size_t numRounds = 0;
+    for (uint i = 0; i < numPrograms; ++i) {
+        Transaction& x = programs[i]->xact;
+        numValidations += x.numValidations;
+        numXactsValidatedAgainst += x.numXactsValidatedAgainst;
+        numRounds += x.numRounds;
+        int id = programs[i]->prgType;
+        commitTime += x.commitTime;
+        executeTime += x.executeTime;
+        validateTime += x.validateTime;
+        compensateTime += x.compensateTime;
+        commitTimes[id] += x.commitTime;
+        executeTimes[id] += x.executeTime;
+        validateTimes[id] += x.validateTime;
+        compensateTimes[id] += x.compensateTime;
+    }
+    cout << "Num validations  = " << numValidations << endl;
+    fout << ", " << numValidations;
+    cout << "Num validations against = " << numXactsValidatedAgainst << endl;
+    fout << ", " << numXactsValidatedAgainst;
+    cout << "avg validations against = " << numXactsValidatedAgainst / (1.0 * numValidations) << endl;
+    fout << ", " << numXactsValidatedAgainst / (1.0 * numValidations);
+    cout << "avg validation rounds = " << numRounds / (1.0 * numValidations) << endl;
+    fout << ", " << numRounds / (1.0 * numValidations);
+
+
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];
     }

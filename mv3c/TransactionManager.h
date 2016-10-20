@@ -9,13 +9,9 @@ struct TransactionManager {
     std::atomic<timestamp> timestampGen;
     std::atomic_flag commitLock, counterLock;
     std::atomic<Transaction *> committedXactsTail;
-    std::atomic<size_t> numValidations, numXactsValidatedAgainst, numRounds;
-
+    
     TransactionManager() : timestampGen(0) {
         committedXactsTail = nullptr;
-        numValidations = 0;
-        numXactsValidatedAgainst = 0;
-        numRounds = 0;
     }
 
     forceinline void begin(Transaction *xact) {
@@ -262,12 +258,11 @@ struct TransactionManager {
         //TODO: Handle read only
         bool validated = true;
         Transaction *startXact = committedXactsTail, *endXact = nullptr, *currentXact;
-        uint round = 0;
-        numValidations++;
-        size_t xactCount = 0;
+        xact->numValidations++;
+        
         
         do {
-            round++;
+            xact->numRounds++;
             if (startXact != nullptr) {
                 currentXact = startXact;
                 //wait until committed??  current->xact->status == COMMITTED
@@ -282,7 +277,7 @@ struct TransactionManager {
                     validated &= validate(xact, currentXact);
 #endif
                     currentXact = currentXact->prevCommitted;
-                    xactCount++;
+                    xact->numXactsValidatedAgainst++;
                 }
             }
             endXact = startXact;
@@ -301,8 +296,6 @@ struct TransactionManager {
                 }
 
                 commit(xact); //will release commitLock internally
-                numXactsValidatedAgainst += xactCount;
-                numRounds += round;
                 return true;
 #if (!OMVCC)
             } else {
@@ -343,8 +336,6 @@ struct TransactionManager {
                 xact->prevCommitted = startXact;
                 committedXactsTail = xact;
                 commit(xact); //will release commitLock internally
-                numXactsValidatedAgainst += xactCount;
-                numRounds += round;
                 return false;
 #else
                 commitLock.clear();
@@ -363,8 +354,6 @@ struct TransactionManager {
                     xact->undoBufferHead = nullptr;
                 else
                     prev->nextInUndoBuffer = nullptr;
-                numXactsValidatedAgainst += xactCount;
-                numRounds += round;
                 return false;
 #endif
 

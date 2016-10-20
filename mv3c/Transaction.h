@@ -14,9 +14,14 @@ struct Transaction {
     /* DEBUGGING INFO*/
     std::stringstream ss;
     uint failureCtr;
+    size_t numValidations, numXactsValidatedAgainst, numRounds;
     size_t executeTime, commitTime, validateTime, compensateTime;
+
     Transaction() {
         executeTime = commitTime = validateTime = compensateTime = 0;
+        numValidations = 0;
+        numXactsValidatedAgainst = 0;
+        numRounds = 0;
         threadId = 0;
         failureCtr = 0;
         commitTS = initCommitTS;

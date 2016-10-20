@@ -1,22 +1,24 @@
 #ifndef TYPES_H
 #define TYPES_H
 //ALLOW_WW=true CRITICAL_COMPENSATE=true NUMPROG=5000000 NUMWARE=5 OMVCC=true POWER=2 TRADING_TEST
-
+#ifdef NB  //Netbeans
 #define ALLOW_WW true
-#define CRITICAL_COMPENSATE false
+#define CRITICAL_COMPENSATE true
 #define NUMPROG 5000000
 #define NUMWARE 5
 #define OMVCC false
 #define POWER 2
-//#define TRADING_TEST 1
+//#define TRADING_TEST 1   
 #define BANKING_TEST 1
 //#define TPCC_TEST 1
-#define NUMTHREADS 4
-#define CONFLICT_FRACTION 0.0
+#define NUMTHREADS 1
+#define CONFLICT_FRACTION 1.0
 //#define ATTRIB_LEVEL 1
 //#define STORE_ENABLE 1
+#endif
 #include<iostream>
 #include<sstream>
+#include<fstream>
 #include "Tuple.h"
 #include <atomic>
 using std::cout;
@@ -99,7 +101,7 @@ forceinline T unmark(T t) {
 #define STRINGIFY(x) EXPAND(x)
 
 #ifndef CRITICAL_COMPENSATE
-#define CRITICAL_COMPENSATE true
+#define CRITICAL_COMPENSATE false
 #endif
 
 #define  TABLE(x) Table<x##Key, x##Val>
