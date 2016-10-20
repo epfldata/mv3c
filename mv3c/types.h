@@ -8,10 +8,11 @@
 #define NUMWARE 5
 #define OMVCC false
 #define POWER 2
-#define TRADING_TEST 1
-//#define BANKING_TEST 1
+//#define TRADING_TEST 1
+#define BANKING_TEST 1
 //#define TPCC_TEST 1
 #define NUMTHREADS 4
+#define CONFLICT_FRACTION 0.0
 //#define ATTRIB_LEVEL 1
 //#define STORE_ENABLE 1
 #include<iostream>

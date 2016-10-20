@@ -19,6 +19,7 @@ TransactionManager transactionManager;
 TransactionManager& Transaction::tm(transactionManager);
 
 TABLE(Account)* mv3cTransfer::AccountTable;
+TABLE(Account)* mv3cTransferNoConflict::AccountTable;
 
 int main(int argc, char** argv) {
     cpu_set_t cpuset;
@@ -57,6 +58,7 @@ int main(int argc, char** argv) {
 #else
     cout << "Store disabled " << endl;
 #endif
+    cout << "Fraction of conflict = " << CONFLICT_FRACTION << endl;
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);
@@ -73,6 +75,7 @@ int main(int argc, char** argv) {
 
     Program **programs = new Program*[numPrograms];
     mv3cTransfer::AccountTable = &accountTable;
+    mv3cTransferNoConflict::AccountTable = &accountTable;
 
 
     for (uint i = 0; i < numPrograms; ++i) {
@@ -80,6 +83,14 @@ int main(int argc, char** argv) {
         programs[i] = p;
     }
 
+    for (uint i = 0; i < numPrograms; i++) {
+        float prob = ((float) rand()) / RAND_MAX;
+        if (prob < CONFLICT_FRACTION)
+            programs[i] = new mv3cTransfer(bank.transfers[i]);
+        else
+            programs[i] = new mv3cTransferNoConflict(bank.transfers[i]);
+
+    }
     ConcurrentExecutor exec(numThreads, transactionManager);
     exec.execute(programs, numPrograms);
     cout << "Duration = " << exec.timeMs << endl;
@@ -103,7 +114,10 @@ int main(int argc, char** argv) {
     }
     //    bank.checkData();
     auto val = bank.fAccounts.at(FeeAccount)._1;
-    if (val != exec.finishedPrograms * 2) {
+    size_t total = 0;
+    for (uint i = 0; i < numThreads; ++i)
+        total += exec.finishedPerThread[0][i];
+    if (val != total * 2) {
         cerr << "Fee account is " << (size_t) val << "  instead of " << exec.finishedPrograms * 2 << endl;
     }
     for (uint i = 0; i < numPrograms; ++i) {
