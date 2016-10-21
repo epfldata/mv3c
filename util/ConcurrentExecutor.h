@@ -104,6 +104,10 @@ struct ConcurrentExecutor {
             throw std::runtime_error("Cannot set affinity");
         }
         ThreadLocal threadVar;
+#ifdef BANKING_TEST
+        threadVar.from = AccountKey(thread_id * 2);
+        threadVar.to = AccountKey(thread_id * 2 + 1);
+#endif
         Program ** threadPrgs = programs[thread_id];
         Program *p;
         auto ppt = progPerThread;

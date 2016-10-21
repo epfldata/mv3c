@@ -9,7 +9,7 @@ struct TransactionManager {
     std::atomic<timestamp> timestampGen;
     std::atomic_flag commitLock, counterLock;
     std::atomic<Transaction *> committedXactsTail;
-    
+
     TransactionManager() : timestampGen(0) {
         committedXactsTail = nullptr;
     }
@@ -150,7 +150,7 @@ struct TransactionManager {
             head = head->nextChild;
         }
         auto end = DNow;
-        xact->validateTime += DDurationNS(end-start);
+        xact->validateTime += DDurationNS(end - start);
         return validated;
     }
 #endif
@@ -203,7 +203,7 @@ struct TransactionManager {
         }
         assert(rex > 0);
         auto end = DNow;
-        xact->compensateTime += DDurationNS(end-start);
+        xact->compensateTime += DDurationNS(end - start);
         return SUCCESS;
     }
 #endif
@@ -251,7 +251,7 @@ struct TransactionManager {
             dv = dv->nextInUndoBuffer;
         }
         auto end = DNow;
-        xact->commitTime += DDurationNS(end-start);
+        xact->commitTime += DDurationNS(end - start);
     }
 
     forceinline bool validateAndCommit(Transaction *xact, Program *state = nullptr) {
@@ -259,8 +259,8 @@ struct TransactionManager {
         bool validated = true;
         Transaction *startXact = committedXactsTail, *endXact = nullptr, *currentXact;
         xact->numValidations++;
-        
-        
+
+
         do {
             xact->numRounds++;
             if (startXact != nullptr) {

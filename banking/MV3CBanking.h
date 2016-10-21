@@ -12,6 +12,8 @@ namespace Banking {
 using namespace Banking;
 
 struct ThreadLocal {
+    AccountKey from;
+    AccountKey to;
     AccountGet getFrom;
     AccountGet getTo;
     AccountGet getFee;
@@ -22,12 +24,12 @@ namespace Banking {
     forceinline TransactionReturnStatus feeFunction(Program *p, const AccountDV* advFee, uint cs = -1);
 
     struct mv3cTransfer : Program {
-        const AccountKey from, to;
+//        const AccountKey from, to;
         const double amount;
         double fee;
         static Table<AccountKey, AccountVal>* AccountTable;
-
-        mv3cTransfer(const Transfer& t) : Program((char) 0), from(t.from), to(t.to), amount(t.amount) {
+        mv3cTransfer(): Program((char )0), amount(200){}
+        mv3cTransfer(const Transfer& t) : Program((char) 0), amount(t.amount) {
 
         }
 
@@ -36,7 +38,7 @@ namespace Banking {
             if (amount > 100)
                 fee = amount * 0.01;
 
-            new(&threadVar->getFrom) AccountGet(AccountTable, &xact, from);
+            new(&threadVar->getFrom) AccountGet(AccountTable, &xact, threadVar->from);
             auto advFrom = threadVar->getFrom.evaluateAndExecute(&xact, fromFunction);
             return fromFunction(this, advFrom);
         }
@@ -55,7 +57,7 @@ namespace Banking {
                 throw std::logic_error("W-W conflict for from account");
 
 
-            new(&threadVar->getTo) AccountGet(mv3cTransfer::AccountTable, &xact, prg->to, &threadVar->getFrom);
+            new(&threadVar->getTo) AccountGet(mv3cTransfer::AccountTable, &xact, threadVar->to, &threadVar->getFrom);
             auto advTo = threadVar->getTo.evaluateAndExecute(&xact, toFunction);
             auto status = toFunction(prg, advTo);
             if (status != SUCCESS)
@@ -98,16 +100,19 @@ namespace Banking {
     forceinline TransactionReturnStatus toFunctionNC(Program *p, const AccountDV* advTo, uint cs = -1);
 
     struct mv3cTransferNoConflict : Program {
-        const AccountKey from, to;
+//        const AccountKey from, to;
         const double amount;
         static Table<AccountKey, AccountVal>* AccountTable;
 
-        mv3cTransferNoConflict(const Transfer& t) : Program((char) 1), from(t.from), to(t.to), amount(t.amount) {
+        mv3cTransferNoConflict() : Program((char) 1),  amount(200) {
+
+        }
+        mv3cTransferNoConflict(const Transfer& t) : Program((char) 1), amount(t.amount) {
 
         }
 
         TransactionReturnStatus execute() override {
-            new(&threadVar->getFrom) AccountGet(AccountTable, &xact, from);
+            new(&threadVar->getFrom) AccountGet(AccountTable, &xact, threadVar->from);
             auto advFrom = threadVar->getFrom.evaluateAndExecute(&xact, fromFunctionNC);
             return fromFunctionNC(this, advFrom);
         }
@@ -126,7 +131,7 @@ namespace Banking {
                 throw std::logic_error("W-W conflict for from account");
 
 
-            new(&threadVar->getTo) AccountGet(mv3cTransferNoConflict::AccountTable, &xact, prg->to, &threadVar->getFrom);
+            new(&threadVar->getTo) AccountGet(mv3cTransferNoConflict::AccountTable, &xact, threadVar->to, &threadVar->getFrom);
             auto advTo = threadVar->getTo.evaluateAndExecute(&xact, toFunctionNC);
             return toFunctionNC(prg, advTo);
 

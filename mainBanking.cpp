@@ -96,18 +96,12 @@ int main(int argc, char** argv) {
     mv3cTransfer::AccountTable = &accountTable;
     mv3cTransferNoConflict::AccountTable = &accountTable;
 
-
-    for (uint i = 0; i < numPrograms; ++i) {
-        Program * p = new mv3cTransfer(bank.transfers[i]);
-        programs[i] = p;
-    }
-
     for (uint i = 0; i < numPrograms; i++) {
         float prob = ((float) rand()) / RAND_MAX;
         if (prob < CONFLICT_FRACTION)
-            programs[i] = new mv3cTransfer(bank.transfers[i]);
+            programs[i] = new mv3cTransfer();
         else
-            programs[i] = new mv3cTransferNoConflict(bank.transfers[i]);
+            programs[i] = new mv3cTransferNoConflict();
 
     }
     ConcurrentExecutor exec(numThreads, transactionManager);

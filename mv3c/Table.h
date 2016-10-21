@@ -138,7 +138,7 @@ struct Table {
         while (dv != nullptr) {
             if (isVisible(xact, dv))
                 return dv;
-            dv = (DVType *) dv->olderVersion;
+            dv = (DVType *) dv->olderVersion.load();
         }
         assert(false);
         return nullptr;

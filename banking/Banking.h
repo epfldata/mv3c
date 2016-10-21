@@ -21,12 +21,11 @@ namespace Banking {
 #else
     const uint numPrograms = 5040;
 #endif
-    const uint AccountSize = 2 * numPrograms + 1;
+    const uint numThreads = NUMTHREADS;
+    
+    const uint AccountSize = 2 * numThreads + 1;
     const uint AccountEntrySize = AccountSize;
     const uint AccountDVSize = AccountSize + numPrograms;
-
-
-    const uint numThreads = NUMTHREADS;
 
     const AccountKey FeeAccount(AccountSize - 1);
 
@@ -49,22 +48,22 @@ namespace Banking {
         std::unordered_map<AccountKey, AccountVal, CityHasher<AccountKey>> iAccounts, oAccounts, fAccounts;
 
         BankDataGenerator() {
-            transfers = new Transfer[numPrograms];
+//            transfers = new Transfer[numPrograms];
         }
 
         void loadPrograms() {
             //        transfers = new Transfer[numPrograms];
-            for (uint i = 0; i < AccountSize - 1; i += 2) {
-                transfers[i / 2] = Transfer(i, i + 1, 200);
-            }
+//            for (uint i = 0; i < AccountSize - 1; i += 2) {
+//                transfers[i / 2] = Transfer(i, i + 1, 200);
+//            }
         }
 
         void loadData() {
             for (uint i = 0; i < AccountSize - 1; i += 2) {
-                iAccounts.insert({AccountKey(i), AccountVal(1000)});
-                iAccounts.insert({AccountKey(i + 1), AccountVal(1000)});
-                oAccounts.insert({AccountKey(i), AccountVal(798)});
-                oAccounts.insert({AccountKey(i + 1), AccountVal(1200)});
+                iAccounts.insert({AccountKey(i), AccountVal(300 * numPrograms)});
+                iAccounts.insert({AccountKey(i + 1), AccountVal(300 * numPrograms)});
+//                oAccounts.insert({AccountKey(i), AccountVal(798)});
+//                oAccounts.insert({AccountKey(i + 1), AccountVal(1200)});
             }
             iAccounts.insert({FeeAccount, AccountVal(0)});
             oAccounts.insert({FeeAccount, AccountVal(2 * numPrograms)});
@@ -84,7 +83,7 @@ namespace Banking {
         }
 
         ~BankDataGenerator() {
-            delete transfers;
+//            delete transfers;
         }
     };
 }

@@ -28,7 +28,7 @@ struct DELTA {
     virtual void mergeWithPrevCommitted(Transaction *xact) = 0;
 #endif
 #else
-    DELTA* olderVersion;
+    std::atomic<DELTA*> olderVersion;
     virtual void removeFromVersionChain(uint8_t tid) = 0;
 #endif
     virtual void removeEntry(uint8_t tid) = 0;
@@ -89,7 +89,8 @@ struct DeltaVersion : DELTA {
             removeEntry(tid);
         else {
             DeltaVersion<K, V>* dv = this;
-            if (!entry->dv.compare_exchange_strong(dv, (DeltaVersion<K, V>*)olderVersion)) {
+            auto dvOld = (DeltaVersion<K, V>*)olderVersion.load();
+            if (!entry->dv.compare_exchange_strong(dv, dvOld )) {
                 cerr << "DV being removed is not the first version" << endl;
             }
             //        store.remove(this, tid);

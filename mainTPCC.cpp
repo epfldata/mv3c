@@ -40,6 +40,8 @@ TABLE(Warehouse)* MV3CPayment::wareTable;
 TABLE(History)* MV3CPayment::histTable;
 
 int main(int argc, char** argv) {
+    std::ofstream fout("out", ios::app);
+    std::ofstream header("header");
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(2 * numThreads, &cpuset);
@@ -68,29 +70,47 @@ int main(int argc, char** argv) {
     tpcc.loadOrders();
     tpcc.loadStocks();
     tpcc.loadWare();
+    std::cout.imbue(std::locale(""));
+    header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, NumWare";
     cout << "TPCC" << endl;
+    fout << "TPCC";
 #if OMVCC
     cout << "OMVCC" << endl;
+    fout << ", OMVCC, ";
 #else
     cout << "MV3C" << endl;
-    if (CRITICAL_COMPENSATE)
-        cout << "Compensate done inside critical section" << endl;
-    else
-        cout << "Compensate done outside critical section" << endl;
+    fout << ", MV3C";
+#if(CRITICAL_COMPENSATE)
+    cout << "Compensate done inside critical section" << endl;
+    fout << ", Y";
+#else
+    cout << "Compensate done outside critical section" << endl;
+    fout << ", N";
+#endif
 #endif
 #ifdef ATTRIB_LEVEL
     cout << "Attribute level validation " << endl;
+    fout << ", A";
 #else
     cout << "Record level validation" << endl;
+    fout << ", R";
 #endif
-    if (ALLOW_WW)
-        cout << "WW  handling enabled" << endl;
-    else cout << "WW handling disabled" << endl;
+#if (ALLOW_WW)
+    cout << "WW  handling enabled" << endl;
+    fout << ", Y";
+#else 
+    cout << "WW handling disabled" << endl;
+    fout << ", N";
+#endif
 #ifdef STORE_ENABLE
     cout << "Store enabled " << endl;
+    fout << ", Y";
 #else
     cout << "Store disabled " << endl;
+    fout << ", N";
 #endif
+    cout << "Number of warehouse = " << numWare << endl;
+    fout << ", " << numWare;
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);
@@ -125,9 +145,10 @@ int main(int argc, char** argv) {
     transactionManager.validateAndCommit(t0);
     int neworder = 0;
     int payment = 0;
-    std::cout.imbue(std::locale(""));
+
+    header << ", NumProgs, NumThreads";
+    fout << ", " << numPrograms << ", " << numThreads;
     cout << "Number of programs = " << numPrograms << endl;
-    cout << "Number of warehouse = " << numWare << endl;
     cout << "Number of threads = " << numThreads << endl;
 
     Program ** programs = new Program*[numPrograms];
@@ -170,14 +191,23 @@ int main(int argc, char** argv) {
     cout << "Payment =" << payment << endl;
     ConcurrentExecutor exec(numThreads, transactionManager);
     exec.execute(programs, numPrograms);
-    cout << "Duration = " << exec.timeMs << endl;
-    cout << "Committed = " << exec.finishedPrograms << endl;
-    cout << "FailedExecution  = " << exec.failedExecution << endl;
-    cout << "FailedValidation  = " << exec.failedValidation << endl;
 
+    header << ", Duration(ms), Committed, FailedEx, FailedVal, FailedExRate, FailedValRate, Throughput(ktps), numValidations, numValAgainst, avgValAgainst, AvgValRound";
+    cout << "Duration = " << exec.timeMs << endl;
+    fout << ", " << exec.timeMs;
+    cout << "Committed = " << exec.finishedPrograms << endl;
+    fout << ", " << exec.finishedPrograms;
+    cout << "FailedExecution  = " << exec.failedExecution << endl;
+    fout << ", " << exec.failedExecution;
+    cout << "FailedValidation  = " << exec.failedValidation << endl;
+    fout << ", " << exec.failedValidation;
     cout << "FailedEx rate = " << 1.0 * exec.failedExecution / exec.finishedPrograms << endl;
+    fout << ", " << 1.0 * exec.failedExecution / exec.finishedPrograms;
     cout << "FailedVal rate = " << 1.0 * exec.failedValidation / exec.finishedPrograms << endl;
+    fout << ", " << 1.0 * exec.failedValidation / exec.finishedPrograms;
     cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
+    fout << ", " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs);
+
 
     size_t commitTime = 0, validateTime = 0, executeTime = 0, compensateTime = 0;
     size_t commitTimes[2], validateTimes[2], executeTimes[2], compensateTimes[2];
@@ -210,7 +240,24 @@ int main(int argc, char** argv) {
     cout << "avg validation rounds = " << numRounds / (1.0 * numValidations) << endl;
     fout << ", " << numRounds / (1.0 * numValidations);
 
-
+    header << ", Exec time(ms), Val time(ms), Commit Time(ms), Compensate Time(ms)";
+    cout << "Execution time = " << executeTime / 1000000.0 << " ms" << endl;
+    fout << ", " << executeTime / 1000000.0;
+    cout << "Validation time = " << validateTime / 1000000.0 << " ms" << endl;
+    fout << ", " << validateTime / 1000000.0;
+    cout << "Commit time = " << commitTime / 1000000.0 << " ms" << endl;
+    fout << ", " << commitTime / 1000000.0;
+    cout << "Compensate time = " << compensateTime / 1000000.0 << " ms" << endl;
+    fout << ", " << compensateTime / 1000000.0;
+    header << ", exec NO, exec PY, val NO, val PY, comt NO, comt PY, comp NO, comp TNC ";
+    cout << "Execution times = " << executeTimes[0] / 1000000.0 << "   " << executeTimes[1] / 1000000.0 << " ms" << endl;
+    fout << ", " << executeTimes[0] / 1000000.0 << ", " << executeTimes[1] / 1000000.0;
+    cout << "Validation times = " << validateTimes[0] / 1000000.0 << "   " << validateTimes[1] / 1000000.0 << " ms" << endl;
+    fout << ", " << validateTimes[0] / 1000000.0 << ", " << validateTimes[1] / 1000000.0;
+    cout << "Commit times = " << commitTimes[0] / 1000000.0 << "   " << commitTimes[1] / 1000000.0 << " ms" << endl;
+    fout << ", " << commitTimes[0] / 1000000.0 << ", " << commitTimes[1] / 1000000.0;
+    cout << "Compensate times = " << compensateTimes[0] / 1000000.0 << "   " << compensateTimes[1] / 1000000.0 << " ms" << endl;
+    fout << ", " << compensateTimes[0] / 1000000.0 << ", " << compensateTimes[1] / 1000000.0;
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];
     }
@@ -218,12 +265,23 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < numThreads; ++i) {
         cout << "Thread " << i << endl;
+        header << ", Thread " << i << ", finished NO, finished PY, failedEx NO, failedEx PY, failedVal NO, failedVal PY, maxFailedEx, maxFailedVal";
+        fout << ", ";
         cout << "\t Finished     NO:" << exec.finishedPerThread[0][i] << "  PY:" << exec.finishedPerThread[1][i] << endl;
+        fout << ", " << exec.finishedPerThread[0][i] << ", " << exec.finishedPerThread[1][i];
         cout << "\t FailedEx     NO:" << exec.failedExPerThread[0][i] << "  PY:" << exec.failedExPerThread[1][i] << endl;
+        fout << ", " << exec.failedExPerThread[0][i] << ", " << exec.failedExPerThread[1][i];
         cout << "\t FailedVal    NO:" << exec.failedValPerThread[0][i] << "  PY:" << exec.failedValPerThread[1][i] << endl;
+        fout << ", " << exec.failedValPerThread[0][i] << ", " << exec.failedValPerThread[1][i];
         cout << "\t Max failed exec = " << exec.maxFailedExSingleProgram[i] << endl;
+        fout << ", " << exec.maxFailedExSingleProgram[i];
         cout << "\t Max failed val = " << exec.maxFailedValSingleProgram[i] << endl;
+        fout << ", " << exec.maxFailedValSingleProgram[i];
     }
+    fout << endl;
+    header << endl;
+    fout.close();
+    header.close();
     return 0;
 }
 #endif
