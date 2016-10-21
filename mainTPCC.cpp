@@ -39,8 +39,17 @@ TABLE(District)* MV3CPayment::distTable;
 TABLE(Warehouse)* MV3CPayment::wareTable;
 TABLE(History)* MV3CPayment::histTable;
 
+TABLE(DistrictNewOrder) * MV3CDelivery::distNewOrdTable;
+TABLE(NewOrder) * MV3CDelivery::newOrdTable;
+TABLE(Order) * MV3CDelivery::orderTable;
+TABLE(Customer) * MV3CDelivery::custTable;
+
 int main(int argc, char** argv) {
+#ifdef NB
+    std::ofstream fout("out");
+#else
     std::ofstream fout("out", ios::app);
+#endif
     std::ofstream header("header");
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -71,7 +80,7 @@ int main(int argc, char** argv) {
     tpcc.loadStocks();
     tpcc.loadWare();
     std::cout.imbue(std::locale(""));
-    header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, NumWare";
+    header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, Cuckoo enabled, NumWare";
     cout << "TPCC" << endl;
     fout << "TPCC";
 #if OMVCC
@@ -107,6 +116,13 @@ int main(int argc, char** argv) {
     fout << ", Y";
 #else
     cout << "Store disabled " << endl;
+    fout << ", N";
+#endif
+#if CUCKOO
+    cout << "Cuckoo index" << endl;
+    fout << ", Y";
+#else
+    cout << "UnorderedMap index" << endl;
     fout << ", N";
 #endif
     cout << "Number of warehouse = " << numWare << endl;
@@ -165,6 +181,11 @@ int main(int argc, char** argv) {
     MV3CPayment::distTable = &distTbl;
     MV3CPayment::wareTable = &wareTbl;
     MV3CPayment::histTable = &historyTbl;
+
+    MV3CDelivery::distNewOrdTable = &distNoTbl;
+    MV3CDelivery::newOrdTable = &newOrdTbl;
+    MV3CDelivery::orderTable = &ordTbl;
+    MV3CDelivery::custTable = &custTbl;
 
     for (uint i = 0; i < numPrograms; ++i) {
         Program *p = tpcc.programs[i];

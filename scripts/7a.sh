@@ -1,36 +1,43 @@
 #!/bin/bash
-ROOT="$(dirname "$0")/.."
-CC=g++
 
 rm -rf *Banking*.out
 rm -f 7a*.csv
 rm -f header out
-num=30000000
+echo "Banking  thread test Transactions"
 p=1.0
-profile=-DDTIMER 
-ww=-DALLOW_WW
-critrex= #"-DCRITICAL_COMPENSATE=true"
-store= #-DSTORE_ENABLE
-attrib= #-DATTRIB_LEVEL
-echo "Banking  thread test Transactions=$num"
-
-for numThr in  4
+for numThr in  {1..10}
 do
-$CC -DOMVCC=true -DBANKING_TEST -DNUMTHREADS=$numThr -m64 -O3 $profile $store $attrib -DCONFLICT_FRACTION=$p -DNDEBUG -DNUMPROG=$num  -Wno-attributes  -I $ROOT/util -I $ROOT/mv3c -I $ROOT/trading -I $ROOT/banking -I $ROOT/tpcc  -std=c++11  -o "mvccBanking$numThr.out"  $ROOT/mainBanking.cpp  -pthread -lcityhash
-$CC $ww $critrex -DBANKING_TEST -DNUMTHREADS=$numThr -m64 -O3 $profile $store $atrrib -DCONFLICT_FRACTION=$p -DNDEBUG -DNUMPROG=$num  -Wno-attributes  -I $ROOT/util -I $ROOT/mv3c -I $ROOT/trading -I $ROOT/banking -I $ROOT/tpcc  -std=c++11  -o "mv3cBanking$numThr.out"  $ROOT/mainBanking.cpp  -pthread -lcityhash 
+echo -n "$numThr $p " 
+done | xargs  -n 2 -P10 ./compileBanking.sh
+
+for i in {1..3}
+do
+for numThr in  {1..10}
+do
+./mvccBanking-$numThr-$p.out	
 done
-
-for numThr in  4
-do
-./mvccBanking$numThr.out	
 done
 
 cat header out > 7a-omvcc.csv
-
 rm -f header out
-for numThr in   4
+
+
+for i in {1..3}
 do
-./mv3cBanking$numThr.out	
+for numThr in  {1..10}
+do
+./mv3cBanking-$numThr-$p.out	
+done
 done
 cat header out > 7a-mv3c.csv
+rm -f header out
+
+for i in {1..3}
+do
+for numThr in  {1..10}
+do
+./mv3cBankingCrit-$numThr-$p.out	
+done
+done
+cat header out > 7a-mv3cCrit.csv
 rm -f header out

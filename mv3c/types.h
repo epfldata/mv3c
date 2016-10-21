@@ -4,19 +4,20 @@
 #ifdef NB  //Netbeans
 #define ALLOW_WW true
 #define CRITICAL_COMPENSATE false
-//#define NUMPROG 5000000
-#define NUMPROG 50
+#define NUMPROG 1000000
 #define NUMWARE 5
 #define OMVCC true
 #define POWER 2
 #define DTIMER 1
 //#define TRADING_TEST 1   
-#define BANKING_TEST 1
-//#define TPCC_TEST 1
-#define NUMTHREADS 1
-#define CONFLICT_FRACTION 0.0
-//#define ATTRIB_LEVEL 1
+//#define BANKING_TEST 1
+#define TPCC_TEST 1
+#define NUMTHREADS 4
+#define CONFLICT_FRACTION 1.0
+#define ATTRIB_LEVEL 1
 //#define STORE_ENABLE 1
+#define CUCKOO false
+
 #endif
 #include<iostream>
 #include<sstream>
@@ -107,6 +108,10 @@ forceinline T unmark(T t) {
 
 #define EXPAND(x) #x
 #define STRINGIFY(x) EXPAND(x)
+
+#ifndef CUCKOO
+#define CUCKOO true
+#endif
 
 #ifndef CRITICAL_COMPENSATE
 #define CRITICAL_COMPENSATE false

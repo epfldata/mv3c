@@ -30,8 +30,11 @@ TABLE(TradeLine)* mv3cTradeOrder::TradeLineTable;
 TABLE(Security)* mv3cPriceUpdate::SecurityTable;
 
 int main(int argc, char** argv) {
+#ifdef NB
+    std::ofstream fout("out");
+#else
     std::ofstream fout("out", ios::app);
-    std::ofstream header("header");
+#endif
     TradingDataGen trade;
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -48,7 +51,7 @@ int main(int argc, char** argv) {
     trade.loadPrograms();
     trade.loadSecurity();
     std::cout.imbue(std::locale(""));
-    header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, Power";
+    header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, Cuckoo enabled, Power";
     cout << "Trading" << endl;
     fout << "Trading";
 #if OMVCC
@@ -84,6 +87,13 @@ int main(int argc, char** argv) {
     fout << ", Y";
 #else
     cout << "Store disabled " << endl;
+    fout << ", N";
+#endif
+#if CUCKOO
+    cout << "Cuckoo index" << endl;
+    fout << ", Y";
+#else
+    cout << "UnorderedMap index" << endl;
     fout << ", N";
 #endif
     cout << "Power factor = " << POWER << endl;
@@ -142,7 +152,7 @@ int main(int argc, char** argv) {
     fout << ", " << 1.0 * exec.failedValidation / exec.finishedPrograms;
     cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
     fout << ", " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs);
-    
+
     size_t commitTime = 0, validateTime = 0, executeTime = 0, compensateTime = 0;
     size_t commitTimes[2], validateTimes[2], executeTimes[2], compensateTimes[2];
     commitTimes[0] = validateTimes[0] = executeTimes[0] = compensateTimes[0] = 0;
@@ -165,7 +175,7 @@ int main(int argc, char** argv) {
         executeTimes[id] += x.executeTime;
         validateTimes[id] += x.validateTime;
         compensateTimes[id] += x.compensateTime;
-    }   
+    }
     cout << "Num validations  = " << numValidations << endl;
     fout << ", " << numValidations;
     cout << "Num validations against = " << numXactsValidatedAgainst << endl;
@@ -174,8 +184,8 @@ int main(int argc, char** argv) {
     fout << ", " << numXactsValidatedAgainst / (1.0 * numValidations);
     cout << "avg validation rounds = " << numRounds / (1.0 * numValidations) << endl;
     fout << ", " << numRounds / (1.0 * numValidations);
-    
-    
+
+
     header << ", Exec time(ms), Val time(ms), Commit Time(ms), Compensate Time(ms)";
     cout << "Execution time = " << executeTime / 1000000.0 << " ms" << endl;
     fout << ", " << executeTime / 1000000.0;
@@ -202,7 +212,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < numThreads; ++i) {
         cout << "Thread " << i << endl;
         header << ", Thread " << i << ", finished TO, finished PU, failedEx TO, failedEx PU, failedVal TO, failedVal PU, maxFailedEx, maxFailedVal";
-        fout <<", ";
+        fout << ", ";
         cout << "\t Finished     TO:" << exec.finishedPerThread[0][i] << "  PU:" << exec.finishedPerThread[1][i] << endl;
         fout << ", " << exec.finishedPerThread[0][i] << ", " << exec.finishedPerThread[1][i];
         cout << "\t FailedEx     TO:" << exec.failedExPerThread[0][i] << "  PU:" << exec.failedExPerThread[1][i] << endl;

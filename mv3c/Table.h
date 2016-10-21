@@ -6,7 +6,7 @@
 #include <libcuckoo/cuckoohash_map.hh>
 #include <libcuckoo/city_hasher.hh>
 #include <string>
-
+#include "UnordereredIndex.h"
 #define CreateValInsert(type, name, args...)\
   auto name##DV = DeltaVersion<type##Key, type##Val>::store.add(xact.threadId);\
   new (name##DV) DeltaVersion<type##Key, type##Val>();\
@@ -23,7 +23,12 @@
 
 template <typename K, typename V>
 struct Table {
+#if !CUCKOO
+    UnorderedIndex<K, Entry<K, V>*, CityHasher<K>> primaryIndex;
+#else
     cuckoohash_map<K, Entry<K, V>*, CityHasher<K>> primaryIndex;
+#endif
+    
     typedef Entry<K, V> EntryType;
     typedef DeltaVersion<K, V> DVType;
 

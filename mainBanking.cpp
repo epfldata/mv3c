@@ -22,7 +22,11 @@ TABLE(Account)* mv3cTransfer::AccountTable;
 TABLE(Account)* mv3cTransferNoConflict::AccountTable;
 
 int main(int argc, char** argv) {
+#ifdef NB
+    std::ofstream fout("out");
+#else
     std::ofstream fout("out", ios::app);
+#endif
     std::ofstream header("header");
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -36,7 +40,7 @@ int main(int argc, char** argv) {
 
     bank.loadPrograms();
     bank.loadData();
-    header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, ConflictFraction";
+    header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, Cuckoo enabled, ConflictFraction";
     cout << "Banking" << endl;
     fout << "Banking";
 #if OMVCC
@@ -72,6 +76,13 @@ int main(int argc, char** argv) {
     fout << ", Y";
 #else
     cout << "Store disabled " << endl;
+    fout << ", N";
+#endif
+#if CUCKOO
+    cout << "Cuckoo index" << endl;
+    fout << ", Y";
+#else
+    cout << "UnorderedMap index" << endl;
     fout << ", N";
 #endif
     cout << "Fraction of conflict = " << CONFLICT_FRACTION << endl;
@@ -143,7 +154,7 @@ int main(int argc, char** argv) {
         executeTimes[id] += x.executeTime;
         validateTimes[id] += x.validateTime;
         compensateTimes[id] += x.compensateTime;
-    }   
+    }
     cout << "Num validations  = " << numValidations << endl;
     fout << ", " << numValidations;
     cout << "Num validations against = " << numXactsValidatedAgainst << endl;
@@ -152,8 +163,8 @@ int main(int argc, char** argv) {
     fout << ", " << numXactsValidatedAgainst / (1.0 * numValidations);
     cout << "avg validation rounds = " << numRounds / (1.0 * numValidations) << endl;
     fout << ", " << numRounds / (1.0 * numValidations);
-    
-    
+
+
     header << ", Exec time(ms), Val time(ms), Commit Time(ms), Compensate Time(ms)";
     cout << "Execution time = " << executeTime / 1000000.0 << " ms" << endl;
     fout << ", " << executeTime / 1000000.0;

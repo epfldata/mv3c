@@ -78,7 +78,7 @@ namespace tpcc_ns {
 #else
     const std::string TStore = "/home/sachin/TStore/";
 #endif
-    const std::string commandfile = TStore + "CavCommands.txt";
+    const std::string commandfile = TStore + "CavCommands" STRINGIFY(NUMWARE) ".txt";
     //const std::string inputTableDir = "/home/sachin/sem3/Project/test/input/";
     //const std::string outputTableDir = "/home/sachin/sem3/Project/test/output/";
     const std::string inputTableDir = TStore + "bench/systems/tpcc/mysql/db" STRINGIFY(NUMWARE) "innodb/";
