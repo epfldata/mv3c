@@ -5,18 +5,18 @@
 #define ALLOW_WW true
 #define CRITICAL_COMPENSATE false
 #define NUMPROG 1000000
-#define NUMWARE 5
-#define OMVCC true
-#define POWER 2
-#define DTIMER 1
-//#define TRADING_TEST 1   
+#define NUMWARE 6
+#define OMVCC false
+//#define POWER 2
+//#define DTIMER 1
+#define TRADING_TEST 1   
 //#define BANKING_TEST 1
-#define TPCC_TEST 1
-#define NUMTHREADS 4
+//#define TPCC_TEST 1
+#define NUMTHREADS 10
 #define CONFLICT_FRACTION 1.0
 #define ATTRIB_LEVEL 1
 //#define STORE_ENABLE 1
-#define CUCKOO false
+#define CUCKOO true
 
 #endif
 #include<iostream>

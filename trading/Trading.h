@@ -112,6 +112,8 @@ namespace trading_ns {
     enum TRADING_PROGRAMS {
         TRADE_ORDER, PRICE_UPDATE
     };
+    const int txnTypes = 2;
+    std::string prgNames[] = {"TO", "PU"};
 
     void printByteArray(const char * a, int s) {
         for (int i = 0; i < s; ++i) {
@@ -246,12 +248,12 @@ namespace trading_ns {
                     p->c_id = custGen(g5);
                     encrypt(p->request, (char *) &req, iCustomer.at(p->c_id)._1, sizeof (req), 0);
 #ifndef NDEBUG
-//                    std::cout << curPrg << "    TradeOrder  " << p->c_id << "  " << req << std::endl;
-//                    std::cout << "      Key = ";
-//                    printByteArray(iCustomer.at(p->c_id)._1.c_str(), KEY_SIZE);
-//                    std::cout << "\n      Encrypted = ";
-//                    printByteArray(p->request, sizeof (TradeRequest));
-//                    std::cout << dec << std::endl;
+                    //                    std::cout << curPrg << "    TradeOrder  " << p->c_id << "  " << req << std::endl;
+                    //                    std::cout << "      Key = ";
+                    //                    printByteArray(iCustomer.at(p->c_id)._1.c_str(), KEY_SIZE);
+                    //                    std::cout << "\n      Encrypted = ";
+                    //                    printByteArray(p->request, sizeof (TradeRequest));
+                    //                    std::cout << dec << std::endl;
 #endif
                     programs[curPrg] = p;
                 } else {
@@ -261,7 +263,7 @@ namespace trading_ns {
                     //                    p->sec_id = 1;
                     p->sec_id = getNextSec(g3);
 #ifndef NDEBUG
-//                    std::cout << curPrg << "    PriceUpdate  " << p->sec_id << "  " << p->price << std::endl;
+                    //                    std::cout << curPrg << "    PriceUpdate  " << p->sec_id << "  " << p->price << std::endl;
 #endif
                     programs[curPrg] = p;
                 }

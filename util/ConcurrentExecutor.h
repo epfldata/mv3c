@@ -21,9 +21,9 @@ struct ConcurrentExecutor {
     std::atomic<uint> failedExecution;
     std::atomic<uint> failedValidation;
     uint8_t numThreads;
-    uint* failedExPerThread[2];
-    uint* failedValPerThread[2];
-    uint* finishedPerThread[2];
+    uint* failedExPerThread[txnTypes];
+    uint* failedValPerThread[txnTypes];
+    uint* finishedPerThread[txnTypes];
     uint* maxFailedExSingleProgram;
     uint* maxFailedValSingleProgram;
     Timepoint startTime, endTime;
@@ -42,12 +42,12 @@ struct ConcurrentExecutor {
         workers = new std::thread[numThreads];
         isReady = new volatile bool[numThreads];
         startExecution = false;
-        finishedPerThread[0] = new uint[numThreads];
-        finishedPerThread[1] = new uint[numThreads];
-        failedExPerThread[0] = new uint[numThreads];
-        failedExPerThread[1] = new uint[numThreads];
-        failedValPerThread[0] = new uint[numThreads];
-        failedValPerThread[1] = new uint[numThreads];
+        for (uint i = 0; i < txnTypes; ++i) {
+            finishedPerThread[i] = new uint[numThreads];
+            failedExPerThread[i] = new uint[numThreads];
+            failedValPerThread[i] = new uint[numThreads];
+        }
+
         maxFailedExSingleProgram = new uint[numThreads];
         maxFailedValSingleProgram = new uint[numThreads];
         for (uint8_t i = 0; i < numThreads; ++i) {
@@ -112,15 +112,14 @@ struct ConcurrentExecutor {
         Program *p;
         auto ppt = progPerThread;
         uint pid = 0;
-        uint finishedPerTxn[2];
-        uint failedExPerTxn[2];
-        uint failedValPerTxn[2];
-        failedExPerTxn[0] = 0;
-        failedExPerTxn[1] = 0;
-        failedValPerTxn[0] = 0;
-        failedValPerTxn[1] = 0;
-        finishedPerTxn[0] = 0;
-        finishedPerTxn[1] = 0;
+
+        uint finishedPerTxn[txnTypes];
+        uint failedExPerTxn[txnTypes];
+        uint failedValPerTxn[txnTypes];
+        for (uint i = 0; i < txnTypes; ++i) {
+            failedValPerTxn[i] = 0;
+            finishedPerTxn[i] = 0;
+        }
         uint maxFailedExecutionProgram = 0;
         uint maxFailedValidationProgram = 0;
         while (pid < ppt && (p = threadPrgs[pid])) {
@@ -150,8 +149,9 @@ struct ConcurrentExecutor {
                 if (thisPrgFailedExec > maxFailedExecutionProgram) {
                     maxFailedExecutionProgram = thisPrgFailedExec;
                 }
-                if (p->xact.failureCtr > 1000) {
-                    cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!" << endl;
+                if (p->xact.failureCtr > 1000 ||  thisPrgFailedExec > numPrograms) {
+                    cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!" ;
+                    cout << p->xact.failureCtr << "  " << thisPrgFailedExec << "  " << p->prgType << endl;
                     hasFinished = true;
                 }
             } else {
@@ -160,6 +160,10 @@ struct ConcurrentExecutor {
                 if (!tm.validateAndCommit(&p->xact, p)) {
                     failedValPerTxn[p->prgType]++;
                     thisPrgFailedVal++;
+                    if (thisPrgFailedVal > 100) {
+                        cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!TOO MANY VALIDATION FAILURE !!!!!!!" << endl;
+                        hasFinished = true;
+                    }
                     continue;
                 }
 #else
@@ -189,15 +193,14 @@ struct ConcurrentExecutor {
             }
         }
         hasFinished = true;
-        finishedPrograms += finishedPerTxn[0] + finishedPerTxn[1];
-        failedExecution += failedExPerTxn[0] + failedExPerTxn[1];
-        failedValidation += failedValPerTxn[0] + failedValPerTxn[1];
-        finishedPerThread[0][thread_id] = finishedPerTxn[0];
-        finishedPerThread[1][thread_id] = finishedPerTxn[1];
-        failedExPerThread[0][thread_id] = failedExPerTxn[0];
-        failedExPerThread[1][thread_id] = failedExPerTxn[1];
-        failedValPerThread[0][thread_id] = failedValPerTxn[0];
-        failedValPerThread[1][thread_id] = failedValPerTxn[1];
+        for (uint i = 0; i < txnTypes; ++i) {
+            finishedPrograms += finishedPerTxn[i];
+            failedExecution += failedExPerTxn[i];
+            failedValidation += failedValPerTxn[i];
+            finishedPerThread[i][thread_id] = finishedPerTxn[i];
+            failedExPerThread[i][thread_id] = failedExPerTxn[i];
+            failedValPerThread[i][thread_id] = failedValPerTxn[i];
+        }
         maxFailedExSingleProgram[thread_id] = maxFailedExecutionProgram;
         maxFailedValSingleProgram[thread_id] = maxFailedValidationProgram;
     }

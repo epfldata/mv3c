@@ -28,7 +28,10 @@ struct ThreadLocal {
     TradeLineKey tradeLkey;
 };
 namespace trading_ns {
-
+    TABLE(Security) * SecurityTable;
+    TABLE(Trade) * TradeTable;
+    TABLE(TradeLine) * TradeLineTable;
+    TABLE(Customer) * CustomerTable;
     forceinline TransactionReturnStatus tradeorder_custfn(Program* p, const CustDV * cdv, uint cs = -1);
     forceinline TransactionReturnStatus tradeorder_secfn(Program* p, const SecDV * sdv, uint cs = -1);
 
@@ -39,12 +42,6 @@ namespace trading_ns {
     };
 
     struct mv3cTradeOrder : public TradeOrder {
-        static TABLE(Security) * SecurityTable;
-        static TABLE(Trade) * TradeTable;
-        static TABLE(TradeLine) * TradeLineTable;
-        static TABLE(Customer) * CustomerTable;
-
-
         TradeRequest req;
 
         mykey_t key;
@@ -76,13 +73,13 @@ namespace trading_ns {
         encrypt(enc_tradeval.data, (char*) &tv, prg->key, sizeof (TradeValue), xact.threadId);
         new (&threadVar->tradeKey) TradeKey(prg->req.t_id);
         CreateValInsert(Trade, newTradeVal, prg->c_id, enc_tradeval);
-        if (mv3cTradeOrder::TradeTable->insert(&xact, threadVar->tradeKey, MakeRecord(newTradeVal), &threadVar->custGet) != OP_SUCCESS)
+        if (TradeTable->insert(&xact, threadVar->tradeKey, MakeRecord(newTradeVal), &threadVar->custGet) != OP_SUCCESS)
             return WW_ABORT;
 
         for (uint8_t i = 0; i < prg->req.numSecs; ++i) {
 
             new(&threadVar->secKey) SecurityKey(prg->req.sec_ids[i]); //reused between multiple security within same txn.
-            new(&threadVar->secGets[i]) SecGet(mv3cTradeOrder::SecurityTable, &xact, threadVar->secKey, &threadVar->custGet);
+            new(&threadVar->secGets[i]) SecGet(SecurityTable, &xact, threadVar->secKey, &threadVar->custGet);
             threadVar->sips[i].sec_id = prg->req.sec_ids[i];
             auto sdv = threadVar->secGets[i].evaluateAndExecute(&xact, tradeorder_secfn, i);
             auto status = tradeorder_secfn(p, sdv, i);
@@ -105,13 +102,13 @@ namespace trading_ns {
         encrypt(enc_val.data, (char *) &threadVar->sips[cs], prg->key, sizeof (SecIDPrice), xact.threadId);
         new (&threadVar->tradeLkey) TradeLineKey(prg->req.t_id, cs);
         CreateValInsert(TradeLine, newTLval, enc_val);
-        if (mv3cTradeOrder::TradeLineTable->insert(&xact, threadVar->tradeLkey, MakeRecord(newTLval), &threadVar->secGets[cs]) != OP_SUCCESS)
+        if (TradeLineTable->insert(&xact, threadVar->tradeLkey, MakeRecord(newTLval), &threadVar->secGets[cs]) != OP_SUCCESS)
             return WW_ABORT;
         return SUCCESS;
     }
 
     struct mv3cPriceUpdate : public PriceUpdate {
-        static TABLE(Security) * SecurityTable;
+        
 
         mv3cPriceUpdate(const Program* p) : PriceUpdate(p) {
         }

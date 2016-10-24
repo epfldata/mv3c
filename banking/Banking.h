@@ -28,7 +28,8 @@ namespace Banking {
     const uint AccountDVSize = AccountSize + numPrograms;
 
     const AccountKey FeeAccount(AccountSize - 1);
-
+    const int txnTypes = 2;
+    std::string prgNames[] = {"T", "TNC"};
     struct Transfer {
         uint32_t from, to;
         double amount;

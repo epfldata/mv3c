@@ -102,8 +102,9 @@ public:
 
 private:
 	SpinLock spinlock_;
+        volatile size_t lock_type_;
 	volatile size_t reader_count_;
-	volatile size_t lock_type_;
+	
 };
 
 #endif

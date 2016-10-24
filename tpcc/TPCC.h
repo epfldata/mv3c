@@ -25,7 +25,7 @@ namespace tpcc_ns {
 #define NUMWARE 1
 #endif
     const int numWare = NUMWARE;
-  
+
 #ifdef NUMPROG
     const size_t numPrograms = NUMPROG;
 #else
@@ -34,7 +34,7 @@ namespace tpcc_ns {
     const uint8_t numThreads = NUMTHREADS;
 
     const size_t WarehouseEntrySize = numWare;
-    const size_t WarehouseDVSize =  numPrograms;
+    const size_t WarehouseDVSize = numPrograms;
 
     const size_t DistrictEntrySize = numWare * 10;
     const size_t DistrictDVSize = 2 * numPrograms;
@@ -148,13 +148,98 @@ namespace tpcc_ns {
         return t1._1 == t2._1 && t1._2 == t2._2 && t1._3 == t2._3 && t1._4 == t2._4 && t1._5 == t2._5 && t1._6 == t2._6 && t1._7 == t2._7 && t1._8 == t2._8 && t1._9 == t2._9 && t1._10 == t2._10 && t1._11 == t2._11 && t1._12 == t2._12 && t1._13 == t2._13 && fabs(t1._14 - t2._14) <= 0.01 && t1._15 == t2._15 && t1._16 == t2._16 && t1._17 == t2._17 && t1._18 == t2._18;
     }
 
+    //---------------------------------------------
 
+    struct OrderPKey {
+        uint8_t d_id, w_id;
+        uint32_t c_id;
+
+        OrderPKey(uint8_t d_id, uint8_t w_id, uint32_t c_id) :
+        d_id(d_id), w_id(w_id), c_id(c_id) {
+        }
+
+        OrderPKey(const Entry<OrderKey, OrderVal>* e, const OrderVal& v) {
+            const OrderKey& k = e->key;
+            d_id = k._2;
+            w_id = k._3;
+            c_id = v._1;
+        }
+
+        bool operator<(const OrderPKey& that) const {
+            if (w_id != that.w_id)
+                return w_id < that.w_id;
+            else if (d_id != that.d_id)
+                return d_id < that.d_id;
+            else
+                return c_id < that.c_id;
+        }
+    };
+    //
+
+    struct OrderLinePKey {
+        uint32_t o_id;
+        uint8_t d_id, w_id;
+
+        OrderLinePKey(uint32_t o_id, uint8_t d_id, uint8_t w_id) :
+        o_id(o_id), d_id(d_id), w_id(w_id) {
+        }
+
+        OrderLinePKey(const Entry<OrderLineKey, OrderLineVal>* e, const OrderLineVal& v) {
+            const OrderLineKey & k = e->key;
+            o_id = k._1;
+            d_id = k._2;
+            w_id = k._3;
+        }
+
+        bool operator<(const OrderLinePKey& that) const {
+            if (w_id != that.w_id)
+                return w_id < that.w_id;
+            else if (d_id != that.d_id)
+                return d_id < that.d_id;
+            else
+                return o_id < that.o_id;
+        }
+
+    };
+    //
+    //        static inline size_t hash(const OrderLineKey& k) {
+    //            size_t hash = 0xcafebabe;
+    //            const unsigned int mask = (CHAR_BIT * sizeof (size_t) - 1);
+    //            size_t mix = OrderLineKey::h1(k._1)*0xcc9e2d51;
+    //            mix = (mix << 15) | (mix >> ((-15) & mask));
+    //            mix = (mix * 0x1b873593) ^ hash;
+    //            mix = (mix << 13) | (mix >> ((-13) & mask));
+    //            hash = (mix << 1) + mix + 0xe6546b64;
+    //            mix = OrderLineKey::h2(k._2)*0xcc9e2d51;
+    //            mix = (mix << 15) | (mix >> ((-15) & mask));
+    //            mix = (mix * 0x1b873593) ^ hash;
+    //            mix = (mix << 13) | (mix >> ((-13) & mask));
+    //            hash = (mix << 1) + mix + 0xe6546b64;
+    //            mix = OrderLineKey::h3(k._3)*0xcc9e2d51;
+    //            mix = (mix << 15) | (mix >> ((-15) & mask));
+    //            mix = (mix * 0x1b873593) ^ hash;
+    //            mix = (mix << 13) | (mix >> ((-13) & mask));
+    //            hash = (mix << 1) + mix + 0xe6546b64;
+    //            hash ^= 3;
+    //            hash ^= (hash >> 16);
+    //            hash *= 0x85ebca6b;
+    //            hash ^= (hash >> 13);
+    //            hash *= 0xc2b2ae35;
+    //            hash ^= (hash >> 16);
+    //            return hash;
+    //        }
+    //
+    //        static inline bool equals(const OrderLineKey& k1, const OrderLineKey& k2) {
+    //            return k1._1 == k2._1 && k1._2 == k2._2 && k1._3 == k2._3;
+    //        }
+    //    };
     //-----------------------------------------
 
     enum TPCC_Programs : char {
-        NEWORDER, PAYMENTBYID, PAYMENTBYNAME, ORDERSTATUSBYID, ORDERSTATUSBYNAME, DELIVERY, STOCKLEVEL
+        NEWORDER, PAYMENTBYID, ORDERSTATUSBYID, DELIVERY, STOCKLEVEL, PAYMENTBYNAME, ORDERSTATUSBYNAME
     };
-
+    const int txnTypes = 5;
+    std::string prgNames[] = { "NO", "PY", "OS", "DE", "SL"};
     struct NewOrder : public Program {
         uint32_t c_id;
         uint8_t d_id, w_id, o_ol_cnt;
@@ -448,7 +533,7 @@ namespace tpcc_ns {
             for (size_t i = 0; i < numPrograms; i++)
                 delete programs[i];
             delete programs;
-//            cerr << "TPCC deleted" << endl;
+            //            cerr << "TPCC deleted" << endl;
         }
 
         void loadPrograms() {

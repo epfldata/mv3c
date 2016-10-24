@@ -255,7 +255,12 @@ struct TransactionManager {
     }
 
     forceinline bool validateAndCommit(Transaction *xact, Program *state = nullptr) {
-        //TODO: Handle read only
+        if (xact->undoBufferHead == nullptr) {
+            while (commitLock.test_and_set());
+            commit(xact);
+            return true;
+        }
+        
         bool validated = true;
         Transaction *startXact = committedXactsTail, *endXact = nullptr, *currentXact;
         xact->numValidations++;

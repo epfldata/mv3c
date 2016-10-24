@@ -64,6 +64,7 @@ private:
         isInvalid = false;
         if (tbl->primaryIndex.find(key, e)) {
             assert(e->dv);
+            assert(e->key == key);
             return tbl->getCorrectDV(xact, e);
         } else {
             assert(false);

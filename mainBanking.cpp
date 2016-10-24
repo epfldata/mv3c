@@ -18,9 +18,6 @@ DefineStore(Account);
 TransactionManager transactionManager;
 TransactionManager& Transaction::tm(transactionManager);
 
-TABLE(Account)* mv3cTransfer::AccountTable;
-TABLE(Account)* mv3cTransferNoConflict::AccountTable;
-
 int main(int argc, char** argv) {
 #ifdef NB
     std::ofstream fout("out");
@@ -45,7 +42,7 @@ int main(int argc, char** argv) {
     fout << "Banking";
 #if OMVCC
     cout << "OMVCC" << endl;
-    fout << ", OMVCC, ";
+    fout << ", OMVCC, X";
 #else
     cout << "MV3C" << endl;
     fout << ", MV3C";
@@ -104,8 +101,7 @@ int main(int argc, char** argv) {
     cout << "Number of threads = " << numThreads << endl;
 
     Program **programs = new Program*[numPrograms];
-    mv3cTransfer::AccountTable = &accountTable;
-    mv3cTransferNoConflict::AccountTable = &accountTable;
+    AccountTable = &accountTable;
 
     for (uint i = 0; i < numPrograms; i++) {
         float prob = ((float) rand()) / RAND_MAX;
@@ -134,9 +130,11 @@ int main(int argc, char** argv) {
     fout << ", " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs);
 
     size_t commitTime = 0, validateTime = 0, executeTime = 0, compensateTime = 0;
-    size_t commitTimes[2], validateTimes[2], executeTimes[2], compensateTimes[2];
-    commitTimes[0] = validateTimes[0] = executeTimes[0] = compensateTimes[0] = 0;
-    commitTimes[1] = validateTimes[1] = executeTimes[1] = compensateTimes[1] = 0;
+    size_t commitTimes[txnTypes], validateTimes[txnTypes], executeTimes[txnTypes], compensateTimes[txnTypes];
+    for (uint i = 0; i < txnTypes; ++i) {
+        commitTimes[i] = validateTimes[i] = executeTimes[i] = compensateTimes[i] = 0;
+    }
+
     size_t numValidations = 0;
     size_t numXactsValidatedAgainst = 0;
     size_t numRounds = 0;
@@ -174,15 +172,17 @@ int main(int argc, char** argv) {
     fout << ", " << commitTime / 1000000.0;
     cout << "Compensate time = " << compensateTime / 1000000.0 << " ms" << endl;
     fout << ", " << compensateTime / 1000000.0;
-    header << ", exec T, exec TNC, val T, val TNC, comt T, comt TNC, comp T, comp TNC ";
-    cout << "Execution times = " << executeTimes[0] / 1000000.0 << "   " << executeTimes[1] / 1000000.0 << " ms" << endl;
-    fout << ", " << executeTimes[0] / 1000000.0 << ", " << executeTimes[1] / 1000000.0;
-    cout << "Validation times = " << validateTimes[0] / 1000000.0 << "   " << validateTimes[1] / 1000000.0 << " ms" << endl;
-    fout << ", " << validateTimes[0] / 1000000.0 << ", " << validateTimes[1] / 1000000.0;
-    cout << "Commit times = " << commitTimes[0] / 1000000.0 << "   " << commitTimes[1] / 1000000.0 << " ms" << endl;
-    fout << ", " << commitTimes[0] / 1000000.0 << ", " << commitTimes[1] / 1000000.0;
-    cout << "Compensate times = " << compensateTimes[0] / 1000000.0 << "   " << compensateTimes[1] / 1000000.0 << " ms" << endl;
-    fout << ", " << compensateTimes[0] / 1000000.0 << ", " << compensateTimes[1] / 1000000.0;
+
+
+    //    header << ", exec T, exec TNC, val T, val TNC, comt T, comt TNC, comp T, comp TNC ";
+    //    cout << "Execution times = " << executeTimes[0] / 1000000.0 << "   " << executeTimes[1] / 1000000.0 << " ms" << endl;
+    //    fout << ", " << executeTimes[0] / 1000000.0 << ", " << executeTimes[1] / 1000000.0;
+    //    cout << "Validation times = " << validateTimes[0] / 1000000.0 << "   " << validateTimes[1] / 1000000.0 << " ms" << endl;
+    //    fout << ", " << validateTimes[0] / 1000000.0 << ", " << validateTimes[1] / 1000000.0;
+    //    cout << "Commit times = " << commitTimes[0] / 1000000.0 << "   " << commitTimes[1] / 1000000.0 << " ms" << endl;
+    //    fout << ", " << commitTimes[0] / 1000000.0 << ", " << commitTimes[1] / 1000000.0;
+    //    cout << "Compensate times = " << compensateTimes[0] / 1000000.0 << "   " << compensateTimes[1] / 1000000.0 << " ms" << endl;
+    //    fout << ", " << compensateTimes[0] / 1000000.0 << ", " << compensateTimes[1] / 1000000.0;
 
     Transaction tf;
     transactionManager.begin(&tf);
@@ -208,16 +208,14 @@ int main(int argc, char** argv) {
         cout << "Thread " << i << endl;
         header << ", Thread " << i << ", finished T, finished TNC, failedEx T, failedEx TNC, failedVal T, failedVal TNC, maxFailedEx, maxFailedVal";
         fout << ", ";
-        cout << "\t Finished     T:" << exec.finishedPerThread[0][i] << "  TNC:" << exec.finishedPerThread[1][i] << endl;
-        fout << ", " << exec.finishedPerThread[0][i] << ", " << exec.finishedPerThread[1][i];
-        cout << "\t FailedEx     T:" << exec.failedExPerThread[0][i] << "  TNC:" << exec.failedExPerThread[1][i] << endl;
-        fout << ", " << exec.failedExPerThread[0][i] << ", " << exec.failedExPerThread[1][i];
-        cout << "\t FailedVal    T:" << exec.failedValPerThread[0][i] << "  TNC:" << exec.failedValPerThread[1][i] << endl;
-        fout << ", " << exec.failedValPerThread[0][i] << ", " << exec.failedValPerThread[1][i];
+        for (uint j = 0; j < txnTypes; ++j) {
+            cout << "\t" << prgNames[j] << ":\n\t  finished=" << exec.finishedPerThread[j][i] << endl;
+            cout << "\t  failedEx = " << exec.failedExPerThread[j][i] << endl;
+            cout << " \t  failedVal = " << exec.failedValPerThread[j][i] << endl;
+        }
+        cout << endl;
         cout << "\t Max failed exec = " << exec.maxFailedExSingleProgram[i] << endl;
-        fout << ", " << exec.maxFailedExSingleProgram[i];
         cout << "\t Max failed val = " << exec.maxFailedValSingleProgram[i] << endl;
-        fout << ", " << exec.maxFailedValSingleProgram[i];
     }
     fout << endl;
     header << endl;

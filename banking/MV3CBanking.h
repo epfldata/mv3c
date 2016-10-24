@@ -19,16 +19,19 @@ struct ThreadLocal {
     AccountGet getFee;
 };
 namespace Banking {
+    Table<AccountKey, AccountVal>* AccountTable;
     forceinline TransactionReturnStatus fromFunction(Program *p, const AccountDV* advFrom, uint cs = -1);
     forceinline TransactionReturnStatus toFunction(Program *p, const AccountDV* advTo, uint cs = -1);
     forceinline TransactionReturnStatus feeFunction(Program *p, const AccountDV* advFee, uint cs = -1);
 
     struct mv3cTransfer : Program {
-//        const AccountKey from, to;
+        //        const AccountKey from, to;
         const double amount;
         double fee;
-        static Table<AccountKey, AccountVal>* AccountTable;
-        mv3cTransfer(): Program((char )0), amount(200){}
+
+        mv3cTransfer() : Program((char) 0), amount(200) {
+        }
+
         mv3cTransfer(const Transfer& t) : Program((char) 0), amount(t.amount) {
 
         }
@@ -53,17 +56,17 @@ namespace Banking {
 
             CreateValUpdate(Account, newFromVal, advFrom);
             newFromVal->_1 -= (prg->amount + prg->fee);
-            if (mv3cTransfer::AccountTable->update(&xact, advFrom->entry, MakeRecord(newFromVal), &threadVar->getFrom) != OP_SUCCESS)
+            if (AccountTable->update(&xact, advFrom->entry, MakeRecord(newFromVal), &threadVar->getFrom) != OP_SUCCESS)
                 throw std::logic_error("W-W conflict for from account");
 
 
-            new(&threadVar->getTo) AccountGet(mv3cTransfer::AccountTable, &xact, threadVar->to, &threadVar->getFrom);
+            new(&threadVar->getTo) AccountGet(AccountTable, &xact, threadVar->to, &threadVar->getFrom);
             auto advTo = threadVar->getTo.evaluateAndExecute(&xact, toFunction);
             auto status = toFunction(prg, advTo);
             if (status != SUCCESS)
                 return status;
 
-            new(&threadVar->getFee) AccountGet(mv3cTransfer::AccountTable, &xact, FeeAccount, &threadVar->getFrom);
+            new(&threadVar->getFee) AccountGet(AccountTable, &xact, FeeAccount, &threadVar->getFrom);
             auto advFee = threadVar->getFee.evaluateAndExecute(&xact, feeFunction);
             return feeFunction(p, advFee);
         }
@@ -76,7 +79,7 @@ namespace Banking {
         auto threadVar = prg->threadVar;
         CreateValUpdate(Account, newToVal, advTo);
         newToVal->_1 += prg->amount;
-        if (mv3cTransfer::AccountTable->update(&xact, advTo->entry, MakeRecord(newToVal), &threadVar->getTo) != OP_SUCCESS)
+        if (AccountTable->update(&xact, advTo->entry, MakeRecord(newToVal), &threadVar->getTo) != OP_SUCCESS)
             throw std::logic_error("W-W conflict for To account");
         return SUCCESS;
     }
@@ -88,7 +91,7 @@ namespace Banking {
 
         CreateValUpdate(Account, newFeeVal, advFee);
         newFeeVal->_1 += prg->fee;
-        if (mv3cTransfer::AccountTable->update(&xact, advFee->entry, MakeRecord(newFeeVal), &threadVar->getFee, ALLOW_WW) != OP_SUCCESS)
+        if (AccountTable->update(&xact, advFee->entry, MakeRecord(newFeeVal), &threadVar->getFee, ALLOW_WW) != OP_SUCCESS)
             return WW_ABORT;
         //            throw std::logic_error("W-W conflict for Fee account");
         return SUCCESS;
@@ -100,13 +103,14 @@ namespace Banking {
     forceinline TransactionReturnStatus toFunctionNC(Program *p, const AccountDV* advTo, uint cs = -1);
 
     struct mv3cTransferNoConflict : Program {
-//        const AccountKey from, to;
+        //        const AccountKey from, to;
         const double amount;
-        static Table<AccountKey, AccountVal>* AccountTable;
+        
 
-        mv3cTransferNoConflict() : Program((char) 1),  amount(200) {
+        mv3cTransferNoConflict() : Program((char) 1), amount(200) {
 
         }
+
         mv3cTransferNoConflict(const Transfer& t) : Program((char) 1), amount(t.amount) {
 
         }
@@ -127,11 +131,11 @@ namespace Banking {
 
             CreateValUpdate(Account, newFromVal, advFrom);
             newFromVal->_1 -= (prg->amount);
-            if (mv3cTransferNoConflict::AccountTable->update(&xact, advFrom->entry, MakeRecord(newFromVal), &threadVar->getFrom) != OP_SUCCESS)
+            if (AccountTable->update(&xact, advFrom->entry, MakeRecord(newFromVal), &threadVar->getFrom) != OP_SUCCESS)
                 throw std::logic_error("W-W conflict for from account");
 
 
-            new(&threadVar->getTo) AccountGet(mv3cTransferNoConflict::AccountTable, &xact, threadVar->to, &threadVar->getFrom);
+            new(&threadVar->getTo) AccountGet(AccountTable, &xact, threadVar->to, &threadVar->getFrom);
             auto advTo = threadVar->getTo.evaluateAndExecute(&xact, toFunctionNC);
             return toFunctionNC(prg, advTo);
 
@@ -145,7 +149,7 @@ namespace Banking {
         auto threadVar = prg->threadVar;
         CreateValUpdate(Account, newToVal, advTo);
         newToVal->_1 += prg->amount;
-        if (mv3cTransferNoConflict::AccountTable->update(&xact, advTo->entry, MakeRecord(newToVal), &threadVar->getTo) != OP_SUCCESS)
+        if (AccountTable->update(&xact, advTo->entry, MakeRecord(newToVal), &threadVar->getTo) != OP_SUCCESS)
             throw std::logic_error("W-W conflict for To account");
         return SUCCESS;
     }

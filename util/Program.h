@@ -14,7 +14,8 @@ struct Program {
         return SUCCESS;
     }
 
-    virtual std::ostream& print(std::ostream& s) {
+    virtual std::ostream& print(std::ostream& s){
+        return s;
     }
 
 };

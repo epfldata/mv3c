@@ -7,6 +7,7 @@
 #include <libcuckoo/city_hasher.hh>
 #include <string>
 #include "UnordereredIndex.h"
+#include "MultiMapIndexMT.h"
 #define CreateValInsert(type, name, args...)\
   auto name##DV = DeltaVersion<type##Key, type##Val>::store.add(xact.threadId);\
   new (name##DV) DeltaVersion<type##Key, type##Val>();\
@@ -28,18 +29,25 @@ struct Table {
 #else
     cuckoohash_map<K, Entry<K, V>*, CityHasher<K>> primaryIndex;
 #endif
-    
     typedef Entry<K, V> EntryType;
     typedef DeltaVersion<K, V> DVType;
+    SecondaryIndex<K, V> ** secondaryIndexes;
+    uint8_t numIndexes;
 
     Table(size_t s) : primaryIndex(s) {
+        secondaryIndexes = nullptr;
+        numIndexes = 0;
     }
 
     forceinline OperationReturnStatus insertVal(Transaction *xact, const K& k, const V& v, PRED* parent = nullptr) {
         Entry<K, V>* e;
         assert(xact->threadId == 0);
         e = new(EntryType::store.add(0)) Entry<K, V>(this, k);
-        auto ret = primaryIndex.insert(k, e);
+        primaryIndex.insert(k, e);
+        for (uint8_t i = 0; i < numIndexes; ++i) {
+            secondaryIndexes[i]->insert(e, v);
+        }
+
         auto valDV = DVType::store.add(0);
         new (valDV) DVType();
         V* val = &valDV->val;
@@ -68,6 +76,9 @@ struct Table {
             e = new(EntryType::store.add(xact->threadId)) Entry<K, V>(this, k);
             auto ret = primaryIndex.insert(k, e);
             if (ret) {
+                for (uint8_t i = 0; i < numIndexes; ++i) {
+                    secondaryIndexes[i]->insert(e, dv->val);
+                }
                 dv->initialize(e, PTRtoTS(xact), xact->undoBufferHead, INSERT, parent);
                 xact->undoBufferHead = dv;
                 e->dv.store(dv);
@@ -123,6 +134,36 @@ struct Table {
         }
     }
 
+    template<typename P>
+    forceinline uint sliceReadOnly(Transaction *xact, const P& key, uint8_t idx, DVType** results) {
+        MultiMapIndexMT<K, V, P>* index = (MultiMapIndexMT<K, V, P>*)secondaryIndexes[idx];
+        auto range = index->slice(key);
+
+        uint count = 0;
+        for (auto it = range.first; it != range.second; ++it) {
+            EntryType* e = it->second;
+            assert(count < 15);
+            DVType *dv = getCorrectDV(xact, e);
+            if (dv != nullptr) {
+                results[count++] = dv;
+            }
+        }
+        index->lock.ReleaseReadLock();
+        return count;
+    }
+    //
+
+    template<typename P>
+    forceinline DVType* getFirst(Transaction *xact, const P& key, uint8_t idx) {
+        MultiMapIndexMT<K, V, P>* index = (MultiMapIndexMT<K, V, P>*)secondaryIndexes[idx];
+        EntryType* e = index->get(key);
+        if (!e) {
+            return nullptr;
+        }
+        //Assumes there is visible version;
+        return getCorrectDV(xact, e);
+    }
+
     forceinline bool isVisible(Transaction *xact, DVType *dv) {
         timestamp ts = dv->xactId;
         if (isTempTS(ts)) {
@@ -145,7 +186,7 @@ struct Table {
                 return dv;
             dv = (DVType *) dv->olderVersion.load();
         }
-        assert(false);
+//        assert(false);
         return nullptr;
     }
 #else
