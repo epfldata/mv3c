@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
     }
     ConcurrentExecutor exec(numThreads, transactionManager);
     exec.execute(programs, numPrograms);
-    header << ", Duration(ms), Committed, FailedEx, FailedVal, FailedExRate, FailedValRate, Throughput(ktps), numValidations, numValAgainst, avgValAgainst, AvgValRound";
+    header << ", Duration(ms), Committed, FailedEx, FailedVal, FailedExRate, FailedValRate, Throughput(ktps), ScaledTime, numValidations, numValAgainst, avgValAgainst, AvgValRound";
     cout << "Duration = " << exec.timeMs << endl;
     fout << ", " << exec.timeMs;
     cout << "Committed = " << exec.finishedPrograms << endl;
@@ -128,6 +128,7 @@ int main(int argc, char** argv) {
     fout << ", " << 1.0 * exec.failedValidation / exec.finishedPrograms;
     cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
     fout << ", " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs);
+    fout << ", " << numPrograms * exec.timeMs / (exec.finishedPrograms * 1000.0);
 
     size_t commitTime = 0, validateTime = 0, executeTime = 0, compensateTime = 0;
     size_t commitTimes[txnTypes], validateTimes[txnTypes], executeTimes[txnTypes], compensateTimes[txnTypes];
