@@ -452,7 +452,7 @@ namespace tpcc_ns {
             for (uint i = 0; i < count; ++i) {
                 auto dv = sliceResults[i];
                 auto e = dv->entry;
-                orderlinesSTR << e->key << dv->val << endl;
+                auto i_id = e->key._4;
             }
             return SUCCESS;
         }

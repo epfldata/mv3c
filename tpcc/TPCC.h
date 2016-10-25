@@ -350,7 +350,6 @@ namespace tpcc_ns {
         uint32_t c_id;
         uint8_t w_id, d_id;
         //OUTPUT
-        std::stringstream orderlinesSTR;
 
         OrderStatusById() : Program(ORDERSTATUSBYID) {
         }
