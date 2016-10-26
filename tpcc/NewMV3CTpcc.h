@@ -28,7 +28,7 @@ struct ThreadLocal {
     DistGet dist;
     CustGet cust;
     WareGet ware;
-    String<24>* MV3CNewOrderDist_info[15];
+
     StockGet MV3CNewOrderStock[15];
     ItemGet MV3CNewOrderItem[15];
     float MV3CNewOrderOl_amt[15];
@@ -52,6 +52,8 @@ struct ThreadLocal {
     OrderGet orders[10];
     CustGet custs[10];
     DistrictNewOrderKey distNOkey;
+
+    StockGet stockGet;
 };
 namespace tpcc_ns {
     TABLE(Customer) * CustomerTable;
@@ -76,6 +78,7 @@ namespace tpcc_ns {
         //NOT INPUT PARAMATERS  
         float total;
         float w_tax, d_tax, c_disc;
+        uint32_t o_id;
 
         MV3CNewOrder(const Program* p) :
         NewOrder(p) {
@@ -83,20 +86,6 @@ namespace tpcc_ns {
 
         TransactionReturnStatus execute() override {
             TransactionReturnStatus status;
-            for (uint8_t ol_number = 0; ol_number < o_ol_cnt; ol_number++) {
-                uint32_t ol_i_id = itemid[ol_number];
-
-                new (&threadVar->itemKey) ItemKey(ol_i_id);
-                new (&threadVar->MV3CNewOrderItem[ol_number]) ItemGet(ItemTable, &xact, threadVar->itemKey, nullptr, col_type(1 << 3));
-
-                auto idv = threadVar->MV3CNewOrderItem[ol_number].evaluateAndExecute(&xact, neworder_itemfn, ol_number);
-                status = neworder_itemfn(this, idv, ol_number);
-                if (status != SUCCESS) {
-                    //                    cerr << "NewOrder Item" << endl;
-                    //                    throw std::logic_error("New order item fn");
-                    return status;
-                }
-            }
 
             new (&threadVar->distKey) DistrictKey(d_id, w_id);
             new (&threadVar->dist) DistGet(DistrictTable, &xact, threadVar->distKey, nullptr, col_type(1 << 7 || 1 << 9));
@@ -170,14 +159,21 @@ namespace tpcc_ns {
             newsv->_14++;
         }
 
-        threadVar->MV3CNewOrderDist_info[ol_number] = &newsv->_2 + (prg->d_id - 1);
-
+        String<24>* dist_info = &newsv->_2 + (prg->d_id - 1);
         if (StockTable->update(&xact, sdv->entry, MakeRecord(newsv), &threadVar->MV3CNewOrderStock[ol_number], false, col_type(1 << 1 | 1 << 12 | 1 << 13 | 1 << 14)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //            throw std::logic_error("NewOrder stock");
             //            else
             return WW_ABORT;
         }
+
+        new (&threadVar->orderLineKey) OrderLineKey(prg->o_id, prg->d_id, prg->w_id, ol_number + 1);
+        CreateValInsert(OrderLine, newolv, prg->itemid[ol_number], prg->supware[ol_number], nulldate, prg->quantity[ol_number], threadVar->MV3CNewOrderOl_amt[ol_number], *dist_info);
+        if (OrderLineTable->insert(&xact, threadVar->orderLineKey, MakeRecord(newolv), &threadVar->MV3CNewOrderStock[ol_number]) != OP_SUCCESS) {
+            //                throw std::logic_error("NewORder orderline");
+            return WW_ABORT;
+        }
+
         return SUCCESS;
     }
 
@@ -185,23 +181,25 @@ namespace tpcc_ns {
         auto prg = (MV3CNewOrder *) p;
         Transaction& xact = p->xact;
         auto threadVar = p->threadVar;
-        CreateValUpdate(District, newdv, ddv);
-        prg->d_tax = newdv->_7;
-        auto o_id = newdv->_9;
-        newdv->_9++;
+        const DistrictVal& oldVal = ddv->val;
+        prg->d_tax = oldVal._7;
+        auto o_id = oldVal._9;
+        prg->o_id = o_id;
 
-        if (DistrictTable->update(&xact, ddv->entry, MakeRecord(newdv), &threadVar->dist, false, col_type(1 << 9)) != OP_SUCCESS) {
-            //            if (ALLOW_WW)
-            //                throw std::logic_error("NewOrder stock");
-            //            else
-            return WW_ABORT;
-        }
 
         new(&threadVar->orderKey) OrderKey(o_id, prg->d_id, prg->w_id);
         CreateValInsert(Order, newov, prg->c_id, prg->datetime, 0, prg->o_ol_cnt, prg->o_all_local);
         if (OrderTable->insert(&xact, threadVar->orderKey, MakeRecord(newov), &threadVar->dist) != OP_SUCCESS) {
             //                        throw std::logic_error("NewOrder order");
             xact.failureCtr++;
+            return WW_ABORT;
+        }
+        CreateValUpdate(District, newdv, ddv);
+        newdv->_9++;
+        if (DistrictTable->update(&xact, ddv->entry, MakeRecord(newdv), &threadVar->dist, ALLOW_WW, col_type(1 << 9)) != OP_SUCCESS) {
+            //            if (ALLOW_WW)
+            //                throw std::logic_error("NewOrder stock");
+            //            else
             return WW_ABORT;
         }
 
@@ -211,15 +209,17 @@ namespace tpcc_ns {
             //            throw std::logic_error("NewOrder neworder");
             return WW_ABORT;
         }
-
+        TransactionReturnStatus status;
         for (uint8_t ol_number = 0; ol_number < prg->o_ol_cnt; ol_number++) {
-
-            new (&threadVar->orderLineKey) OrderLineKey(o_id, prg->d_id, prg->w_id, ol_number + 1);
-            CreateValInsert(OrderLine, newolv, prg->itemid[ol_number], prg->supware[ol_number], nulldate, prg->quantity[ol_number], threadVar->MV3CNewOrderOl_amt[ol_number], *threadVar->MV3CNewOrderDist_info[ol_number]);
-
-            if (OrderLineTable->insert(&xact, threadVar->orderLineKey, MakeRecord(newolv), &threadVar->dist) != OP_SUCCESS) {
-                //                throw std::logic_error("NewORder orderline");
-                return WW_ABORT;
+            uint32_t ol_i_id = prg->itemid[ol_number];
+            new (&threadVar->itemKey) ItemKey(ol_i_id);
+            new (&threadVar->MV3CNewOrderItem[ol_number]) ItemGet(ItemTable, &xact, threadVar->itemKey, &threadVar->dist, col_type(1 << 3));
+            auto idv = threadVar->MV3CNewOrderItem[ol_number].evaluateAndExecute(&xact, neworder_itemfn, ol_number);
+            status = neworder_itemfn(p, idv, ol_number);
+            if (status != SUCCESS) {
+                //                    cerr << "NewOrder Item" << endl;
+                //                    throw std::logic_error("New order item fn");
+                return status;
             }
         }
         return SUCCESS;
@@ -422,7 +422,7 @@ namespace tpcc_ns {
         float ol_total = 1; //SHOULD BE OBTAINED from OrderlIne instead;
         newcv->_14 += ol_total;
         newcv->_17++;
-        if (CustomerTable->update(&xact, cdv->entry, MakeRecord(newcv), &threadVar->custs[d_id], false, col_type(1 << 14 | 1 << 17))) {
+        if (CustomerTable->update(&xact, cdv->entry, MakeRecord(newcv), &threadVar->custs[d_id], false, col_type(1 << 14 | 1 << 17)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //            throw std::logic_error("delivery cust");
             //            else
@@ -430,7 +430,7 @@ namespace tpcc_ns {
         }
         return SUCCESS;
     }
-
+    uint orderSuccess = 0, orderFailed = 0;
     struct MV3COrderStatus : OrderStatusById {
 
         MV3COrderStatus(const Program* p) :
@@ -441,10 +441,10 @@ namespace tpcc_ns {
 
             auto osdv = OrderTable->getFirst<OrderPKey>(&xact, OrderPKey(d_id, w_id, c_id), 0);
             if (osdv == nullptr) {
-               
+                orderFailed++;
                 return SUCCESS;
             }
-           
+            orderSuccess++;
             //FIND MAX with given cid
             auto o_id = osdv->val._1;
             OrderLineDV * sliceResults[15];
@@ -466,6 +466,7 @@ namespace tpcc_ns {
         }
 
         TransactionReturnStatus execute() override {
+
             new (&threadVar->distKey) DistrictKey(d_id, w_id);
 
             auto ddv = DistrictTable->getReadOnly(&xact, threadVar->distKey);
@@ -483,6 +484,41 @@ namespace tpcc_ns {
     };
 
 
+    forceinline TransactionReturnStatus stockupdate_stockfn(Program *p, const StockDV* sdv, uint cs = -1);
+
+    struct MV3CStockUpdate : StockUpdate {
+
+        MV3CStockUpdate(const Program *p) : StockUpdate(p) {
+
+        }
+
+        TransactionReturnStatus execute() override {
+            throw std::logic_error("DISABLED");
+            auto items = ItemTable->getAll(&xact);
+            //FIX GET ALL
+            std::sort(items.begin(), items.end(), [](std::pair<const ItemKey*, const ItemVal*> p1, std::pair<const ItemKey*, const ItemVal*> p2) {
+                return p1.second->_3 > p2.second->_3;
+            });
+            auto i_id = items[k].first->_1;
+            new (&threadVar->stockKey) StockKey(i_id, w_id);
+            new (&threadVar->stockGet) StockGet(StockTable, &xact, threadVar->stockKey, nullptr, col_type(1 << 1));
+            auto sdv = threadVar->stockGet.evaluateAndExecute(&xact, stockupdate_stockfn);
+
+            return stockupdate_stockfn(this, sdv);
+        }
+
+    };
+
+    forceinline TransactionReturnStatus stockupdate_stockfn(Program* p, const StockDV* sdv, uint cs) {
+        Transaction& xact = p->xact;
+        auto threadVar = p->threadVar;
+        CreateValUpdate(Stock, newsv, sdv);
+        newsv->_1 *= 1.1;
+        if (StockTable->update(&xact, sdv->entry, MakeRecord(newsv), &threadVar->stockGet, ALLOW_WW, col_type(1 << 1)) != OP_SUCCESS) {
+            return WW_ABORT;
+        }
+        return SUCCESS;
+    }
 }
 
 

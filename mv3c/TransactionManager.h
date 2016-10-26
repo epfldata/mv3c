@@ -23,10 +23,10 @@ struct TransactionManager {
 
     forceinline void rollback(Transaction * xact) {
         auto dv = xact->undoBufferHead;
+
         while (dv) {
             dv->removeFromVersionChain(xact->threadId);
             dv = dv->nextInUndoBuffer;
-
         }
         xact->undoBufferHead = nullptr;
         xact->predicateHead = nullptr;
@@ -34,12 +34,14 @@ struct TransactionManager {
 #if OMVCC
 
     forceinline bool validate(Transaction *xact, Transaction *currentXact) {
-
+        auto start = DNow, end = start;
         auto head = xact->predicateHead;
         while (head != nullptr) {
             bool headMatches = head->matchesAny(currentXact); //shouldValidate always true
             if (headMatches) {
                 rollback(xact);
+                end = DNow;
+                xact->validateTime += DDurationNS(end - start);
                 return false; //1<<63 is not valid commitTS , so used to denote failure
                 //Will do full rollback
                 //Rollback takes care of versions
@@ -49,6 +51,8 @@ struct TransactionManager {
                     bool childMatches = child->matchesAny(currentXact); //shouldValidate always true
                     if (childMatches) {
                         rollback(xact);
+                        end = DNow;
+                        xact->validateTime += DDurationNS(end - start);
                         return false;
                     } else {
                         PRED * childChild = child->firstChild;
@@ -56,6 +60,8 @@ struct TransactionManager {
                             bool childChildMatches = childChild->matchesAny(currentXact);
                             if (childChildMatches) {
                                 rollback(xact);
+                                end = DNow;
+                                xact->validateTime += DDurationNS(end - start);
                                 return false;
                             }
                             childChild = childChild->nextChild;
@@ -66,6 +72,8 @@ struct TransactionManager {
             }
             head = head->nextChild;
         }
+        end = DNow;
+        xact->validateTime += DDurationNS(end - start);
         return true;
     }
 
@@ -260,7 +268,7 @@ struct TransactionManager {
             commit(xact);
             return true;
         }
-        
+
         bool validated = true;
         Transaction *startXact = committedXactsTail, *endXact = nullptr, *currentXact;
         xact->numValidations++;

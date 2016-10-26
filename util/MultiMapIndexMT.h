@@ -16,6 +16,11 @@ struct MultiMapIndexMT : SecondaryIndex<K, V> {
         index.insert({P(e, val), e});
         lock.ReleaseWriteLock();
     }
+    void erase(EntryPtrType e, const V& val) override{
+        lock.AcquireWriteLock();
+        index.erase(P(e, val));
+        lock.ReleaseWriteLock();
+    }
 
     EntryPtrType get(const P& pkey) {
         lock.AcquireReadLock();

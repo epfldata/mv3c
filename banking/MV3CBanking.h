@@ -1,5 +1,5 @@
 #include "types.h"
-#ifdef BANKING_TEST
+#if defined(BANKING_TEST) || defined(RIPPLE_TEST)
 #ifndef MV3CBANKING_H
 #define MV3CBANKING_H
 #include <thread>

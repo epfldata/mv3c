@@ -12,64 +12,45 @@
 #include "NewMV3CTpcc.h"
 #include "MV3CBanking.h"
 #include "mv3cTrading.h"
-
-struct ConcurrentExecutor {
-    std::thread* workers;
-    volatile bool* isReady;
+struct ScheduledProgram{
+    size_t offset;
+    Program *p;
+};
+struct RippleExecutor {
+    std::thread workers[numThreads];
+    volatile bool isReady[numThreads];
     volatile bool startExecution, hasFinished;
     std::atomic<uint> finishedPrograms;
     std::atomic<uint> failedExecution;
     std::atomic<uint> failedValidation;
-    uint8_t numThreads;
-    uint* failedExPerThread[txnTypes];
-    uint* failedValPerThread[txnTypes];
-    uint* finishedPerThread[txnTypes];
-    uint* maxFailedExSingleProgram;
-    uint* maxFailedValSingleProgram;
+    Program* currentProgram[numThreads];
+    uint failedExPerThread[txnTypes][numThreads];
+    uint failedValPerThread[txnTypes][numThreads];
+    uint finishedPerThread[txnTypes][numThreads];
+    uint maxFailedExSingleProgram[numThreads];
+    uint maxFailedValSingleProgram[numThreads];
     Timepoint startTime, endTime;
-    uint progPerThread;
-    size_t timeUs;
-    Program *** programs;
+    size_t timeMs;
     TransactionManager& tm;
 
-    ConcurrentExecutor(uint8_t numThr, TransactionManager& TM) : tm(TM) {
-        numThreads = numThr;
+    RippleExecutor(TransactionManager& TM) : tm(TM) {
         hasFinished = false;
         finishedPrograms = 0;
         failedExecution = 0;
         failedValidation = 0;
-        programs = new Program**[numThreads];
-        workers = new std::thread[numThreads];
-        isReady = new volatile bool[numThreads];
+       
         startExecution = false;
-        for (uint i = 0; i < txnTypes; ++i) {
-            finishedPerThread[i] = new uint[numThreads];
-            failedExPerThread[i] = new uint[numThreads];
-            failedValPerThread[i] = new uint[numThreads];
-        }
 
-        maxFailedExSingleProgram = new uint[numThreads];
-        maxFailedValSingleProgram = new uint[numThreads];
         for (uint8_t i = 0; i < numThreads; ++i) {
             isReady[i] = 0;
+            currentProgram[i] = nullptr;
         }
     }
 
-    void execute(Program** progs, uint numProgs) {
-        int prog = 0;
-        progPerThread = numProgs / numThreads + 1;
-        for (uint8_t i = 0; i < numThreads; ++i) {
-            programs[i] = new Program*[numProgs / numThreads + 1];
-        }
-        for (uint8_t i = 0; i < numThreads; ++i) {
-            for (uint j = 0; j < progPerThread; ++j) {
-                programs[i][j] = (prog < numProgs) ? progs[prog] : nullptr;
-                prog++;
-            }
-        }
+    void execute(ScheduledProgram* progs, uint numProgs) {
 
         for (uint8_t i = 0; i < numThreads; ++i) {
-            workers[i] = std::thread(&ConcurrentExecutor::threadFunction, this, i);
+            workers[i] = std::thread(&RippleExecutor::threadFunction, this, i);
         }
         bool all_ready = true;
         while (true) {
@@ -87,11 +68,17 @@ struct ConcurrentExecutor {
 
             all_ready = true;
         }
+        uint pid = 0;
+        while(pid < numProgs){
+            
+        }
+        
+        
         for (uint8_t i = 0; i < numThreads; ++i) {
             workers[i].join();
         }
         endTime = Now;
-        timeUs = DurationUS(endTime - startTime);
+        timeMs = DurationUS(endTime - startTime);
     }
 
     void threadFunction(uint8_t thread_id) {
@@ -104,14 +91,14 @@ struct ConcurrentExecutor {
             throw std::runtime_error("Cannot set affinity");
         }
         ThreadLocal threadVar;
-#ifdef BANKING_TEST
+//#ifdef BANKING_TEST
         threadVar.from = AccountKey(thread_id * 2);
         threadVar.to = AccountKey(thread_id * 2 + 1);
-#endif
-        Program ** threadPrgs = programs[thread_id];
-        Program *p;
-        auto ppt = progPerThread;
-        uint pid = 0;
+//#endif
+
+        Program *cur, *old = nullptr;
+
+
 
         uint finishedPerTxn[txnTypes];
         uint failedExPerTxn[txnTypes];
@@ -122,43 +109,40 @@ struct ConcurrentExecutor {
         }
         uint maxFailedExecutionProgram = 0;
         uint maxFailedValidationProgram = 0;
-        while (pid < ppt && (p = threadPrgs[pid])) {
-            threadPrgs[pid]->threadVar = &threadVar;
-            threadPrgs[pid]->xact.threadId = thread_id + 1;
-            pid++;
-        }
-        auto start = Now, end = Now;
-        do {
-            end = Now;
-        } while (DurationMS(end - start) <= 2000);
+
         isReady[thread_id] = true;
         while (!startExecution);
-        pid = 0;
+
         uint thisPrgFailedExec = 0;
-        while (pid < ppt && (p = threadPrgs[pid]) && !hasFinished) {
-            tm.begin(&p->xact);
+        while (!hasFinished) {
+            while ((cur = currentProgram[thread_id]) == old);
+            cur->threadVar = &threadVar;
+            cur->xact.threadId = thread_id + 1;
+
+
+            tm.begin(&cur->xact);
             auto dstart = DNow;
-            auto status = p->execute();
+            auto status = cur->execute();
             auto dend = DNow;
-            p->xact.executeTime += DDurationNS(dend - dstart);
+            cur->xact.executeTime += DDurationNS(dend - dstart);
             if (status != SUCCESS) {
                 //                 cerr << "Thread "<<thread_id<< " aborted " << pid << endl;
-                tm.rollback(&p->xact);
+                tm.rollback(&cur->xact);
                 thisPrgFailedExec++;
-                failedExPerTxn[p->prgType]++;
+                failedExPerTxn[cur->prgType]++;
                 if (thisPrgFailedExec > maxFailedExecutionProgram) {
                     maxFailedExecutionProgram = thisPrgFailedExec;
                 }
-                if (thisPrgFailedExec > numPrograms) {
-                    cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!" ;
-                    cout << p->xact.failureCtr << "  " << thisPrgFailedExec << "  " << p->prgType << endl;
+                if (cur->xact.failureCtr > 1000 || thisPrgFailedExec > numPrograms) {
+                    cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!";
+                    cout << cur->xact.failureCtr << "  " << thisPrgFailedExec << "  " << cur->prgType << endl;
                     hasFinished = true;
                 }
             } else {
                 uint thisPrgFailedVal = 0;
 #if OMVCC
-                if (!tm.validateAndCommit(&p->xact, p)) {
-                    failedValPerTxn[p->prgType]++;
+                if (!tm.validateAndCommit(&cur->xact, cur)) {
+                    failedValPerTxn[cur->prgType]++;
                     thisPrgFailedVal++;
                     if (thisPrgFailedVal > 100) {
                         cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!TOO MANY VALIDATION FAILURE !!!!!!!" << endl;
@@ -167,8 +151,8 @@ struct ConcurrentExecutor {
                     continue;
                 }
 #else
-                while (!tm.validateAndCommit(&p->xact, p)) {
-                    failedValPerTxn[p->prgType]++;
+                while (!tm.validateAndCommit(&cur->xact, cur)) {
+                    failedValPerTxn[cur->prgType]++;
                     thisPrgFailedVal++;
                     if (thisPrgFailedVal > maxFailedValidationProgram) {
                         maxFailedValidationProgram = thisPrgFailedVal;
@@ -180,19 +164,18 @@ struct ConcurrentExecutor {
 #if CRITICAL_COMPENSATE
                     break;
 #endif
-                    auto status = tm.reexecute(&p->xact, p);
+                    auto status = tm.reexecute(&cur->xact, cur);
                     if (status != SUCCESS) {
                         cerr << "Cannot fail execution during reexecution" << endl;
                         exit(-5);
                     }
                 }
 #endif
-                finishedPerTxn[p->prgType]++;
-                pid++;
+                finishedPerTxn[cur->prgType]++;
                 thisPrgFailedExec = 0;
             }
         }
-        hasFinished = true;
+
         for (uint i = 0; i < txnTypes; ++i) {
             finishedPrograms += finishedPerTxn[i];
             failedExecution += failedExPerTxn[i];
@@ -205,22 +188,6 @@ struct ConcurrentExecutor {
         maxFailedValSingleProgram[thread_id] = maxFailedValidationProgram;
     }
 
-    ~ConcurrentExecutor() {
-        delete[] isReady;
-        delete[] workers;
-        for (uint8_t i = 0; i < numThreads; ++i) {
-            delete[] programs[i];
-        }
-        delete[] programs;
-        delete[] failedExPerThread[0];
-        delete[] failedExPerThread[1];
-        delete[] failedValPerThread[0];
-        delete[] failedValPerThread[1];
-        delete[] finishedPerThread[0];
-        delete[] finishedPerThread[1];
-        delete[] maxFailedExSingleProgram;
-        delete[] maxFailedValSingleProgram;
-    }
 };
 
 

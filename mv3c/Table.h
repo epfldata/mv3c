@@ -164,6 +164,19 @@ struct Table {
         return getCorrectDV(xact, e);
     }
 
+    forceinline std::vector<std::pair<const K*, const V*>> getAll(Transaction *xact) {
+        auto lockedT = primaryIndex.lock_table();
+        std::vector<std::pair<const K*, const V*>> results;
+        for (auto it = lockedT.cbegin(); it != lockedT.cend(); ++it) {
+            auto e = it->second;
+            auto dv = getCorrectDV(xact, e);
+            if (dv != nullptr)
+                ;
+            //                results.emplace_back({&e->key, &dv->val});
+        }
+        return results;
+    }
+
     forceinline bool isVisible(Transaction *xact, DVType *dv) {
         timestamp ts = dv->xactId;
         if (isTempTS(ts)) {
@@ -186,7 +199,7 @@ struct Table {
                 return dv;
             dv = (DVType *) dv->olderVersion.load();
         }
-//        assert(false);
+        //        assert(false);
         return nullptr;
     }
 #else
@@ -211,6 +224,8 @@ struct Table {
             } else {
                 dv = unmark(dvOld);
             }
+            if (!dv)
+                break;
             dvOld = dv->olderVersion.load();
         }
         if (oldOld != dv) {

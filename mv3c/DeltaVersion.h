@@ -93,7 +93,7 @@ struct DeltaVersion : DELTA {
             if (!entry->dv.compare_exchange_strong(dv, dvOld)) {
                 cerr << "DV being removed is not the first version" << endl;
             }
-                    //        store.remove(this, tid);
+            //        store.remove(this, tid);
 
         }
         op = INVALID;
@@ -177,11 +177,11 @@ struct DeltaVersion : DELTA {
 
     void removeEntry(uint8_t tid) override {
         entry->tbl->primaryIndex.erase(entry->key);
-        //        auto numIdx = entry->tbl->numIndexes;
-        //        for(uint8_t i = 0; i < numIdx; ++i){
-        //            entry->tbl->secondaryIndexes[i]->del(entry, tid);
-        //        }
-        store.remove(this, tid);
+        auto numIdx = entry->tbl->numIndexes;
+        for (uint8_t i = 0; i < numIdx; ++i) {
+            entry->tbl->secondaryIndexes[i]->erase(entry, val);
+        }
+        //        store.remove(this, tid);
     }
 
     void initialize(Entry<K, V>* e, timestamp id, DELTA* nextUndo, Operation o, PRED* parent, const col_type& colsChanged = col_type(-1)) {

@@ -236,10 +236,11 @@ namespace tpcc_ns {
     //-----------------------------------------
 
     enum TPCC_Programs : char {
-        NEWORDER, PAYMENTBYID, ORDERSTATUSBYID, DELIVERY, STOCKLEVEL, PAYMENTBYNAME, ORDERSTATUSBYNAME
+        NEWORDER, PAYMENTBYID, ORDERSTATUSBYID, DELIVERY, STOCKLEVEL, STOCKUPDATE, PAYMENTBYNAME, ORDERSTATUSBYNAME
     };
-    const int txnTypes = 5;
-    std::string prgNames[] = { "NO", "PY", "OS", "DE", "SL"};
+    const int txnTypes = 6;
+    std::string prgNames[] = {"NO", "PY", "OS", "DE", "SL", "SU"};
+
     struct NewOrder : public Program {
         uint32_t c_id;
         uint8_t d_id, w_id, o_ol_cnt;
@@ -420,6 +421,28 @@ namespace tpcc_ns {
 
     };
 
+    struct StockUpdate : public Program {
+        uint8_t w_id;
+        uint8_t k;
+
+        StockUpdate() : Program(STOCKUPDATE) {
+        }
+
+        StockUpdate(const Program* p) : Program(p) {
+            assert(p->prgType == STOCKUPDATE);
+            const StockUpdate* that = (const StockUpdate*) p;
+            w_id = that->w_id;
+            k = that->k;
+
+        }
+
+        virtual std::ostream& print(std::ostream & s) {
+            s << "StockUpdate  " << w_id << "  " << k << std::endl;
+            return s;
+        }
+
+    };
+
     struct Delivery : public Program {
         uint8_t w_id;
         uint8_t o_carrier_id;
@@ -574,6 +597,11 @@ namespace tpcc_ns {
                     ss >> o->datetime >> o->w_id >> o->o_carrier_id;
                     programs[curPrg++] = o;
                 } else if (type == "StockLevel") {
+                    //Reading stock level as StockUPDATE
+//                    StockUpdate * o = new StockUpdate();
+//                    ss >> o->w_id >> o->k;
+//                    uint8_t t;
+//                    ss >> t;
                     StockLevel* o = new StockLevel();
                     ss >> o->w_id >> o->d_id >> o->threshold;
                     programs[curPrg++] = o;
