@@ -13,13 +13,15 @@
 //#define BANKING_TEST 1
 #define TPCC_TEST 1
 //#define RIPPLE_TEST 1
-#define NUMTHREADS 12
+#define NUMTHREADS 10
 #define CONFLICT_FRACTION 1.0
 #define ATTRIB_LEVEL 1
 //#define STORE_ENABLE 1
 #define CUCKOO true
-
+//#define CUCKOO_SI true
+#define MM_SI true
 #endif
+
 #include<iostream>
 #include<sstream>
 #include<fstream>

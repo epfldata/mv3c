@@ -8,6 +8,7 @@
 #include <string>
 #include "UnordereredIndex.h"
 #include "MultiMapIndexMT.h"
+#include "CuckooSecondaryIndex.h"
 #define CreateValInsert(type, name, args...)\
   auto name##DV = DeltaVersion<type##Key, type##Val>::store.add(xact.threadId);\
   new (name##DV) DeltaVersion<type##Key, type##Val>();\
@@ -134,6 +135,49 @@ struct Table {
         }
     }
 
+#ifdef CUCKOO_SI
+
+    template<typename P>
+    forceinline uint sliceReadOnly(Transaction *xact, const P& key, uint8_t idx, DVType** results) {
+        CuckooSecondaryIndex<K, V, P>* index = (CuckooSecondaryIndex<K, V, P>*)secondaryIndexes[idx];
+        auto range = index->slice(key);
+        if (range == nullptr)
+            return 0;
+        range->lock.AcquireReadLock();
+        uint count = 0;
+        for (auto it = range->bucket.begin(); it != range->bucket.end(); ++it) {
+            EntryType* e = *it;
+            assert(count < 15);
+            DVType *dv = getCorrectDV(xact, e);
+            if (dv != nullptr) {
+                results[count++] = dv;
+            }
+        }
+        range->lock.ReleaseReadLock();
+        return count;
+    }
+    //
+
+    template<typename P>
+    forceinline DVType* getFirst(Transaction *xact, const P& key, uint8_t idx) {
+        CuckooSecondaryIndex<K, V, P>* index = (CuckooSecondaryIndex<K, V, P>*)secondaryIndexes[idx];
+        auto range = index->slice(key);
+        if (range == nullptr)
+            return nullptr;
+        range->lock.AcquireReadLock();
+        for (auto it = range->bucket.begin(); it != range->bucket.end(); ++it) {
+            EntryType* e = *it;
+            DVType *dv = getCorrectDV(xact, e);
+            if (dv != nullptr) {
+                range->lock.ReleaseReadLock();
+                return dv;
+            }
+        }
+        range->lock.ReleaseReadLock();
+        return nullptr;
+    }
+#endif
+#ifdef MM_SI
     template<typename P>
     forceinline uint sliceReadOnly(Transaction *xact, const P& key, uint8_t idx, DVType** results) {
         MultiMapIndexMT<K, V, P>* index = (MultiMapIndexMT<K, V, P>*)secondaryIndexes[idx];
@@ -163,6 +207,7 @@ struct Table {
         //Assumes there is visible version;
         return getCorrectDV(xact, e);
     }
+#endif
 
     forceinline std::vector<std::pair<const K*, const V*>> getAll(Transaction *xact) {
         auto lockedT = primaryIndex.lock_table();

@@ -78,7 +78,12 @@ namespace tpcc_ns {
 #else
     const std::string TStore = "/home/sachin/TStore/";
 #endif
-    const std::string commandfile = TStore + "CavCommands" STRINGIFY(NUMWARE) ".txt";
+//    const int sources[] = {16,16,12,16, 5,12,14,16, 9,10,11,12,13,14,15,16};  
+//  const int sources[] = {1 , 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16};  
+    //    const std::string commandfile = TStore + "CavCommands" STRINGIFY(NUMWARE) ".txt";
+    const int wareSource = 1680; //sources[numWare-1];
+    const std::string commandfile = TStore + "CavCommands"+ to_string(wareSource) + ".txt";   
+    
     //const std::string inputTableDir = "/home/sachin/sem3/Project/test/input/";
     //const std::string outputTableDir = "/home/sachin/sem3/Project/test/output/";
     const std::string inputTableDir = TStore + "bench/systems/tpcc/mysql/db" STRINGIFY(NUMWARE) "innodb/";
@@ -151,11 +156,13 @@ namespace tpcc_ns {
     //---------------------------------------------
 
     struct OrderPKey {
-        uint8_t d_id, w_id;
         uint32_t c_id;
+        uint8_t d_id, w_id;
 
         OrderPKey(uint8_t d_id, uint8_t w_id, uint32_t c_id) :
         d_id(d_id), w_id(w_id), c_id(c_id) {
+            int padding = sizeof (OrderPKey) - 6;
+            memset(((char *) this) + 6, 0, padding);
         }
 
         OrderPKey(const Entry<OrderKey, OrderVal>* e, const OrderVal& v) {
@@ -163,6 +170,12 @@ namespace tpcc_ns {
             d_id = k._2;
             w_id = k._3;
             c_id = v._1;
+            int padding = sizeof (OrderPKey) - 6;
+            memset(((char *) this) + 6, 0, padding);
+        }
+
+        bool operator==(const OrderPKey& right) const {
+            return c_id == right.c_id && d_id == right.d_id && w_id == right.w_id;
         }
 
         bool operator<(const OrderPKey& that) const {
@@ -182,6 +195,8 @@ namespace tpcc_ns {
 
         OrderLinePKey(uint32_t o_id, uint8_t d_id, uint8_t w_id) :
         o_id(o_id), d_id(d_id), w_id(w_id) {
+            int padding = sizeof (OrderLinePKey) - 6;
+            memset(((char *) this) + 6, 0, padding);
         }
 
         OrderLinePKey(const Entry<OrderLineKey, OrderLineVal>* e, const OrderLineVal& v) {
@@ -189,6 +204,12 @@ namespace tpcc_ns {
             o_id = k._1;
             d_id = k._2;
             w_id = k._3;
+            int padding = sizeof (OrderLinePKey) - 6;
+            memset(((char *) this) + 6, 0, padding);
+        }
+
+        bool operator==(const OrderLinePKey& right) const {
+            return o_id == right.o_id && d_id == right.d_id && w_id == right.w_id;
         }
 
         bool operator<(const OrderLinePKey& that) const {
@@ -569,41 +590,73 @@ namespace tpcc_ns {
                 if (type == "NewOrder") {
                     NewOrder* o = new NewOrder();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_id >> o->o_ol_cnt;
+                    if (wareSource % numWare != 0) {
+                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    }
+                    o->w_id = o->w_id % numWare + 1;
                     for (int i = 0; i < 15; i++)
                         ss >> o->itemid[i];
-                    for (int i = 0; i < 15; i++)
+                    for (int i = 0; i < 15; i++){
                         ss >> o->supware[i];
+                        o->supware[i] = o->supware[i] % numWare + 1;
+                    } 
                     for (int i = 0; i < 15; i++)
                         ss >> o->quantity[i];
                     programs[curPrg++] = o;
                 } else if (type == "PaymentById") {
                     PaymentById* o = new PaymentById();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_id >> o->h_amount;
+                    if (wareSource % numWare != 0) {
+                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    }
+                    o->w_id = o->w_id % numWare + 1;
+                    o->c_w_id = o->c_w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "PaymentByName") {
                     PaymentByName* o = new PaymentByName();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_last_input >> o->h_amount;
+                    if (wareSource % numWare != 0) {
+                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    }
+                    o->w_id = o->w_id % numWare + 1;
+                    o->c_w_id = o->c_w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusById") {
                     OrderStatusById* o = new OrderStatusById();
                     ss >> o->w_id >> o->d_id >> o->c_id;
+                    if (wareSource % numWare != 0) {
+                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    }
+                    o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusByName") {
                     OrderStatusByName* o = new OrderStatusByName();
                     ss >> o->w_id >> o->d_id >> o->c_last;
+                    if (wareSource % numWare != 0) {
+                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    }
+                    o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "Delivery") {
                     Delivery* o = new Delivery();
                     ss >> o->datetime >> o->w_id >> o->o_carrier_id;
+                    if (wareSource % numWare != 0) {
+                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    }
+                    o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "StockLevel") {
                     //Reading stock level as StockUPDATE
-//                    StockUpdate * o = new StockUpdate();
-//                    ss >> o->w_id >> o->k;
-//                    uint8_t t;
-//                    ss >> t;
+                    //                    StockUpdate * o = new StockUpdate();
+                    //                    ss >> o->w_id >> o->k;
+                    //                    uint8_t t;
+                    //                    ss >> t;
                     StockLevel* o = new StockLevel();
                     ss >> o->w_id >> o->d_id >> o->threshold;
+                    if (wareSource % numWare != 0) {
+                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    }
+                    o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else {
                     std::cerr << "UNKNOWN PROGRAM TYPE" << type << std::endl;

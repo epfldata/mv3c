@@ -7,6 +7,7 @@
 #include "ConcurrentExecutor.h"
 #include <cstdlib>
 #include "NewMV3CTpcc.h"
+#include "CuckooSecondaryIndex.h"
 #include <iomanip>
 #include <locale>
 using namespace std;
@@ -51,7 +52,10 @@ int main(int argc, char** argv) {
     TABLE(Stock) stockTbl(StockIndexSize);
     TABLE(History) historyTbl(HistoryIndexSize);
     TABLE(DistrictNewOrder) distNoTbl(DistrictIndexSize);
-
+    char secondary = 'X';
+#ifdef MM_SI
+    cout << "MultiMap Secondary Index" << endl;
+    secondary = 'M';
     MultiMapIndexMT<OrderKey, OrderVal, OrderPKey> OrderIndex;
     SecondaryIndex<OrderKey, OrderVal>* OrderIndexes[1];
     OrderIndexes[0] = &OrderIndex;
@@ -63,6 +67,23 @@ int main(int argc, char** argv) {
     OrderLineIndexes[0] = &OrderLineIndex;
     ordLTbl.secondaryIndexes = OrderLineIndexes;
     ordLTbl.numIndexes = 1;
+#endif
+
+#ifdef CUCKOO_SI
+    cout << "Cuckoo Secondary Index" << endl;
+    secondary = 'C';
+    CuckooSecondaryIndex<OrderKey, OrderVal, OrderPKey> OrderIndex;
+    SecondaryIndex<OrderKey, OrderVal>* OrderIndexes[1];
+    OrderIndexes[0] = &OrderIndex;
+    ordTbl.secondaryIndexes = OrderIndexes;
+    ordTbl.numIndexes = 1;
+
+    CuckooSecondaryIndex<OrderLineKey, OrderLineVal, OrderLinePKey> OrderLineIndex;
+    SecondaryIndex<OrderLineKey, OrderLineVal>* OrderLineIndexes[1];
+    OrderLineIndexes[0] = &OrderLineIndex;
+    ordLTbl.secondaryIndexes = OrderLineIndexes;
+    ordLTbl.numIndexes = 1;
+#endif
 
     tpcc.loadPrograms();
     tpcc.loadCust();
@@ -75,7 +96,7 @@ int main(int argc, char** argv) {
     tpcc.loadStocks();
     tpcc.loadWare();
     std::cout.imbue(std::locale(""));
-    header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, Cuckoo enabled, NumWare";
+    header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, Cuckoo enabled, SecondaryIndex, NumWare";
     cout << "TPCC" << endl;
     fout << "TPCC";
 #if OMVCC
@@ -120,7 +141,9 @@ int main(int argc, char** argv) {
     cout << "UnorderedMap index" << endl;
     fout << ", N";
 #endif
+    fout << ", " << secondary;
     cout << "Number of warehouse = " << numWare << endl;
+    cout << "warehouse source= " << wareSource << endl;
     fout << ", " << numWare;
     Transaction t;
     Transaction *t0 = &t;
