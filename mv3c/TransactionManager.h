@@ -105,6 +105,7 @@ struct TransactionManager {
                         DELTA * childChildDV = childChild->DVsInClosureHead;
                         while (childChildDV != nullptr) {
                             childChildDV->removeFromVersionChain(xact->threadId);
+                             childChildDV = childChildDV -> nextInDVsInClosure;
                         }
                         childChild = childChild->nextChild;
                     }
@@ -129,6 +130,7 @@ struct TransactionManager {
                             DELTA * childChildDV = childChild->DVsInClosureHead;
                             while (childChildDV != nullptr) {
                                 childChildDV->removeFromVersionChain(xact->threadId);
+                                 childChildDV = childChildDV -> nextInDVsInClosure;
                             }
                             childChild = childChild->nextChild;
                         }
@@ -144,6 +146,7 @@ struct TransactionManager {
                                 DELTA * childChildDV = childChild->DVsInClosureHead;
                                 while (childChildDV != nullptr) {
                                     childChildDV->removeFromVersionChain(xact->threadId);
+                                    childChildDV = childChildDV -> nextInDVsInClosure;
                                 }
                                 childChild->isInvalid = true;
                                 childChild->firstChild = nullptr;

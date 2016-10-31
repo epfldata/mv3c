@@ -12,6 +12,7 @@
 #include "NewMV3CTpcc.h"
 #include "MV3CBanking.h"
 #include "mv3cTrading.h"
+#include "mv3ctpcc2.h"
 
 struct ConcurrentExecutor {
     std::thread* workers;
@@ -135,6 +136,7 @@ struct ConcurrentExecutor {
         while (!startExecution);
         pid = 0;
         uint thisPrgFailedExec = 0;
+        uint thisPrgFailedVal = 0;
         while (pid < ppt && (p = threadPrgs[pid]) && !hasFinished) {
             tm.begin(&p->xact);
             auto dstart = DNow;
@@ -150,17 +152,20 @@ struct ConcurrentExecutor {
                     maxFailedExecutionProgram = thisPrgFailedExec;
                 }
                 if (thisPrgFailedExec > numPrograms) {
-                    cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!" ;
+                    cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!";
                     cout << p->xact.failureCtr << "  " << thisPrgFailedExec << "  " << p->prgType << endl;
                     hasFinished = true;
                 }
             } else {
-                uint thisPrgFailedVal = 0;
+               
 #if OMVCC
                 if (!tm.validateAndCommit(&p->xact, p)) {
                     failedValPerTxn[p->prgType]++;
                     thisPrgFailedVal++;
-                    if (thisPrgFailedVal > 100) {
+                    if (thisPrgFailedVal > maxFailedValidationProgram) {
+                        maxFailedValidationProgram = thisPrgFailedVal;
+                    }
+                    if (thisPrgFailedVal > 10000) {
                         cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!TOO MANY VALIDATION FAILURE !!!!!!!" << endl;
                         hasFinished = true;
                     }
@@ -173,7 +178,7 @@ struct ConcurrentExecutor {
                     if (thisPrgFailedVal > maxFailedValidationProgram) {
                         maxFailedValidationProgram = thisPrgFailedVal;
                     }
-                    if (thisPrgFailedVal > 100) {
+                    if (thisPrgFailedVal > 10000) {
                         cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!TOO MANY VALIDATION FAILURE !!!!!!!" << endl;
                         hasFinished = true;
                     }
@@ -190,6 +195,7 @@ struct ConcurrentExecutor {
                 finishedPerTxn[p->prgType]++;
                 pid++;
                 thisPrgFailedExec = 0;
+                thisPrgFailedVal = 0;
             }
         }
         hasFinished = true;

@@ -1,5 +1,7 @@
-./9a.sh
-./9b.sh
+./10a.sh
+./10b.sh
+#./9a.sh
+#./9b.sh
 #./6a.sh
 #./6b.sh
 #./7a.sh

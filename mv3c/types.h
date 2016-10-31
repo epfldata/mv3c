@@ -4,22 +4,24 @@
 #ifdef NB  //Netbeans
 #define ALLOW_WW true
 #define CRITICAL_COMPENSATE false
-#define NUMPROG 1000000
-#define NUMWARE 1
-#define OMVCC true
+#define NUMPROG 10000
+#define NUMWARE 5
+#define OMVCC false
 //#define POWER 2
 #define DTIMER 1
 //#define TRADING_TEST 1   
 //#define BANKING_TEST 1
-#define TPCC_TEST 1
+//#define TPCC_TEST 1
+#define TPCC2_TEST 1
 //#define RIPPLE_TEST 1
 #define NUMTHREADS 10
 #define CONFLICT_FRACTION 1.0
 #define ATTRIB_LEVEL 1
 //#define STORE_ENABLE 1
 #define CUCKOO true
-//#define CUCKOO_SI true
-#define MM_SI true
+#define CUCKOO_SI true
+//#define MM_SI true
+#define CWW false
 #endif
 
 #include<iostream>

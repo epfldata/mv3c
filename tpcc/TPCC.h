@@ -81,7 +81,7 @@ namespace tpcc_ns {
 //    const int sources[] = {16,16,12,16, 5,12,14,16, 9,10,11,12,13,14,15,16};  
 //  const int sources[] = {1 , 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16};  
     //    const std::string commandfile = TStore + "CavCommands" STRINGIFY(NUMWARE) ".txt";
-    const int wareSource = 1680; //sources[numWare-1];
+    const int wareSource = 16; //sources[numWare-1];
     const std::string commandfile = TStore + "CavCommands"+ to_string(wareSource) + ".txt";   
     
     //const std::string inputTableDir = "/home/sachin/sem3/Project/test/input/";
@@ -590,9 +590,9 @@ namespace tpcc_ns {
                 if (type == "NewOrder") {
                     NewOrder* o = new NewOrder();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_id >> o->o_ol_cnt;
-                    if (wareSource % numWare != 0) {
-                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    }
+//                    if (wareSource % numWare != 0) {
+//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+//                    }
                     o->w_id = o->w_id % numWare + 1;
                     for (int i = 0; i < 15; i++)
                         ss >> o->itemid[i];
@@ -606,43 +606,43 @@ namespace tpcc_ns {
                 } else if (type == "PaymentById") {
                     PaymentById* o = new PaymentById();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_id >> o->h_amount;
-                    if (wareSource % numWare != 0) {
-                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    }
+//                    if (wareSource % numWare != 0) {
+//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+//                    }
                     o->w_id = o->w_id % numWare + 1;
                     o->c_w_id = o->c_w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "PaymentByName") {
                     PaymentByName* o = new PaymentByName();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_last_input >> o->h_amount;
-                    if (wareSource % numWare != 0) {
-                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    }
+//                    if (wareSource % numWare != 0) {
+//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+//                    }
                     o->w_id = o->w_id % numWare + 1;
                     o->c_w_id = o->c_w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusById") {
                     OrderStatusById* o = new OrderStatusById();
                     ss >> o->w_id >> o->d_id >> o->c_id;
-                    if (wareSource % numWare != 0) {
-                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    }
+//                    if (wareSource % numWare != 0) {
+//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+//                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusByName") {
                     OrderStatusByName* o = new OrderStatusByName();
                     ss >> o->w_id >> o->d_id >> o->c_last;
-                    if (wareSource % numWare != 0) {
-                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    }
+//                    if (wareSource % numWare != 0) {
+//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+//                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "Delivery") {
                     Delivery* o = new Delivery();
                     ss >> o->datetime >> o->w_id >> o->o_carrier_id;
-                    if (wareSource % numWare != 0) {
-                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    }
+//                    if (wareSource % numWare != 0) {
+//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+//                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "StockLevel") {
@@ -653,9 +653,9 @@ namespace tpcc_ns {
                     //                    ss >> t;
                     StockLevel* o = new StockLevel();
                     ss >> o->w_id >> o->d_id >> o->threshold;
-                    if (wareSource % numWare != 0) {
-                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    }
+//                    if (wareSource % numWare != 0) {
+//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+//                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else {

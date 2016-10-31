@@ -323,7 +323,7 @@ namespace tpcc_ns {
         newcv->_18 = newdata;
 
 
-        if (CustomerTable->update(&xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, false, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
+        if (CustomerTable->update(&xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, CWW, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment cust");
             //            else
@@ -422,7 +422,7 @@ namespace tpcc_ns {
         float ol_total = 1; //SHOULD BE OBTAINED from OrderlIne instead;
         newcv->_14 += ol_total;
         newcv->_17++;
-        if (CustomerTable->update(&xact, cdv->entry, MakeRecord(newcv), &threadVar->custs[d_id], false, col_type(1 << 14 | 1 << 17)) != OP_SUCCESS) {
+        if (CustomerTable->update(&xact, cdv->entry, MakeRecord(newcv), &threadVar->custs[d_id], CWW, col_type(1 << 14 | 1 << 17)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //            throw std::logic_error("delivery cust");
             //            else

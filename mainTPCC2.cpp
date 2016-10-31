@@ -1,28 +1,21 @@
 #include "types.h"
-#ifdef TPCC_TEST
+#ifdef TPCC2_TEST
 #include "Table.h"
 #include "Predicate.hpp"
 #include "Transaction.h"
 #include "Tuple.h"
 #include "ConcurrentExecutor.h"
 #include <cstdlib>
-#include "NewMV3CTpcc.h"
+#include "mv3ctpcc2.h"
 #include "CuckooSecondaryIndex.h"
 #include <iomanip>
 #include <locale>
 using namespace std;
-using namespace tpcc_ns;
+using namespace tpcc2_ns;
 
-DefineStore(Customer);
-DefineStore(District);
-DefineStore(Warehouse);
-DefineStore(Item);
+
 DefineStore(Stock);
-DefineStore(History);
-DefineStore(NewOrder);
-DefineStore(Order);
-DefineStore(OrderLine);
-DefineStore(DistrictNewOrder);
+DefineStore(Inventory);
 
 TransactionManager transactionManager;
 TransactionManager& Transaction::tm(transactionManager);
@@ -41,64 +34,33 @@ int main(int argc, char** argv) {
     if (s != 0) {
         throw std::runtime_error("Cannot set affinity");
     }
-    TPCCDataGen tpcc;
-    TABLE(Customer) custTbl(CustomerIndexSize);
-    TABLE(District) distTbl(DistrictIndexSize);
-    TABLE(Warehouse) wareTbl(WarehouseIndexSize);
-    TABLE(NewOrder) newOrdTbl(NewOrderIndexSize);
-    TABLE(Order) ordTbl(OrderIndexSize);
-    TABLE(OrderLine) ordLTbl(OrderLineIndexSize);
-    TABLE(Item) itemTbl(ItemIndexSize);
-    TABLE(Stock) stockTbl(StockIndexSize);
-    TABLE(History) historyTbl(HistoryIndexSize);
-    TABLE(DistrictNewOrder) distNoTbl(DistrictIndexSize);
+    TPCC2DataGen tpcc;
+
+    TABLE(Stock) stockTbl(StockSize);
+    TABLE(Inventory) invTbl(numPrograms * 10);
     char secondary = 'X';
 #ifdef MM_SI
-    cout << "MultiMap Secondary Index" << endl;
-    secondary = 'M';
-    MultiMapIndexMT<OrderKey, OrderVal, OrderPKey> OrderIndex;
-    SecondaryIndex<OrderKey, OrderVal>* OrderIndexes[1];
-    OrderIndexes[0] = &OrderIndex;
-    ordTbl.secondaryIndexes = OrderIndexes;
-    ordTbl.numIndexes = 1;
 
-    MultiMapIndexMT<OrderLineKey, OrderLineVal, OrderLinePKey> OrderLineIndex;
-    SecondaryIndex<OrderLineKey, OrderLineVal>* OrderLineIndexes[1];
-    OrderLineIndexes[0] = &OrderLineIndex;
-    ordLTbl.secondaryIndexes = OrderLineIndexes;
-    ordLTbl.numIndexes = 1;
 #endif
 
 #ifdef CUCKOO_SI
     cout << "Cuckoo Secondary Index" << endl;
     secondary = 'C';
-    CuckooSecondaryIndex<OrderKey, OrderVal, OrderPKey> OrderIndex;
-    SecondaryIndex<OrderKey, OrderVal>* OrderIndexes[1];
-    OrderIndexes[0] = &OrderIndex;
-    ordTbl.secondaryIndexes = OrderIndexes;
-    ordTbl.numIndexes = 1;
+    CuckooSecondaryIndex<StockKey, StockVal, StockPKey> StockIndex;
+    SecondaryIndex<StockKey, StockVal>* StockIndexes[1];
+    StockIndexes[0] = &StockIndex;
+    stockTbl.secondaryIndexes = StockIndexes;
+    stockTbl.numIndexes = 1;
 
-    CuckooSecondaryIndex<OrderLineKey, OrderLineVal, OrderLinePKey> OrderLineIndex;
-    SecondaryIndex<OrderLineKey, OrderLineVal>* OrderLineIndexes[1];
-    OrderLineIndexes[0] = &OrderLineIndex;
-    ordLTbl.secondaryIndexes = OrderLineIndexes;
-    ordLTbl.numIndexes = 1;
 #endif
 
     tpcc.loadPrograms();
-    tpcc.loadCust();
-    tpcc.loadDist();
-    tpcc.loadHist();
-    tpcc.loadItem();
-    tpcc.loadNewOrd();
-    tpcc.loadOrdLine();
-    tpcc.loadOrders();
     tpcc.loadStocks();
-    tpcc.loadWare();
+
     std::cout.imbue(std::locale(""));
     header << "BenchName, Algo, Critical Compensate, Validation level, WW allowed, Store enabled, Cuckoo enabled, SecondaryIndex, CWW, NumWare";
-    cout << "TPCC" << endl;
-    fout << "TPCC";
+    cout << "TPCC_2" << endl;
+    fout << "TPCC_2";
 #if OMVCC
     cout << "OMVCC" << endl;
     fout << ", OMVCC, X";
@@ -145,62 +107,27 @@ int main(int argc, char** argv) {
     cout << "CWW = " << CWW << endl;
     fout << ", " << CWW;
     cout << "Number of warehouse = " << numWare << endl;
-    cout << "warehouse source= " << wareSource << endl;
+
     fout << ", " << numWare;
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);
-    for (const auto&it : tpcc.iCustomer) {
-        custTbl.insertVal(t0, it.first, it.second);
-    }
-    for (const auto&it : tpcc.iDistrict) {
-        distTbl.insertVal(t0, it.first, it.second);
-        distNoTbl.insertVal(t0, it.first, DistrictNewOrderVal(2101));
-    }
-    for (const auto&it : tpcc.iHistory) {
-        historyTbl.insertVal(t0, it.first, it.second);
-    }
-    for (const auto&it : tpcc.iItem) {
-        itemTbl.insertVal(t0, it.first, it.second);
-    }
-    for (const auto&it : tpcc.iNewOrder) {
-        newOrdTbl.insertVal(t0, it.first, it.second);
-    }
-    for (const auto&it : tpcc.iOrderLine) {
-        ordLTbl.insertVal(t0, it.first, it.second);
-    }
-    for (const auto&it : tpcc.iOrder) {
-        ordTbl.insertVal(t0, it.first, it.second);
-    }
+
     for (const auto&it : tpcc.iStock) {
         stockTbl.insertVal(t0, it.first, it.second);
     }
-    for (const auto&it : tpcc.iWarehouse) {
-        wareTbl.insertVal(t0, it.first, it.second);
-    }
+
     transactionManager.validateAndCommit(t0);
     int neworder = 0;
-    int payment = 0;
-    int delivery = 0;
-    int orderstatus = 0;
-    int stocklevel = 0;
+    int stockinv = 0;
     header << ", NumProgs, NumThreads";
     fout << ", " << numPrograms << ", " << numThreads;
     cout << "Number of programs = " << numPrograms << endl;
     cout << "Number of threads = " << numThreads << endl;
 
     Program ** programs = new Program*[numPrograms];
-    CustomerTable = &custTbl;
-    DistrictTable = &distTbl;
-    WarehouseTable = &wareTbl;
-    ItemTable = &itemTbl;
     StockTable = &stockTbl;
-    HistoryTable = &historyTbl;
-    DistrictNewOrderTable = &distNoTbl;
-    OrderTable = &ordTbl;
-    OrderLineTable = &ordLTbl;
-    NewOrderTable = &newOrdTbl;
-
+    InventoryTable = &invTbl;
 
 
     for (uint i = 0; i < numPrograms; ++i) {
@@ -211,39 +138,23 @@ int main(int argc, char** argv) {
                 newp = new MV3CNewOrder(p);
                 neworder++;
                 break;
-            case PAYMENTBYID:
-                newp = new MV3CPayment(p);
-                payment++;
-                break;
-            case DELIVERY:
-                newp = new MV3CDelivery(p);
-                delivery++;
-                break;
-            case ORDERSTATUSBYID:
-                newp = new MV3COrderStatus(p);
-                orderstatus++;
-                break;
-            case STOCKLEVEL:
-                newp = new MV3CStockLevel(p);
-                stocklevel++;
+
+            case STOCKINVENTORY:
+                newp = new MV3CStockInventory(p);
+                stockinv++;
                 break;
             default:
                 throw std::runtime_error("Unknown program");
-
         }
-
         programs[i] = newp;
 
 
     }
     cout << "NewOrder =" << neworder << endl;
-    cout << "Payment =" << payment << endl;
-    cout << "OrderStatus =" << orderstatus << endl;
-    cout << "StockLevel =" << stocklevel << endl;
-    cout << "Delivery =" << delivery << endl;
+    cout << "StockLevel =" << stockinv << endl;
+
     ConcurrentExecutor exec(numThreads, transactionManager);
     exec.execute(programs, numPrograms);
-    cout << "order success =" << orderSuccess << "  order failed =" << orderFailed << endl;
     header << ", Duration(ms), Committed, FailedEx, FailedVal, FailedExRate, FailedValRate, Throughput(ktps), ScaledTime, numValidations, numValAgainst, avgValAgainst, AvgValRound";
     cout << "Duration = " << exec.timeUs / 1000.0 << endl;
     fout << ", " << exec.timeUs / 1000.0;
@@ -315,7 +226,7 @@ int main(int argc, char** argv) {
         cout << "\t Compensate time = " << compensateTimes[i] / 1000000.0 << endl;
 
     }
-
+    cout << "Inventory size = " << InventoryTable->primaryIndex.size() << endl;
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];
     }
