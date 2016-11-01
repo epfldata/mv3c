@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     std::ofstream header("header");
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
-    CPU_SET(23, &cpuset);
+    CPU_SET(1, &cpuset);
     auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);
     if (s != 0) {
         throw std::runtime_error("Cannot set affinity");
@@ -83,6 +83,50 @@ int main(int argc, char** argv) {
     OrderLineIndexes[0] = &OrderLineIndex;
     ordLTbl.secondaryIndexes = OrderLineIndexes;
     ordLTbl.numIndexes = 1;
+#endif
+
+#ifdef VERIFY
+
+    TABLE(Customer) custTblVerify(CustomerIndexSize);
+    TABLE(District) distTblVerify(DistrictIndexSize);
+    TABLE(Warehouse) wareTblVerify(WarehouseIndexSize);
+    TABLE(NewOrder) newOrdTblVerify(NewOrderIndexSize);
+    TABLE(Order) ordTblVerify(OrderIndexSize);
+    TABLE(OrderLine) ordLTblVerify(OrderLineIndexSize);
+    TABLE(Item) itemTblVerify(ItemIndexSize);
+    TABLE(Stock) stockTblVerify(StockIndexSize);
+    TABLE(History) historyTblVerify(HistoryIndexSize);
+    TABLE(DistrictNewOrder) distNoTblVerify(DistrictIndexSize);
+
+#ifdef MM_SI
+
+
+    MultiMapIndexMT<OrderKey, OrderVal, OrderPKey> OrderIndexVerify;
+    SecondaryIndex<OrderKey, OrderVal>* OrderIndexesVerify[1];
+    OrderIndexesVerify[0] = &OrderIndexVerify;
+    ordTblVerify.secondaryIndexes = OrderIndexesVerify;
+    ordTblVerify.numIndexes = 1;
+
+    MultiMapIndexMT<OrderLineKey, OrderLineVal, OrderLinePKey> OrderLineIndexVerify;
+    SecondaryIndex<OrderLineKey, OrderLineVal>* OrderLineIndexesVerify[1];
+    OrderLineIndexesVerify[0] = &OrderLineIndexVerify;
+    ordLTblVerify.secondaryIndexes = OrderLineIndexesVerify;
+    ordLTblVerify.numIndexes = 1;
+#endif
+
+#ifdef CUCKOO_SI
+    CuckooSecondaryIndex<OrderKey, OrderVal, OrderPKey> OrderIndexVerify;
+    SecondaryIndex<OrderKey, OrderVal>* OrderIndexesVerify[1];
+    OrderIndexesVerify[0] = &OrderIndexVerify;
+    ordTblVerify.secondaryIndexes = OrderIndexesVerify;
+    ordTblVerify.numIndexes = 1;
+
+    CuckooSecondaryIndex<OrderLineKey, OrderLineVal, OrderLinePKey> OrderLineIndexVerify;
+    SecondaryIndex<OrderLineKey, OrderLineVal>* OrderLineIndexesVerify[1];
+    OrderLineIndexesVerify[0] = &OrderLineIndexVerify;
+    ordLTblVerify.secondaryIndexes = OrderLineIndexesVerify;
+    ordLTblVerify.numIndexes = 1;
+#endif
 #endif
 
     tpcc.loadPrograms();
@@ -178,6 +222,37 @@ int main(int argc, char** argv) {
     for (const auto&it : tpcc.iWarehouse) {
         wareTbl.insertVal(t0, it.first, it.second);
     }
+#ifdef VERIFY
+    for (const auto&it : tpcc.iCustomer) {
+        custTblVerify.insertVal(t0, it.first, it.second);
+    }
+    for (const auto&it : tpcc.iDistrict) {
+        distTblVerify.insertVal(t0, it.first, it.second);
+        distNoTblVerify.insertVal(t0, it.first, DistrictNewOrderVal(2101));
+    }
+    for (const auto&it : tpcc.iHistory) {
+        historyTblVerify.insertVal(t0, it.first, it.second);
+    }
+    for (const auto&it : tpcc.iItem) {
+        itemTblVerify.insertVal(t0, it.first, it.second);
+    }
+    for (const auto&it : tpcc.iNewOrder) {
+        newOrdTblVerify.insertVal(t0, it.first, it.second);
+    }
+    for (const auto&it : tpcc.iOrderLine) {
+        ordLTblVerify.insertVal(t0, it.first, it.second);
+    }
+    for (const auto&it : tpcc.iOrder) {
+        ordTblVerify.insertVal(t0, it.first, it.second);
+    }
+    for (const auto&it : tpcc.iStock) {
+        stockTblVerify.insertVal(t0, it.first, it.second);
+    }
+    for (const auto&it : tpcc.iWarehouse) {
+        wareTblVerify.insertVal(t0, it.first, it.second);
+    }
+
+#endif
     transactionManager.validateAndCommit(t0);
     int neworder = 0;
     int payment = 0;
@@ -244,6 +319,7 @@ int main(int argc, char** argv) {
     ConcurrentExecutor exec(numThreads, transactionManager);
     exec.execute(programs, numPrograms);
     cout << "order success =" << orderSuccess << "  order failed =" << orderFailed << endl;
+    cout << "delivery failed districts = "<< deliveryDistrictFailed << endl;
     header << ", Duration(ms), Committed, FailedEx, FailedVal, FailedExRate, FailedValRate, Throughput(ktps), ScaledTime, numValidations, numValAgainst, avgValAgainst, AvgValRound";
     cout << "Duration = " << exec.timeUs / 1000.0 << endl;
     fout << ", " << exec.timeUs / 1000.0;
@@ -315,7 +391,162 @@ int main(int argc, char** argv) {
         cout << "\t Compensate time = " << compensateTimes[i] / 1000000.0 << endl;
 
     }
+#ifdef VERIFY
 
+    CustomerTable = &custTblVerify;
+    DistrictTable = &distTblVerify;
+    WarehouseTable = &wareTblVerify;
+    ItemTable = &itemTblVerify;
+    StockTable = &stockTblVerify;
+    HistoryTable = &historyTblVerify;
+    DistrictNewOrderTable = &distNoTblVerify;
+    OrderTable = &ordTblVerify;
+    OrderLineTable = &ordLTblVerify;
+    NewOrderTable = &newOrdTblVerify;
+
+    std::sort(programs, programs + numPrograms, [](Program *p1, Program * p2) {
+        return p1->xact.commitTS < p2->xact.commitTS;
+    });
+    //    Program ** programsVerify;
+    //    programsVerify = new Program*[numPrograms];
+    uint verifiedPrg = 0;
+    ThreadLocal local;
+    for (uint i = 0; i < numPrograms; ++i) {
+        Program *newp, *p = programs[i];
+        if (p->xact.commitTS == initCommitTS)
+            break;
+        verifiedPrg++;
+        switch (p->prgType) {
+            case NEWORDER:
+                newp = new MV3CNewOrder(p);
+                break;
+            case PAYMENTBYID:
+                newp = new MV3CPayment(p);
+                break;
+            case DELIVERY:
+                newp = new MV3CDelivery(p);
+                break;
+            case ORDERSTATUSBYID:
+                newp = new MV3COrderStatus(p);
+                break;
+            case STOCKLEVEL:
+                newp = new MV3CStockLevel(p);
+                break;
+            default:
+                throw std::runtime_error("Unknown program");
+        }
+        //        programsVerify[i] = newp;
+        newp->xact.threadId = 0;
+        newp->threadVar = &local;
+        transactionManager.begin(&newp->xact);
+        auto status = newp->execute();
+        if (status != SUCCESS) {
+            throw std::logic_error("Verifier cannot fail execution");
+        }
+        bool status2 = transactionManager.validateAndCommit(&newp->xact, newp);
+        if (!status2) {
+            throw std::logic_error("Verifier cannot fail commit");
+        }
+    }
+    if (verifiedPrg != exec.finishedPrograms) {
+        throw std::logic_error("Num finished programs doesnt match");
+    }
+    Transaction tf;
+    transactionManager.begin(&tf);
+    auto allCust = custTbl.getAll(&tf);
+    for (auto it : allCust) {
+        tpcc.fCustomer.insert({*it.first, *it.second});
+    }
+    auto allDist = distTbl.getAll(&tf);
+    for (auto it : allDist) {
+        tpcc.fDistrict.insert({*it.first, *it.second});
+    }
+    auto allWare = wareTbl.getAll(&tf);
+    for (auto it : allWare) {
+        tpcc.fWarehouse.insert({*it.first, *it.second});
+    }
+    auto allItem = itemTbl.getAll(&tf);
+    for (auto it : allItem) {
+        tpcc.fItem.insert({*it.first, *it.second});
+    }
+    auto allStock = stockTbl.getAll(&tf);
+    for (auto it : allStock) {
+        tpcc.fStock.insert({*it.first, *it.second});
+    }
+    auto allHist = historyTbl.getAll(&tf);
+    for (auto it : allHist) {
+        tpcc.fHistory.insert({*it.first, *it.second});
+    }
+    auto allDistNo = distNoTbl.getAll(&tf);
+    for (auto it : allDistNo) {
+        tpcc.fDistrictNewOrder.insert({*it.first, *it.second});
+    }
+    auto allOrd = ordTbl.getAll(&tf);
+    for (auto it : allOrd) {
+        tpcc.fOrder.insert({*it.first, *it.second});
+    }
+    auto allOrdL = ordLTbl.getAll(&tf);
+    for (auto it : allOrdL) {
+        tpcc.fOrderLine.insert({*it.first, *it.second});
+    }
+    auto allNewO = newOrdTbl.getAll(&tf);
+    for (auto it : allNewO) {
+        tpcc.fNewOrder.insert({*it.first, *it.second});
+    }
+
+    auto allCustVerify = custTblVerify.getAll(&tf);
+    for (auto it : allCustVerify) {
+        tpcc.oCustomer.insert({*it.first, *it.second});
+    }
+    auto allDistVerify = distTblVerify.getAll(&tf);
+    for (auto it : allDistVerify) {
+        tpcc.oDistrict.insert({*it.first, *it.second});
+    }
+    auto allWareVerify = wareTblVerify.getAll(&tf);
+    for (auto it : allWareVerify) {
+        
+        tpcc.oWarehouse.insert({*it.first, *it.second});
+    }
+    auto allItemVerify = itemTblVerify.getAll(&tf);
+    for (auto it : allItemVerify) {
+        tpcc.oItem.insert({*it.first, *it.second});
+    }
+    auto allStockVerify = stockTblVerify.getAll(&tf);
+    for (auto it : allStockVerify) {
+        tpcc.oStock.insert({*it.first, *it.second});
+    }
+    auto allHistVerify = historyTblVerify.getAll(&tf);
+    for (auto it : allHistVerify) {
+        tpcc.oHistory.insert({*it.first, *it.second});
+    }
+    auto allDistNoVerify = distNoTblVerify.getAll(&tf);
+    for (auto it : allDistNoVerify) {
+        tpcc.oDistrictNewOrder.insert({*it.first, *it.second});
+    }
+    auto allOrdVerify = ordTblVerify.getAll(&tf);
+    for (auto it : allOrdVerify) {
+        tpcc.oOrder.insert({*it.first, *it.second});
+    }
+    auto allOrdLVerify = ordLTblVerify.getAll(&tf);
+    for (auto it : allOrdLVerify) {
+        tpcc.oOrderLine.insert({*it.first, *it.second});
+    }
+    auto allNewOVerify = newOrdTblVerify.getAll(&tf);
+    for (auto it : allNewOVerify) {
+        tpcc.oNewOrder.insert({*it.first, *it.second});
+    }
+    
+    tpcc.checkCustomerResults();
+    tpcc.checkDistrictResults();
+    tpcc.checkHistoryResults();
+    tpcc.checkItemResults();
+    tpcc.checkNewOrderResults();
+    tpcc.checkOrderLineResults();
+    tpcc.checkOrderResults();
+    tpcc.checkStockResults();
+    tpcc.checkWarehouseResults();
+    
+#endif    
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];
     }

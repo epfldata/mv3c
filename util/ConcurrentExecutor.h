@@ -157,7 +157,7 @@ struct ConcurrentExecutor {
                     hasFinished = true;
                 }
             } else {
-               
+
 #if OMVCC
                 if (!tm.validateAndCommit(&p->xact, p)) {
                     failedValPerTxn[p->prgType]++;

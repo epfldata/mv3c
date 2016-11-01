@@ -345,17 +345,19 @@ namespace tpcc_ns {
         }
         return SUCCESS;
     }
-
+    uint deliveryDistrictFailed = 0;
     forceinline TransactionReturnStatus delivery_distneworderfn(Program *p, const DistNODV* dnodv, uint cs);
     forceinline TransactionReturnStatus delivery_orderfn(Program *p, const OrderDV* odv, uint cs);
     forceinline TransactionReturnStatus delivery_custfn(Program *p, const CustDV* cdv, uint cs);
 
     struct MV3CDelivery : Delivery {
+        uint8_t distFailed;
 
         MV3CDelivery(Program *p) : Delivery(p) {
         }
 
         TransactionReturnStatus execute() override {
+            distFailed = 0;
             for (uint8_t d_id = 0; d_id < 10; ++d_id) {
                 new (&threadVar->distNOkey) DistrictNewOrderKey(d_id + 1, w_id); //Reusing
                 new (&threadVar->distNOs[d_id]) DistNOGet(DistrictNewOrderTable, &xact, threadVar->distNOkey, nullptr, col_type(1 << 1));
@@ -431,6 +433,7 @@ namespace tpcc_ns {
         return SUCCESS;
     }
     uint orderSuccess = 0, orderFailed = 0;
+
     struct MV3COrderStatus : OrderStatusById {
 
         MV3COrderStatus(const Program* p) :

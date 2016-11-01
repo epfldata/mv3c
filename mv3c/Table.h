@@ -178,6 +178,7 @@ struct Table {
     }
 #endif
 #ifdef MM_SI
+
     template<typename P>
     forceinline uint sliceReadOnly(Transaction *xact, const P& key, uint8_t idx, DVType** results) {
         MultiMapIndexMT<K, V, P>* index = (MultiMapIndexMT<K, V, P>*)secondaryIndexes[idx];
@@ -216,8 +217,7 @@ struct Table {
             auto e = it->second;
             auto dv = getCorrectDV(xact, e);
             if (dv != nullptr)
-                ;
-            //                results.emplace_back({&e->key, &dv->val});
+                results.push_back({&e->key, &dv->val});
         }
         return results;
     }
