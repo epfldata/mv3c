@@ -10,33 +10,29 @@
 template <typename K, typename V, typename P>
 struct CuckooSecondaryIndex : SecondaryIndex<K, V> {
     typedef Entry<K, V>* EntryPtrType;
+
     struct Container {
         std::unordered_set<EntryPtrType> bucket;
         RWLock lock;
     };
     cuckoohash_map<P, Container *, CityHasher<P>> index;
 
+    CuckooSecondaryIndex(size_t size = 100000) : index(size) {
+    }
+
     void insert(EntryPtrType e, const V& val) override {
         Container *c;
         P key(e, val);
-        if (index.find(key, c)) {
+        c = new Container();
+        c->lock.AcquireWriteLock();
+        auto updatefn = [&c, e](Container*& c2) {
+            delete c;
+            c = c2;
             c->lock.AcquireWriteLock();
-            c->bucket.insert(e);
-            c->lock.ReleaseWriteLock();
-        } else {
-            c = new Container();
-            c->lock.AcquireWriteLock();
-            c->bucket.insert(e);
-            if (index.insert(key, c)) {
-                c->lock.ReleaseWriteLock();
-            } else {
-                delete c;
-                index.find(key, c);
-                c->lock.AcquireWriteLock();
-                c->bucket.insert(e);
-                c->lock.ReleaseWriteLock();
-            }
-        }
+        };
+        index.upsert(key, updatefn, c);
+        c->bucket.insert(e);
+        c->lock.ReleaseWriteLock();
     }
 
     void erase(EntryPtrType e, const V& val) override {
@@ -51,7 +47,7 @@ struct CuckooSecondaryIndex : SecondaryIndex<K, V> {
 
     }
 
-    forceinline  Container * slice(const P key) {
+    forceinline Container * slice(const P key) {
         Container *c;
         if (index.find(key, c)) {
             return c;

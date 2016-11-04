@@ -11,7 +11,8 @@
 #define DTIMER 1
 //#define TRADING_TEST 1   
 //#define BANKING_TEST 1
-#define TPCC_TEST 1
+#define BENCH 1
+//#define TPCC_TEST 1
 //#define TPCC2_TEST 1
 //#define RIPPLE_TEST 1
 #define NUMTHREADS 6
