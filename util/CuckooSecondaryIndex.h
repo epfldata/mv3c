@@ -15,6 +15,8 @@ struct CuckooSecondaryIndex : SecondaryIndex<K, V> {
         std::unordered_set<EntryPtrType> bucket;
         RWLock lock;
     };
+    typedef MemoryPool<Container, sizeof (Container) * 4096 * 1024 > PoolType;
+    static thread_local PoolType* store;
     cuckoohash_map<P, Container *, CityHasher<P>> index;
 
     CuckooSecondaryIndex(size_t size = 100000) : index(size) {
@@ -56,6 +58,7 @@ struct CuckooSecondaryIndex : SecondaryIndex<K, V> {
         }
     }
 };
-
+template <typename K, typename V, typename P>
+thread_local typename CuckooSecondaryIndex<K, V, P>::PoolType* CuckooSecondaryIndex<K, V, P>::store;
 #endif /* CUCKOOSECONDARYINDEX_H */
 

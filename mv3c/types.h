@@ -22,16 +22,22 @@
 //#define STORE_ENABLE 1
 #define CUCKOO true
 #define CUCKOO_SI true
-//#define MM_SI true
+#define CCSI true
 #define CWW false
 #define VERIFY true
+//#define PERF_STAT true
 #endif
-
+#include <type_traits>
+#include <utility>
+#include <stdint.h>
+#include "MemoryPool.h"
 #include<iostream>
 #include<sstream>
 #include<fstream>
 #include "Tuple.h"
 #include <atomic>
+#include <sched.h>
+#include <pthread.h>
 using std::cout;
 using std::endl;
 using std::cerr;
@@ -71,8 +77,10 @@ enum OperationReturnStatus : char {
 };
 #ifdef NDEBUG
 #define  forceinline  __attribute__((always_inline))
+#define dontinline __attribute__ ((noinline))
 #else
-#define forceinline   
+#define dontinline __attribute__ ((noinline))
+#define forceinline  
 #endif 
 typedef uint64_t timestamp;
 const timestamp mask = 1LL << 63;
@@ -135,5 +143,19 @@ forceinline T unmark(T t) {
   template<>\
   Entry<type##Key, type##Val>::StoreType Entry<type##Key, type##Val>::store(type##EntrySize, STRINGIFY(type)"Entry", numThreads)
 
+#define setAffinity(thread_id)\
+    cpu_set_t cpuset;\
+    CPU_ZERO(&cpuset);\
+    CPU_SET(thread_id+1, &cpuset);\
+    auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);\
+    if (s != 0)\
+        throw std::runtime_error("Cannot set affinity");
+
+#define setSched(type)\
+    sched_param param;\
+    param.__sched_priority =  sched_get_priority_max(type);\
+    s = sched_setscheduler(0, type, &param);\
+    if (s != 0)\
+        throw std::runtime_error("Cannot set scheduler");
 #endif /* TYPES_H */
 

@@ -21,16 +21,19 @@ struct ConcurrentCuckooSecondaryIndex : SecondaryIndex<K, V> {
 
         }
     };
+    typedef MemoryPool<Container, sizeof (Container) * 100 * 4096 * 1024 > PoolType;
+    static thread_local PoolType* store;
     cuckoohash_map<P, Container *, CityHasher<P>> index;
 
     ConcurrentCuckooSecondaryIndex(size_t size = 100000) : index(size) {
     }
 
     void insert(EntryPtrType e, const V& val) override {
-        Container *sentinel, *newc;
         P key(e, val);
-        newc = new Container(e);
-        sentinel = new Container(newc);
+        Container *newc = store->allocate();
+        new (newc) Container(e);
+        Container *sentinel = store->allocate();
+        new(sentinel) Container(newc);
         auto updatefn = [newc, sentinel](Container* &c) {
             delete sentinel;
             Container *nxt = c->next;
@@ -95,6 +98,10 @@ struct ConcurrentCuckooSecondaryIndex : SecondaryIndex<K, V> {
         }
     }
 };
+
+template <typename K, typename V, typename P>
+thread_local typename ConcurrentCuckooSecondaryIndex<K, V, P>::PoolType * ConcurrentCuckooSecondaryIndex<K, V, P>::store;
+
 #define TraverseSlice(name, type, txnptr)\
     auto name##Cur = name->next, name##CurNext , name##Prev = name, name##PrevNext = name##Cur;\
     auto name##Entry = name->e;\
