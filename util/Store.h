@@ -16,7 +16,7 @@ union Cell {
     Element<T>* next;
 
     Cell() {
-        memset(this, 0, sizeof (Cell));
+        memset((void *)this, 0, sizeof (Cell));
     }
 
     ~Cell() {

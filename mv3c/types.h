@@ -156,6 +156,6 @@ forceinline T unmark(T t) {
     param.__sched_priority =  sched_get_priority_max(type);\
     s = sched_setscheduler(0, type, &param);\
     if (s != 0)\
-        throw std::runtime_error("Cannot set scheduler");
+        cerr << "Cannot set scheduler";
 #endif /* TYPES_H */
 
