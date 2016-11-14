@@ -4,7 +4,7 @@ rm -rf *bench*.out
 rm -f bench*.csv
 rm -f header out
 echo "Bench"
-for p in  1 #10 100
+for p in  1 10 100
 do
 for numThr in {1..5}
 do
@@ -36,11 +36,11 @@ done | xargs -n 2 -P10 ./compileBench.sh
 #done
 
 
-for p in 1 #10 100 
+for p in 1 10 100 
 do
 for numThr in {1..5}
 do
-for i in {1..10}
+for i in {1..5}
 do
 sudo ./bench-ccsi-$numThr-$p.out	
 done
@@ -60,11 +60,11 @@ done
 #done
 
 
-for p in 1 #10 100 
+for p in 1 10 100 
 do
 for numThr in {1..5}
 do
-for i in {1..10}
+for i in {1..5}
 do
 sudo ./bench-cpi-$numThr-$p.out	
 done

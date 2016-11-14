@@ -25,6 +25,8 @@
 #include<iostream>
 
 #include "MemoryPool.h"
+#include <cstring>
+#include <cassert>
 template <typename T, size_t BlockSize>
 inline typename MemoryPool<T, BlockSize>::size_type
 MemoryPool<T, BlockSize>::padPointer(data_pointer_ p, size_type align)
@@ -110,6 +112,8 @@ MemoryPool<T, BlockSize>::allocateBlock() {
     // Allocate space for the new block and store a pointer to the previous one
     data_pointer_ newBlock = reinterpret_cast<data_pointer_>
             (operator new(BlockSize));
+    memset(newBlock, 0, BlockSize);
+    assert(sizeof(T) >= sizeof(void*));
     reinterpret_cast<slot_pointer_> (newBlock)->next = currentBlock_;
     currentBlock_ = reinterpret_cast<slot_pointer_> (newBlock);
     // Pad block body to staisfy the alignment requirements for elements
@@ -123,17 +127,19 @@ MemoryPool<T, BlockSize>::allocateBlock() {
 template <typename T, size_t BlockSize>
 inline typename MemoryPool<T, BlockSize>::pointer
 MemoryPool<T, BlockSize>::allocate(size_type n, const_pointer hint) {
-    if (freeSlots_ != nullptr) {
+    if (freeSlots_ != nullptr && n == 1) {
         pointer result = reinterpret_cast<pointer> (freeSlots_);
         freeSlots_ = freeSlots_->next;
         return result;
     } else {
+        currentSlot_ += n;
         if (currentSlot_ >= lastSlot_) {
             std::cerr << "Resizing Memory Pool" << std::endl;
             exit(1);
             allocateBlock();
         }
-        return reinterpret_cast<pointer> (currentSlot_++);
+
+        return reinterpret_cast<pointer> (currentSlot_ - n);
     }
 }
 
@@ -141,8 +147,12 @@ template <typename T, size_t BlockSize>
 inline void
 MemoryPool<T, BlockSize>::deallocate(pointer p, size_type n) {
     if (p != nullptr) {
-        reinterpret_cast<slot_pointer_> (p)->next = freeSlots_;
-        freeSlots_ = reinterpret_cast<slot_pointer_> (p);
+        while (n > 0) {
+            slot_pointer_ sp = reinterpret_cast<slot_pointer_> (p) + n - 1;
+            sp->next = freeSlots_;
+            freeSlots_ = sp;
+            n--;
+        }
     }
 }
 

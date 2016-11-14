@@ -43,7 +43,7 @@ class MemoryPool
     typedef std::true_type  propagate_on_container_swap;
 
     template <typename U> struct rebind {
-      typedef MemoryPool<U> other;
+      typedef MemoryPool<U, BlockSize> other;
     };
 
     /* Member functions */

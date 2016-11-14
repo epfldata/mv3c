@@ -5,7 +5,7 @@
 #include <libcuckoo/city_hasher.hh>
 #include <atomic>
 
-template <typename K, typename V, typename P>
+template <typename K, typename V, typename P, typename Alloc>
 struct ConcurrentCuckooSecondaryIndex : SecondaryIndex<K, V> {
     typedef Entry<K, V>* EntryPtrType;
 
@@ -21,18 +21,19 @@ struct ConcurrentCuckooSecondaryIndex : SecondaryIndex<K, V> {
 
         }
     };
-    typedef MemoryPool<Container, sizeof (Container) * 100 * 4096 * 1024 > PoolType;
-    static thread_local PoolType* store;
-    cuckoohash_map<P, Container *, CityHasher<P>> index;
+    typedef typename Alloc::template rebind<Container>::other ContainerPoolType;
+    typedef typename Alloc::template rebind<std::pair<const P, Container *>>::other CuckooAllocType;
+    static thread_local ContainerPoolType* store;
+    cuckoohash_map<P, Container *, CityHasher<P>, std::equal_to<P>, CuckooAllocType> index;
 
     ConcurrentCuckooSecondaryIndex(size_t size = 100000) : index(size) {
     }
 
     void insert(EntryPtrType e, const V& val) override {
         P key(e, val);
-        Container *newc = store->allocate();
+        Container *newc = store->allocate(1, nullptr);
         new (newc) Container(e);
-        Container *sentinel = store->allocate();
+        Container *sentinel = store->allocate(1, nullptr);
         new(sentinel) Container(newc);
         auto updatefn = [newc, sentinel](Container* &c) {
             delete sentinel;
@@ -99,8 +100,8 @@ struct ConcurrentCuckooSecondaryIndex : SecondaryIndex<K, V> {
     }
 };
 
-template <typename K, typename V, typename P>
-thread_local typename ConcurrentCuckooSecondaryIndex<K, V, P>::PoolType * ConcurrentCuckooSecondaryIndex<K, V, P>::store;
+template <typename K, typename V, typename P, typename A>
+thread_local typename ConcurrentCuckooSecondaryIndex<K, V, P, A>::ContainerPoolType * ConcurrentCuckooSecondaryIndex<K, V, P, A>::store;
 
 #define TraverseSlice(name, type, txnptr)\
     auto name##Cur = name->next, name##CurNext , name##Prev = name, name##PrevNext = name##Cur;\

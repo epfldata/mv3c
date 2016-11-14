@@ -8,7 +8,7 @@
 #include "ConcurrentCuckooSecondaryIndex.h"
 #include "MultiMapIndexMT.h"
 #include <thread>
-
+#include <ext/malloc_allocator.h>
 #include <iomanip>
 #include <locale>
 #include "System.hpp"
@@ -27,6 +27,7 @@ const double insertProb = 1.1;
 const int iMax = initRows + 10000000;
 const int jMax = SCALE;
 
+/********************************************************/
 typedef KeyTuple<int, int> TKey;
 typedef ValTuple<double> TVal;
 typedef Entry<TKey, TVal> TEntry;
@@ -56,19 +57,28 @@ struct PKey {
     }
 
 };
-ConcurrentCuckooSecondaryIndex<TKey, TVal, PKey> concCuckooIdx(iMax * 2);
+/********************************************************/
+
+//typedef ConcurrentCuckooSecondaryIndex<TKey, TVal, PKey, __gnu_cxx::malloc_allocator<char>> CCSI_t;
+typedef ConcurrentCuckooSecondaryIndex<TKey, TVal, PKey, std::allocator<char>> CCSI_t;
+//typedef ConcurrentCuckooSecondaryIndex<TKey, TVal, PKey, MemoryPool<char, iMax * 80>> CCSI_t;
+CCSI_t concCuckooIdx(iMax * 2);
+
 CuckooSecondaryIndex<TKey, TVal, PKey> cuckooIdx(iMax * 2);
 MultiMapIndexMT<TKey, TVal, PKey> mmapIdx;
 
 #ifdef CPI
-cuckoohash_map<TKey, TEntry*, CityHasher<TKey>> primaryIndex(iMax * jMax * 2);
+//typedef cuckoohash_map<TKey, TEntry*, CityHasher<TKey>, std::equal_to<TKey>, __gnu_cxx::malloc_allocator<std::pair<TKey, TEntry*>>> CPI_t;
+typedef cuckoohash_map<TKey, TEntry*, CityHasher<TKey>, std::equal_to<TKey>, std::allocator<std::pair<TKey, TEntry*>>> CPI_t;
+//typedef cuckoohash_map<TKey, TEntry*, CityHasher<TKey>, std::equal_to<TKey>, MemoryPool<std::pair<TKey, TEntry*>, iMax * 80 >> CPI_t;
+CPI_t primaryIndex(iMax * jMax * 2);
 #endif
 
 #ifdef MPI
 UnorderedIndex<TKey, TEntry*, CityHasher<TKey>> primaryIndex(iMax * jMax * 2);
 #endif
 
-
+/********************************************************/
 volatile bool startExecution = false, hasFinished = false;
 volatile bool isReady[numThreads];
 int numOps[numThreads];
@@ -77,7 +87,8 @@ int numDel[numThreads];
 std::thread workers[numThreads];
 TEntry** initSource;
 TEntry** inputSource[numThreads];
-MemoryPool<TEntry, iMax * sizeof (TEntry) * 2 > entryPool;
+std::allocator<TEntry> entryPool;
+//MemoryPool<TEntry, iMax * sizeof (TEntry) * 2 > entryPool;
 
 void reset() {
     startExecution = false;
@@ -88,11 +99,13 @@ void reset() {
     }
 }
 
+
+/********************************************************/
 void insert(SecondaryIndex<TKey, TVal>* index, int thread_id) {
     setAffinity(thread_id);
     setSched(SCHED_FIFO);
 #ifdef CCSI
-    ConcurrentCuckooSecondaryIndex<TKey, TVal, PKey>::store = new ConcurrentCuckooSecondaryIndex<TKey, TVal, PKey>::PoolType();
+    CCSI_t::store = new CCSI_t::ContainerPoolType();
 #else
     CuckooSecondaryIndex<TKey, TVal, PKey>::store = new CuckooSecondaryIndex<TKey, TVal, PKey>::PoolType();
 #endif
@@ -202,7 +215,7 @@ double Caller(SecondaryIndex<TKey, TVal>* index) {
     std::string name;
 #ifdef CCSI
     name = "CCSI-";
-    ConcurrentCuckooSecondaryIndex<TKey, TVal, PKey>::store = new ConcurrentCuckooSecondaryIndex<TKey, TVal, PKey>::PoolType();
+    CCSI_t::store = new CCSI_t::ContainerPoolType();
 #else
     name = "CSI-";
     CuckooSecondaryIndex<TKey, TVal, PKey>::store = new CuckooSecondaryIndex<TKey, TVal, PKey>::PoolType();
@@ -296,11 +309,12 @@ int main(int argc, char** argv) {
     std::cout.imbue(std::locale(""));
     ofstream fout("out", ios::app), header("header");
     header << "SI,numThreads,jMax,numOps,Throughput";
+    
     int total;
     initSource = new TEntry* [initRows * jMax];
     for (uint i = 0; i < initRows; ++i) {
         for (uint j = 0; j < jMax; ++j) {
-            initSource[i * jMax + j] = new (entryPool.allocate()) TEntry(nullptr, TKey(i, j));
+            initSource[i * jMax + j] = new (entryPool.allocate(1, nullptr)) TEntry(nullptr, TKey(i, j));
         }
     }
     const uint entryPerThread = ((iMax - initRows) / numThreads + 1) * jMax;
@@ -314,7 +328,7 @@ int main(int argc, char** argv) {
         int tid = (i - initRows) % numThreads;
         for (uint j = 0; j < jMax; ++j) {
             int pos = sourceCounter[tid]++;
-            inputSource[ tid ][pos] = new(entryPool.allocate()) TEntry(nullptr, TKey(i, j));
+            inputSource[ tid ][pos] = new(entryPool.allocate(1, nullptr)) TEntry(nullptr, TKey(i, j));
             if (pos >= entryPerThread) {
                 cerr << "overflow" << endl;
                 exit(1);
@@ -336,6 +350,8 @@ int main(int argc, char** argv) {
     cout << "Cuckoo SI throughput = " << total / cuckooInsertTime << " ktps" << " for " << numThreads << " threads " << endl;
     fout << "CSI," << numThreads << "," << jMax << "," << total << "," << (total / cuckooInsertTime);
 #endif
+    
+    
 #ifdef MMSI
     double mmapInsertTime = Caller(&mmapIdx);
     total = sumOps();
@@ -344,6 +360,8 @@ int main(int argc, char** argv) {
     cout << "MMAP SI throughput = " << total / mmapInsertTime << " ktps" << " for " << numThreads << " threads " << endl;
     fout << "MMSI," << numThreads << "," << jMax << "," << total << "," << (total / mmapInsertTime);
 #endif
+    
+    
 #ifdef CCSI   
     double concCuckooInsertTime = Caller(&concCuckooIdx);
     total = sumOps();
@@ -353,6 +371,7 @@ int main(int argc, char** argv) {
     fout << "CCSI," << numThreads << "," << jMax << "," << total << "," << (total / concCuckooInsertTime);
 #endif
 
+    
 #ifdef CPI   
     double itime = CallerPrimary();
     total = sumOps();
