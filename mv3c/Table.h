@@ -9,6 +9,7 @@
 #include "UnordereredIndex.h"
 #include "MultiMapIndexMT.h"
 #include "CuckooSecondaryIndex.h"
+#include "ConcurrentCuckooSecondaryIndex.h"
 #define CreateValInsert(type, name, args...)\
   auto name##DV = DeltaVersion<type##Key, type##Val>::store.add(xact.threadId);\
   new (name##DV) DeltaVersion<type##Key, type##Val>();\
@@ -135,6 +136,31 @@ struct Table {
         }
     }
 
+#ifdef CC_SI
+
+    template<typename P>
+    forceinline uint sliceReadOnly(Transaction *xact, const P& key, uint8_t idx, DVType** results) {
+        ConcurrentCuckooSecondaryIndex<K, V, P>* index = (ConcurrentCuckooSecondaryIndex<K, V, P>*)secondaryIndexes[idx];
+        auto result = index->slice(key);
+        uint count = 0;
+        while (result != nullptr) {
+            TraverseSlice(result, this, xact);
+            if (resultDV != nullptr) {
+                results[count++] = resultDV;
+            }
+        }
+        return count;
+    }
+    //
+
+    template<typename P>
+    forceinline DVType* getFirst(Transaction *xact, const P& key, uint8_t idx) {
+        ConcurrentCuckooSecondaryIndex<K, V, P>* index = (ConcurrentCuckooSecondaryIndex<K, V, P>*)secondaryIndexes[idx];
+        auto result = index->slice(key);
+        TraverseSlice(result, this, xact);
+        return resultDV;
+    }
+#endif
 #ifdef CUCKOO_SI
 
     template<typename P>

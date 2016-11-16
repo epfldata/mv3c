@@ -18,6 +18,12 @@ DefineStore(Account);
 TransactionManager transactionManager;
 TransactionManager& Transaction::tm(transactionManager);
 
+#ifdef EXEC_PROFILE
+std::unordered_map<std::string, Timepoint> startTimes[NUMTHREADS];
+std::unordered_map<std::string, size_t> durations[NUMTHREADS];
+std::unordered_map<std::string, size_t> counters[NUMTHREADS];
+#endif
+
 int main(int argc, char** argv) {
 #ifdef NB
     std::ofstream fout("out");
@@ -25,13 +31,8 @@ int main(int argc, char** argv) {
     std::ofstream fout("out", ios::app);
 #endif
     std::ofstream header("header");
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(2 * numThreads, &cpuset);
-    auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);
-    if (s != 0) {
-        throw std::runtime_error("Cannot set affinity");
-    }
+
+    setAffinity(-1);
     BankDataGenerator bank;
     TABLE(Account) accountTable(AccountSize);
 
@@ -114,8 +115,8 @@ int main(int argc, char** argv) {
     ConcurrentExecutor exec(numThreads, transactionManager);
     exec.execute(programs, numPrograms);
     header << ", Duration(ms), Committed, FailedEx, FailedVal, FailedExRate, FailedValRate, Throughput(ktps), ScaledTime, numValidations, numValAgainst, avgValAgainst, AvgValRound";
-    cout << "Duration = " << exec.timeMs << endl;
-    fout << ", " << exec.timeMs;
+    cout << "Duration = " << exec.timeUs / 1000.0 << endl;
+    fout << ", " << exec.timeUs / 1000.0;
     cout << "Committed = " << exec.finishedPrograms << endl;
     fout << ", " << exec.finishedPrograms;
     cout << "FailedExecution  = " << exec.failedExecution << endl;
@@ -126,9 +127,9 @@ int main(int argc, char** argv) {
     fout << ", " << 1.0 * exec.failedExecution / exec.finishedPrograms;
     cout << "FailedVal rate = " << 1.0 * exec.failedValidation / exec.finishedPrograms << endl;
     fout << ", " << 1.0 * exec.failedValidation / exec.finishedPrograms;
-    cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
-    fout << ", " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs);
-    fout << ", " << numPrograms * exec.timeMs / (exec.finishedPrograms * 1000.0);
+    cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeUs) << " K tps" << endl;
+    fout << ", " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeUs);
+    fout << ", " << numPrograms * exec.timeUs / (exec.finishedPrograms * 1000.0);
 
     size_t commitTime = 0, validateTime = 0, executeTime = 0, compensateTime = 0;
     size_t commitTimes[txnTypes], validateTimes[txnTypes], executeTimes[txnTypes], compensateTimes[txnTypes];
@@ -207,17 +208,20 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < numThreads; ++i) {
         cout << "Thread " << i << endl;
-        header << ", Thread " << i << ", finished T, finished TNC, failedEx T, failedEx TNC, failedVal T, failedVal TNC, maxFailedEx, maxFailedVal";
-        fout << ", ";
         for (uint j = 0; j < txnTypes; ++j) {
             cout << "\t" << prgNames[j] << ":\n\t  finished=" << exec.finishedPerThread[j][i] << endl;
             cout << "\t  failedEx = " << exec.failedExPerThread[j][i] << endl;
             cout << " \t  failedVal = " << exec.failedValPerThread[j][i] << endl;
+            header << ", T" << i << "-" << prgNames[j] << " finished" << ", T" << i << "-" << prgNames[j] << " failedEx"; // << ", T" << i << "-" << prgNames[j] << "failedVal";
+            fout << ", " << exec.finishedPerThread[j][i];
+            fout << ", " << exec.failedExPerThread[j][i];
+            fout << ", " << exec.failedValPerThread[j][i];
         }
         cout << endl;
         cout << "\t Max failed exec = " << exec.maxFailedExSingleProgram[i] << endl;
         cout << "\t Max failed val = " << exec.maxFailedValSingleProgram[i] << endl;
     }
+    ExecutionProfiler::printProfile(header, fout);
     fout << endl;
     header << endl;
     fout.close();

@@ -63,6 +63,7 @@
       <itemPath>util/ConcurrentStore.h</itemPath>
       <itemPath>util/CuckooSecondaryIndex.h</itemPath>
       <itemPath>util/CustomString.h</itemPath>
+      <itemPath>util/ExecutionProfiler.h</itemPath>
       <itemPath>util/HashIndexMT.h</itemPath>
       <itemPath>util/MemoryPool.h</itemPath>
       <itemPath>util/MemoryPool.tcc</itemPath>
@@ -230,6 +231,8 @@
       <item path="util/CuckooSecondaryIndex.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="util/CustomString.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="util/ExecutionProfiler.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="util/HashIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
@@ -402,6 +405,8 @@
       </item>
       <item path="util/CustomString.h" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="util/ExecutionProfiler.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="util/HashIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="util/MemoryPool.h" ex="false" tool="3" flavor2="0">
@@ -571,6 +576,8 @@
       <item path="util/CuckooSecondaryIndex.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="util/CustomString.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="util/ExecutionProfiler.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="util/HashIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>

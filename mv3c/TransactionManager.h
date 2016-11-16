@@ -7,7 +7,7 @@
 
 struct TransactionManager {
     std::atomic<timestamp> timestampGen;
-    std::atomic_flag commitLock, counterLock;
+    SpinLock commitLock, counterLock;
     std::atomic<Transaction *> committedXactsTail;
 
     TransactionManager() : timestampGen(0) {
@@ -15,10 +15,10 @@ struct TransactionManager {
     }
 
     forceinline void begin(Transaction *xact) {
-        while (counterLock.test_and_set());
+        counterLock.lock();
         auto ts = timestampGen++;
         xact->startTS = ts;
-        counterLock.clear();
+        counterLock.unlock();
     }
 
     forceinline void rollback(Transaction * xact) {
@@ -249,11 +249,11 @@ struct TransactionManager {
         dv = xact->undoBufferHead;
 #endif
 
-        while (counterLock.test_and_set());
+        counterLock.lock();
         xact->commitTS = timestampGen.fetch_add(1);
-        counterLock.clear();
+        counterLock.unlock();
 
-        commitLock.clear();
+        commitLock.unlock();
 
         while (dv) {
             dv->xactId = xact->commitTS; //TOFIX: DOES NOT SET TS on the moved version
@@ -267,7 +267,7 @@ struct TransactionManager {
 
     forceinline bool validateAndCommit(Transaction *xact, Program *state = nullptr) {
         if (xact->undoBufferHead == nullptr) {
-            while (commitLock.test_and_set());
+            commitLock.lock();
             commit(xact);
             return true;
         }
@@ -297,7 +297,7 @@ struct TransactionManager {
                 }
             }
             endXact = startXact;
-            if (committedXactsTail != startXact || commitLock.test_and_set()) { //there are new transactions to be validated against
+            if (committedXactsTail != startXact || !commitLock.try_lock()) { //there are new transactions to be validated against
                 startXact = committedXactsTail;
                 continue;
             }
@@ -307,7 +307,7 @@ struct TransactionManager {
 #endif
                 xact->prevCommitted = startXact;
                 if (!committedXactsTail.compare_exchange_strong(startXact, xact)) {
-                    commitLock.clear();
+                    commitLock.unlock();
                     continue;
                 }
 
@@ -318,14 +318,14 @@ struct TransactionManager {
                 //To validate against all transactions, even if we are sure we will fail
                 if (startXact != committedXactsTail) {
                     startXact = committedXactsTail;
-                    commitLock.clear();
+                    commitLock.unlock();
                     continue;
                 }
                 DELTA *dv = xact->undoBufferHead, *prev = nullptr, *dvold;
 
-                while (counterLock.test_and_set());
+                counterLock.lock();
                 xact->startTS = timestampGen++;
-                counterLock.clear();
+                counterLock.unlock();
 #if CRITICAL_COMPENSATE
 
                 //Remove rolledback versions from undobuffer
@@ -354,7 +354,7 @@ struct TransactionManager {
                 commit(xact); //will release commitLock internally
                 return false;
 #else
-                commitLock.clear();
+                commitLock.unlock();
                 //Remove rolledback versions from undobuffer
                 while (dv != nullptr) {
                     if (dv->op != INVALID) {

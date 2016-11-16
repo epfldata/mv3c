@@ -13,9 +13,9 @@ public:
 	void AcquireReadLock() {
 		while (1) {
 			while (lock_type_ == WRITE_LOCK);
-			spinlock_.Lock();
+			spinlock_.lock();
 			if (lock_type_ == WRITE_LOCK) {
-				spinlock_.Unlock();
+				spinlock_.unlock();
 			}
 			else {
 				if (lock_type_ == NO_LOCK) {
@@ -26,7 +26,7 @@ public:
 					assert(lock_type_ == READ_LOCK);
 					++reader_count_;
 				}
-				spinlock_.Unlock();
+				spinlock_.unlock();
 				return;
 			}
 		}
@@ -34,7 +34,7 @@ public:
 
 	bool TryReadLock() {
 		bool rt = false;
-		spinlock_.Lock();
+		spinlock_.lock();
 		if (lock_type_ == NO_LOCK) {
 			lock_type_ = READ_LOCK;
 			++reader_count_;
@@ -47,21 +47,21 @@ public:
 		else {
 			rt = false;
 		}
-		spinlock_.Unlock();
+		spinlock_.unlock();
 		return rt;
 	}
 
 	void AcquireWriteLock() {
 		while (1) {
 			while (lock_type_ != NO_LOCK);
-			spinlock_.Lock();
+			spinlock_.lock();
 			if (lock_type_ != NO_LOCK) {
-				spinlock_.Unlock();
+				spinlock_.unlock();
 			}
 			else {
 				assert(lock_type_ == NO_LOCK);
 				lock_type_ = WRITE_LOCK;
-				spinlock_.Unlock();
+				spinlock_.unlock();
 				return;
 			}
 		}
@@ -69,7 +69,7 @@ public:
 
 	bool TryWriteLock() {
 		bool rt = false;
-		spinlock_.Lock();
+		spinlock_.lock();
 		if (lock_type_ == NO_LOCK) {
 			lock_type_ = WRITE_LOCK;
 			rt = true;
@@ -77,23 +77,23 @@ public:
 		else {
 			rt = false;
 		}
-		spinlock_.Unlock();
+		spinlock_.unlock();
 		return rt;
 	}
 
 	void ReleaseReadLock() {
-		spinlock_.Lock();
+		spinlock_.lock();
 		--reader_count_;
 		if (reader_count_ == 0) {
 			lock_type_ = NO_LOCK;
 		}
-		spinlock_.Unlock();
+		spinlock_.unlock();
 	}
 
 	void ReleaseWriteLock() {
-		spinlock_.Lock();
+		spinlock_.lock();
 		lock_type_ = NO_LOCK;
-		spinlock_.Unlock();
+		spinlock_.unlock();
 	}
 
 	bool ExistsWriteLock() const {

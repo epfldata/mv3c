@@ -51,6 +51,7 @@ namespace Banking {
         double fromVal = advFrom->val._1;
         auto prg = (mv3cTransfer *) p;
         Transaction &xact = p->xact;
+        auto tid = xact.threadId - 1;
         auto threadVar = prg->threadVar;
         if (fromVal > prg->amount + prg->fee) {
 
@@ -67,8 +68,13 @@ namespace Banking {
                 return status;
 
             new(&threadVar->getFee) AccountGet(AccountTable, &xact, FeeAccount, &threadVar->getFrom);
+            ExecutionProfiler::startProfile("getFee", tid);
             auto advFee = threadVar->getFee.evaluateAndExecute(&xact, feeFunction);
-            return feeFunction(p, advFee);
+            ExecutionProfiler::endProfile("getFee", tid);
+            ExecutionProfiler::startProfile("FeeFn", tid);
+            status = feeFunction(p, advFee);
+            ExecutionProfiler::endProfile("FeeFn", tid);
+            return status;
         }
         return ABORT;
     }
@@ -105,7 +111,6 @@ namespace Banking {
     struct mv3cTransferNoConflict : Program {
         //        const AccountKey from, to;
         const double amount;
-        
 
         mv3cTransferNoConflict() : Program((char) 1), amount(200) {
 

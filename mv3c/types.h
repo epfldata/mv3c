@@ -10,21 +10,23 @@
 //#define POWER 2
 #define DTIMER 1
 //#define TRADING_TEST 1   
-//#define BANKING_TEST 1
-#define BENCH 1
+#define BANKING_TEST 1
+//#define BENCH 1
 //#define TPCC_TEST 1
 //#define TPCC2_TEST 1
 //#define RIPPLE_TEST 1
-#define NUMTHREADS 6
+#define NUMTHREADS 5
 //Tuned for yper server. Should change for IC server
 #define CONFLICT_FRACTION 1.0
 #define ATTRIB_LEVEL 1
 //#define STORE_ENABLE 1
 #define CUCKOO true
-#define CUCKOO_SI true
+//#define CUCKOO_SI true
+#define CC_SI true
 #define CCSI true
 #define CWW false
 #define VERIFY true
+#define EXEC_PROFILE true
 //#define PERF_STAT true
 #endif
 #include <type_traits>
@@ -38,6 +40,7 @@
 #include <atomic>
 #include <sched.h>
 #include <pthread.h>
+
 using std::cout;
 using std::endl;
 using std::cerr;
@@ -157,5 +160,7 @@ forceinline T unmark(T t) {
     s = sched_setscheduler(0, type, &param);\
     if (s != 0)\
         cerr << "Cannot set scheduler";
+
+#include "ExecutionProfiler.h"
 #endif /* TYPES_H */
 

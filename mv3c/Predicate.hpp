@@ -123,6 +123,10 @@ struct SlicePred : public PRED {
         range->lock.ReleaseReadLock();
         return results;
     }
+#else
+    ResultType evaluateInternal(Transaction *xact) {
+        throw std::logic_error("not implemented for the case without Cuckoo SI");
+    }
 #endif
 
     ResultType evaluateAndExecute(Transaction *xact, const FuncType fn, uint cs = -1) {

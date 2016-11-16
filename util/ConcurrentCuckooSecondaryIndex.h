@@ -5,7 +5,7 @@
 #include <libcuckoo/city_hasher.hh>
 #include <atomic>
 
-template <typename K, typename V, typename P, typename Alloc>
+template <typename K, typename V, typename P, typename Alloc = std::allocator<char>>
 struct ConcurrentCuckooSecondaryIndex : SecondaryIndex<K, V> {
     typedef Entry<K, V>* EntryPtrType;
 
@@ -103,13 +103,13 @@ struct ConcurrentCuckooSecondaryIndex : SecondaryIndex<K, V> {
 template <typename K, typename V, typename P, typename A>
 thread_local typename ConcurrentCuckooSecondaryIndex<K, V, P, A>::ContainerPoolType * ConcurrentCuckooSecondaryIndex<K, V, P, A>::store;
 
-#define TraverseSlice(name, type, txnptr)\
-    auto name##Cur = name->next, name##CurNext , name##Prev = name, name##PrevNext = name##Cur;\
+#define TraverseSlice(name, tblptr, txnptr)\
+    auto name##Cur = name->next, name##CurNext =nullptr , name##Prev = name, name##PrevNext = name##Cur;\
     auto name##Entry = name->e;\
-    auto name##DV = type##Table->getCorrectDV(txnptr, name##Entry);\
+    auto name##DV = tblptr->getCorrectDV(txnptr, name##Entry);\
     auto name##Val = name##DV->val;\
     if(name##Cur != nullptr){\
-      name##curNext = name##Cur->next;\
+      name##CurNext = name##Cur->next;\
       while(isMarked(name##CurNext)){\
         name##Cur = unmark(name##CurNext);\
         if(!name##Cur)\

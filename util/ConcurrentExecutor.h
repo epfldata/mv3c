@@ -97,13 +97,8 @@ struct ConcurrentExecutor {
 
     void threadFunction(uint8_t thread_id) {
         //        const int CPUS[] = {0, 1, 2, 3};
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(2 * thread_id, &cpuset);
-        auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);
-        if (s != 0) {
-            throw std::runtime_error("Cannot set affinity");
-        }
+        setAffinity(thread_id);
+        setSched(SCHED_FIFO);
         ThreadLocal threadVar;
 #ifdef BANKING_TEST
         threadVar.from = AccountKey(thread_id * 2);
