@@ -237,7 +237,13 @@ struct Table {
 #endif
 
     forceinline std::vector<std::pair<const K*, const V*>> getAll(Transaction *xact) {
+#if CUCKOO
         auto lockedT = primaryIndex.lock_table();
+#else
+        primaryIndex.lock_.AcquireWriteLock();
+        auto& lockedT = primaryIndex.index;
+        primaryIndex.lock_.ReleaseWriteLock();
+#endif
         std::vector<std::pair<const K*, const V*>> results;
         for (auto it = lockedT.cbegin(); it != lockedT.cend(); ++it) {
             auto e = it->second;

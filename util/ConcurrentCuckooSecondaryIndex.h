@@ -104,7 +104,7 @@ template <typename K, typename V, typename P, typename A>
 thread_local typename ConcurrentCuckooSecondaryIndex<K, V, P, A>::ContainerPoolType * ConcurrentCuckooSecondaryIndex<K, V, P, A>::store;
 
 #define TraverseSlice(name, tblptr, txnptr)\
-    auto name##Cur = name->next, name##CurNext =nullptr , name##Prev = name, name##PrevNext = name##Cur;\
+    auto name##Cur = name->next.load(), name##CurNext = name , name##Prev = name, name##PrevNext = name##Cur;\
     auto name##Entry = name->e;\
     auto name##DV = tblptr->getCorrectDV(txnptr, name##Entry);\
     auto name##Val = name##DV->val;\

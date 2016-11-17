@@ -34,13 +34,7 @@ int main(int argc, char** argv) {
     std::ofstream fout("out", ios::app);
 #endif
     std::ofstream header("header");
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(1, &cpuset);
-    auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);
-    if (s != 0) {
-        throw std::runtime_error("Cannot set affinity");
-    }
+    setAffinity(-1);
     TPCCDataGen tpcc;
     TABLE(Customer) custTbl(CustomerIndexSize);
     TABLE(District) distTbl(DistrictIndexSize);
@@ -319,7 +313,7 @@ int main(int argc, char** argv) {
     ConcurrentExecutor exec(numThreads, transactionManager);
     exec.execute(programs, numPrograms);
     cout << "order success =" << orderSuccess << "  order failed =" << orderFailed << endl;
-    cout << "delivery failed districts = "<< deliveryDistrictFailed << endl;
+    cout << "delivery failed districts = " << deliveryDistrictFailed << endl;
     header << ", Duration(ms), Committed, FailedEx, FailedVal, FailedExRate, FailedValRate, Throughput(ktps), ScaledTime, numValidations, numValAgainst, avgValAgainst, AvgValRound";
     cout << "Duration = " << exec.timeUs / 1000.0 << endl;
     fout << ", " << exec.timeUs / 1000.0;
@@ -504,7 +498,7 @@ int main(int argc, char** argv) {
     }
     auto allWareVerify = wareTblVerify.getAll(&tf);
     for (auto it : allWareVerify) {
-        
+
         tpcc.oWarehouse.insert({*it.first, *it.second});
     }
     auto allItemVerify = itemTblVerify.getAll(&tf);
@@ -535,7 +529,7 @@ int main(int argc, char** argv) {
     for (auto it : allNewOVerify) {
         tpcc.oNewOrder.insert({*it.first, *it.second});
     }
-    
+
     tpcc.checkCustomerResults();
     tpcc.checkDistrictResults();
     tpcc.checkHistoryResults();
@@ -545,7 +539,7 @@ int main(int argc, char** argv) {
     tpcc.checkOrderResults();
     tpcc.checkStockResults();
     tpcc.checkWarehouseResults();
-    
+
 #endif    
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];

@@ -131,8 +131,8 @@ int main(int argc, char** argv) {
     ConcurrentExecutor exec(numThreads, transactionManager);
     exec.execute(programs, numPrograms);
     header << ", Duration(ms), Committed, FailedEx, FailedVal, FailedExRate, FailedValRate, Throughput(ktps), ScaledTime, numValidations, numValAgainst, avgValAgainst, AvgValRound";
-    cout << "Duration = " << exec.timeMs << endl;
-    fout << ", " << exec.timeMs;
+    cout << "Duration = " << exec.timeUs / 1000 << endl;
+    fout << ", " << exec.timeUs / 1000;
     cout << "Committed = " << exec.finishedPrograms << endl;
     fout << ", " << exec.finishedPrograms;
     cout << "FailedExecution  = " << exec.failedExecution << endl;
@@ -143,10 +143,10 @@ int main(int argc, char** argv) {
     fout << ", " << 1.0 * exec.failedExecution / exec.finishedPrograms;
     cout << "FailedVal rate = " << 1.0 * exec.failedValidation / exec.finishedPrograms << endl;
     fout << ", " << 1.0 * exec.failedValidation / exec.finishedPrograms;
-    cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs) << " K tps" << endl;
-    fout << ", " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeMs);
-    fout << ", " << numPrograms * exec.timeMs / (exec.finishedPrograms * 1000.0);
-    
+    cout << "Throughput = " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeUs) << " K tps" << endl;
+    fout << ", " << (uint) (exec.finishedPrograms * 1000.0 / exec.timeUs);
+    fout << ", " << numPrograms * exec.timeUs / (exec.finishedPrograms * 1000.0);
+
     size_t commitTime = 0, validateTime = 0, executeTime = 0, compensateTime = 0;
     size_t commitTimes[txnTypes], validateTimes[txnTypes], executeTimes[txnTypes], compensateTimes[txnTypes];
     for (uint i = 0; i < txnTypes; ++i) {
@@ -209,12 +209,14 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < numThreads; ++i) {
         cout << "Thread " << i << endl;
-        header << ", Thread " << i << ", finished TO, finished PU, failedEx TO, failedEx PU, failedVal TO, failedVal PU, maxFailedEx, maxFailedVal";
-        fout << ", ";
         for (uint j = 0; j < txnTypes; ++j) {
             cout << "\t" << prgNames[j] << ":\n\t  finished=" << exec.finishedPerThread[j][i] << endl;
             cout << "\t  failedEx = " << exec.failedExPerThread[j][i] << endl;
             cout << " \t  failedVal = " << exec.failedValPerThread[j][i] << endl;
+            header << ", T" << i << "-" << prgNames[j] << " finished" << ", T" << i << "-" << prgNames[j] << " failedEx"; // << ", T" << i << "-" << prgNames[j] << "failedVal";
+            fout << ", " << exec.finishedPerThread[j][i];
+            fout << ", " << exec.failedExPerThread[j][i];
+            fout << ", " << exec.failedValPerThread[j][i];
         }
         cout << endl;
         cout << "\t Max failed exec = " << exec.maxFailedExSingleProgram[i] << endl;
