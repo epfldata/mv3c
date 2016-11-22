@@ -78,12 +78,12 @@ namespace tpcc_ns {
 #else
     const std::string TStore = "/home/sachin/TStore/";
 #endif
-//    const int sources[] = {16,16,12,16, 5,12,14,16, 9,10,11,12,13,14,15,16};  
-//  const int sources[] = {1 , 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16};  
+    //    const int sources[] = {16,16,12,16, 5,12,14,16, 9,10,11,12,13,14,15,16};  
+    //  const int sources[] = {1 , 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16};  
     //    const std::string commandfile = TStore + "CavCommands" STRINGIFY(NUMWARE) ".txt";
     const int wareSource = 16; //sources[numWare-1];
-    const std::string commandfile = TStore + "CavCommands"+ to_string(wareSource) + ".txt";   
-    
+    const std::string commandfile = TStore + "CavCommands" + to_string(wareSource) + ".txt";
+
     //const std::string inputTableDir = "/home/sachin/sem3/Project/test/input/";
     //const std::string outputTableDir = "/home/sachin/sem3/Project/test/output/";
     const std::string inputTableDir = TStore + "bench/systems/tpcc/mysql/db" STRINGIFY(NUMWARE) "innodb/";
@@ -154,6 +154,35 @@ namespace tpcc_ns {
     }
 
     //---------------------------------------------
+
+    struct CustomerPKey {
+        String<16> c_last;
+        uint8_t d_id, w_id;
+
+        CustomerPKey() {
+            memset((char *) this, 0, sizeof (CustomerPKey));
+        }
+
+        CustomerPKey(uint8_t d_id, uint8_t w_id, const String<16>& c_last) :
+        d_id(d_id), w_id(w_id), c_last(c_last) {
+            //            int padding = sizeof (CustomerPKey) - (sizeof (c_last) + 2);
+            //            memset((char *) this +sizeof (c_last) + 2, 0, padding);
+        }
+
+        CustomerPKey(const Entry<CustomerKey, CustomerVal> *e, const CustomerVal& v) {
+            int padding = sizeof (CustomerPKey) - (sizeof (c_last) + 2);
+            memset((char *) this +sizeof (c_last) + 2, 0, padding);
+            const CustomerKey& k = e->key;
+            d_id = k._2;
+            w_id = k._3;
+            c_last = v._3;
+        }
+
+        bool operator==(const CustomerPKey& right) const {
+            return d_id == right.d_id && w_id == right.w_id && c_last == right.c_last;
+        }
+
+    };
 
     struct OrderPKey {
         uint32_t c_id;
@@ -257,7 +286,7 @@ namespace tpcc_ns {
     //-----------------------------------------
 
     enum TPCC_Programs : char {
-        NEWORDER, PAYMENTBYID, ORDERSTATUSBYID, DELIVERY, STOCKLEVEL, STOCKUPDATE, PAYMENTBYNAME, ORDERSTATUSBYNAME
+        NEWORDER, PAYMENT, ORDERSTATUSBYID, DELIVERY, STOCKLEVEL, STOCKUPDATE, ORDERSTATUSBYNAME
     };
     const int txnTypes = 6;
     std::string prgNames[] = {"NO", "PY", "OS", "DE", "SL", "SU"};
@@ -310,62 +339,35 @@ namespace tpcc_ns {
 
     };
 
-    struct PaymentById : public Program {
+    struct Payment : public Program {
         datetime_t datetime;
         uint32_t c_id;
         uint8_t w_id, c_w_id, d_id, c_d_id;
         float h_amount;
+        String<16> c_last;
 
-        PaymentById() : Program(PAYMENTBYID) {
+        Payment() : Program(PAYMENT) {
         }
 
-        PaymentById(const Program* p) : Program(p) {
-            assert(p->prgType == PAYMENTBYID);
-            const PaymentById* that = (const PaymentById*) p;
+        Payment(const Program* p) : Program(p) {
+            assert(p->prgType == PAYMENT);
+            const Payment* that = (const Payment*) p;
             datetime = that->datetime;
             c_id = that->c_id;
             w_id = that->w_id;
             c_w_id = that->c_w_id;
             d_id = that->d_id;
             c_d_id = that->c_d_id;
+            c_last = that->c_last;
             h_amount = that->h_amount;
         }
 
         virtual std::ostream& print(std::ostream & s) {
-            s << "PaymentById  " << datetime << "  " << w_id << "  " << d_id << "  " << c_w_id << "  " << c_d_id << "  " << c_id << "  " << h_amount << std::endl;
+            s << "Payment  " << datetime << "  " << w_id << "  " << d_id << "  " << c_w_id << "  " << c_d_id << "  " << c_id << "  " << c_last << "  " << h_amount << std::endl;
 
             return s;
         }
 
-    };
-
-    struct PaymentByName : public Program {
-        datetime_t datetime;
-        uint8_t w_id, c_w_id;
-        uint8_t d_id, c_d_id;
-        String<16> c_last_input;
-        float h_amount;
-
-        PaymentByName() : Program(PAYMENTBYNAME) {
-        }
-
-        PaymentByName(const Program* p) : Program(p) {
-            assert(p->prgType == PAYMENTBYNAME);
-            const PaymentByName* that = (const PaymentByName*) p;
-            datetime = that->datetime;
-            w_id = that->w_id;
-            c_w_id = that->c_w_id;
-            d_id = that->d_id;
-            c_d_id = that->c_d_id;
-            c_last_input = that->c_last_input;
-            h_amount = that->h_amount;
-        }
-
-        virtual std::ostream& print(std::ostream & s) {
-            s << "PaymentByName  " << datetime << "  " << w_id << "  " << d_id << "  " << c_w_id << "  " << c_d_id << "  " << c_last_input << "  " << h_amount << std::endl;
-
-            return s;
-        }
     };
 
     struct OrderStatusById : public Program {
@@ -592,59 +594,50 @@ namespace tpcc_ns {
                 if (type == "NewOrder") {
                     NewOrder* o = new NewOrder();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_id >> o->o_ol_cnt;
-//                    if (wareSource % numWare != 0) {
-//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-//                    }
+                    //                    if (wareSource % numWare != 0) {
+                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     for (int i = 0; i < 15; i++)
                         ss >> o->itemid[i];
-                    for (int i = 0; i < 15; i++){
+                    for (int i = 0; i < 15; i++) {
                         ss >> o->supware[i];
                         o->supware[i] = o->supware[i] % numWare + 1;
-                    } 
+                    }
                     for (int i = 0; i < 15; i++)
                         ss >> o->quantity[i];
                     programs[curPrg++] = o;
-                } else if (type == "PaymentById") {
-                    PaymentById* o = new PaymentById();
-                    ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_id >> o->h_amount;
-//                    if (wareSource % numWare != 0) {
-//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-//                    }
-                    o->w_id = o->w_id % numWare + 1;
-                    o->c_w_id = o->c_w_id % numWare + 1;
-                    programs[curPrg++] = o;
-                } else if (type == "PaymentByName") {
-                    PaymentByName* o = new PaymentByName();
-                    ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_last_input >> o->h_amount;
-//                    if (wareSource % numWare != 0) {
-//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-//                    }
+                } else if (type == "Payment") {
+                    Payment* o = new Payment();
+                    ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_id >> o->c_last >> o->h_amount;
+                    //                    if (wareSource % numWare != 0) {
+                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     o->c_w_id = o->c_w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusById") {
                     OrderStatusById* o = new OrderStatusById();
                     ss >> o->w_id >> o->d_id >> o->c_id;
-//                    if (wareSource % numWare != 0) {
-//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-//                    }
+                    //                    if (wareSource % numWare != 0) {
+                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusByName") {
                     OrderStatusByName* o = new OrderStatusByName();
                     ss >> o->w_id >> o->d_id >> o->c_last;
-//                    if (wareSource % numWare != 0) {
-//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-//                    }
+                    //                    if (wareSource % numWare != 0) {
+                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "Delivery") {
                     Delivery* o = new Delivery();
                     ss >> o->datetime >> o->w_id >> o->o_carrier_id;
-//                    if (wareSource % numWare != 0) {
-//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-//                    }
+                    //                    if (wareSource % numWare != 0) {
+                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "StockLevel") {
@@ -655,9 +648,9 @@ namespace tpcc_ns {
                     //                    ss >> t;
                     StockLevel* o = new StockLevel();
                     ss >> o->w_id >> o->d_id >> o->threshold;
-//                    if (wareSource % numWare != 0) {
-//                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-//                    }
+                    //                    if (wareSource % numWare != 0) {
+                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
+                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else {
@@ -671,10 +664,12 @@ namespace tpcc_ns {
             std::ifstream fin(inputTableDir + "customer.txt");
             std::string line;
             CustomerKey ck;
-            CustomerVal cv;
-            cv.isNotNull = true;
+
+
             char date[20];
             while (std::getline(fin, line)) {
+                CustomerVal cv;
+                cv.isNotNull = true;
                 sscanf(line.c_str(), u32 "," u8 "," u8 "," STR "," STR "," STR "," STR "," STR "," STR "," STR "," STR "," STR "," DATE "," STR "," dp "," fp "," dp "," dp "," u16 "," u16 "," STR, &ck._1, &ck._2, &ck._3, cv._1.data, cv._2.data, cv._3.data, cv._4.data, cv._5.data, cv._6.data, cv._7.data, cv._8.data, cv._9.data, date, cv._11.data, &cv._12, &cv._13, &cv._14, &cv._15, &cv._16, &cv._17, cv._18.data);
                 cv._10 = StrToIntDate(date);
                 iCustomer.insert({ck, cv});
@@ -683,6 +678,8 @@ namespace tpcc_ns {
 #ifdef VERIFY_TPCC
             fin.open(outputTableDir + "customer.txt");
             while (std::getline(fin, line)) {
+                CustomerVal cv;
+                cv.isNotNull = true;
                 sscanf(line.c_str(), u32 "," u8 "," u8 "," STR "," STR "," STR "," STR "," STR "," STR "," STR "," STR "," STR "," DATE "," STR "," dp "," fp "," dp "," dp "," u16 "," u16 "," STR, &ck._1, &ck._2, &ck._3, cv._1.data, cv._2.data, cv._3.data, cv._4.data, cv._5.data, cv._6.data, cv._7.data, cv._8.data, cv._9.data, date, cv._11.data, &cv._12, &cv._13, &cv._14, &cv._15, &cv._16, &cv._17, cv._18.data);
                 cv._10 = StrToIntDate(date);
                 oCustomer.insert({ck, cv});

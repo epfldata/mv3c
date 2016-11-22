@@ -1,34 +1,36 @@
 #ifndef STRING_H
 #define STRING_H
 #include <cstring>
+
 template <int N>
 class String {
 public:
     char data[N + 1];
 
     String(const char* d) {
+        memset(data, 0, N + 1);
         memcpy(data, d, N);
-        data[N] = 0;
+
     }
 
-//    String(const String<N>& that) {
-//        memcpy(data, that.data, N);
-//        data[N] = 0;
-//    }
+    //    String(const String<N>& that) {
+    //        memcpy(data, that.data, N);
+    //        data[N] = 0;
+    //    }
 
     String() {
-        data[0] = 0;
+         memset(data, 0, N + 1);
     }
 
     const char* c_str() const {
         return data;
     }
 
-//    const String<N>& operator=(const String<N>& that) {
-//        memcpy(data, that.data, N);
-//        data[N] = 0;
-//        return *this;
-//    }
+    //    const String<N>& operator=(const String<N>& that) {
+    //        memcpy(data, that.data, N);
+    //        data[N] = 0;
+    //        return *this;
+    //    }
 
     bool operator==(const String<N>& that) const {
         return strcmp(data, that.data) == 0;
@@ -37,10 +39,11 @@ public:
     bool contains(const char* substr) const {
         return strcmp(data, substr) == 0; //TODO FIX
     }
-    void insertAt(int pos, const char* STR, int maxchars){
-        strncpy(data+pos, STR, maxchars);
+
+    void insertAt(int pos, const char* STR, int maxchars) {
+        strncpy(data + pos, STR, maxchars);
         assert(pos + maxchars <= N);
-        data[pos+maxchars] = 0;
+        data[pos + maxchars] = 0;
     }
     //    bool operator < (const String<N>& that) const {
     //        return strcmp(data, that.data)<0;

@@ -6,7 +6,7 @@
 #define CRITICAL_COMPENSATE false
 #define NUMPROG 1000000
 #define NUMWARE 1
-#define OMVCC true
+#define OMVCC false
 //#define POWER 2
 #define DTIMER 1
 //#define TRADING_TEST 1   
@@ -15,7 +15,7 @@
 #define TPCC_TEST 1
 //#define TPCC2_TEST 1
 //#define RIPPLE_TEST 1
-#define NUMTHREADS 5
+#define NUMTHREADS 1
 //Tuned for yper server. Should change for IC server
 #define CONFLICT_FRACTION 1.0
 #define ATTRIB_LEVEL 1
@@ -27,6 +27,7 @@
 #define CWW false
 //#define VERIFY false
 #define EXEC_PROFILE true
+#define MALLOCTYPE "normal"
 //#define PERF_STAT true
 #endif
 #include <type_traits>
@@ -139,7 +140,7 @@ forceinline T unmark(T t) {
 #define  TABLE(x) Table<x##Key, x##Val>
 #define GETP(x) GetPred<x##Key,x##Val>
 #define DV(x) DeltaVersion<x##Key,x##Val>
-
+#define SLICEP(x) SlicePred<x##Key, x##Val, x##PKey>
 #define DefineStore(type)\
   template<>\
   DeltaVersion<type##Key, type##Val>::StoreType DeltaVersion<type##Key, type##Val>::store(type##DVSize, STRINGIFY(type)"DV", numThreads);\

@@ -21,6 +21,7 @@ namespace tpcc_ns {
     typedef DV(OrderLine) OrderLineDV;
     typedef GETP(DistrictNewOrder) DistNOGet;
     typedef DV(DistrictNewOrder) DistNODV;
+    typedef SLICEP(Customer) CustSlice;
 }
 using namespace tpcc_ns;
 
@@ -28,7 +29,7 @@ struct ThreadLocal {
     DistGet dist;
     CustGet cust;
     WareGet ware;
-
+    CustSlice custSl;
     StockGet MV3CNewOrderStock[15];
     ItemGet MV3CNewOrderItem[15];
     float MV3CNewOrderOl_amt[15];
@@ -41,6 +42,7 @@ struct ThreadLocal {
     WarehouseKey wareKey;
     DistrictKey distKey;
     CustomerKey custKey;
+    CustomerPKey custPKey;
     ItemKey itemKey;
     StockKey stockKey;
     OrderKey orderKey;
@@ -239,22 +241,31 @@ namespace tpcc_ns {
     forceinline TransactionReturnStatus payment_distfn(Program *p, const DistDV * ddv, uint cs = -1);
     forceinline TransactionReturnStatus payment_warefn(Program *p, const WareDV * wdv, uint cs = -1);
     forceinline TransactionReturnStatus payment_custfn(Program *p, const CustDV * cdv, uint cs = -1);
+    forceinline TransactionReturnStatus payment_custfn2(Program *p, const CustSlice::ResultType& cdvs, uint cs = -1);
 
-    struct MV3CPayment : PaymentById {
+    struct MV3CPayment : Payment {
 
         MV3CPayment(const Program* p) :
-        PaymentById(p) {
+        Payment(p) {
         }
 
         TransactionReturnStatus execute() override {
             TransactionReturnStatus status = SUCCESS;
-
-            new(&threadVar->custKey)CustomerKey(c_id, c_d_id, c_w_id);
-            new (&threadVar->cust) CustGet(CustomerTable, &xact, threadVar->custKey, nullptr, (1 << 14 | 1 << 15 | 1 << 16));
-            auto cdv = threadVar->cust.evaluateAndExecute(&xact, payment_custfn);
-            status = payment_custfn(this, cdv);
-            if (status != SUCCESS) {
-                return status;
+            if (c_id != -1) {
+                new(&threadVar->custKey)CustomerKey(c_id, c_d_id, c_w_id);
+                new (&threadVar->cust) CustGet(CustomerTable, &xact, threadVar->custKey, nullptr, col_type(1 << 14 | 1 << 15 | 1 << 16));
+                auto cdv = threadVar->cust.evaluateAndExecute(&xact, payment_custfn);
+                status = payment_custfn(this, cdv);
+                if (status != SUCCESS) {
+                    return status;
+                }
+            } else {
+                new(&threadVar -> custPKey) CustomerPKey(c_d_id, c_w_id, c_last);
+                new(&threadVar -> custSl) CustSlice(CustomerTable, &xact, 0, threadVar->custPKey, nullptr, col_type(1 << 14 | 1 << 15 | 1 << 16));
+                auto cdvs = threadVar->custSl.evaluateAndExecute(&xact, payment_custfn2);
+                status = payment_custfn2(this, cdvs);
+                if (status != SUCCESS)
+                    return status;
             }
 
             new (&threadVar->distKey) DistrictKey(d_id, w_id);
@@ -310,6 +321,43 @@ namespace tpcc_ns {
     forceinline TransactionReturnStatus payment_custfn(Program* p, const CustDV* cdv, uint cs) {
         auto prg = (MV3CPayment *) p;
         Transaction& xact = p->xact;
+        CreateValUpdate(Customer, newcv, cdv);
+        newcv->_14 -= prg->h_amount;
+        newcv->_15 += prg->h_amount;
+        newcv->_16++;
+        //
+        std::string newDATA = to_string(prg->c_id) + " " + to_string(prg->c_d_id) + " " + to_string(prg->c_w_id) + " " + to_string(prg->d_id) + " " + to_string(prg->w_id) + " " + to_string(prg->h_amount) + " " + to_string(prg->datetime) + " | ";
+        std::string olddata = cdv->val._18.c_str();
+        std::string newdata2 = newDATA + olddata.substr(0, 500 - newDATA.size());
+        String<500> newdata;
+        newdata.insertAt(0, newdata2.c_str(), 500);
+        newcv->_18 = newdata;
+
+
+        if (CustomerTable->update(&xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, CWW, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
+            //            if (ALLOW_WW)
+            //                throw std::logic_error("payment cust");
+            //            else
+            return WW_ABORT;
+        }
+        return SUCCESS;
+    }
+
+    forceinline TransactionReturnStatus payment_custfn2(Program* p, const CustSlice::ResultType& cdvs, uint cs) {
+        auto prg = (MV3CPayment *) p;
+        Transaction& xact = p->xact;
+        const CustDV * cdvarray[cdvs.size()];
+        int n = 0;
+        for (auto it : cdvs) {
+            cdvarray[n++] = it;
+        }
+        std::sort(cdvarray, cdvarray + n, [](const CustDV *c1, const CustDV * c2) {
+            return c1->val._1 < c2->val._1;
+        });
+        n = (n - 1) / 2;
+        auto cdv = cdvarray[n];
+
+
         CreateValUpdate(Customer, newcv, cdv);
         newcv->_14 -= prg->h_amount;
         newcv->_15 += prg->h_amount;

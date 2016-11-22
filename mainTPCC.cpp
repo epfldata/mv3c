@@ -77,6 +77,13 @@ int main(int argc, char** argv) {
     OrderLineIndexes[0] = &OrderLineIndex;
     ordLTbl.secondaryIndexes = OrderLineIndexes;
     ordLTbl.numIndexes = 1;
+    
+    
+    CuckooSecondaryIndex<CustomerKey, CustomerVal, CustomerPKey> CustomerIndex;
+    SecondaryIndex<CustomerKey, CustomerVal> * CustomerIndexes[1];
+    CustomerIndexes[0] = &CustomerIndex;
+    custTbl.secondaryIndexes = CustomerIndexes;
+    custTbl.numIndexes = 1;
 #endif
 
 #ifdef VERIFY
@@ -134,7 +141,7 @@ int main(int argc, char** argv) {
     tpcc.loadStocks();
     tpcc.loadWare();
     std::cout.imbue(std::locale(""));
-    header << "BenchName,Algo,Critical Compensate,Validation level,WW allowed,Store enabled,Cuckoo enabled,SecondaryIndex,CWW,NumWare";
+    header << "BenchName,Algo,Critical Compensate,Validation level,WW allowed,Store enabled,Cuckoo enabled,SecondaryIndex,CWW,NumWare,Malloc";
     cout << "TPCC" << endl;
     fout << "TPCC";
 #if OMVCC
@@ -184,7 +191,7 @@ int main(int argc, char** argv) {
     fout << "," << CWW;
     cout << "Number of warehouse = " << numWare << endl;
     cout << "warehouse source= " << wareSource << endl;
-    fout << "," << numWare;
+    fout << "," << numWare << "," << MALLOCTYPE;    
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);
@@ -280,7 +287,7 @@ int main(int argc, char** argv) {
                 newp = new MV3CNewOrder(p);
                 neworder++;
                 break;
-            case PAYMENTBYID:
+            case PAYMENT:
                 newp = new MV3CPayment(p);
                 payment++;
                 break;

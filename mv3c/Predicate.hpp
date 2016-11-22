@@ -99,8 +99,9 @@ struct SlicePred : public PRED {
     SlicePred(Table<K, V>* tbl, Transaction *x, uint8_t idx, const P& pk, PRED* par = nullptr, const col_type& cols = col_type(-1)) : PRED(x, par, SLICE), tbl(tbl), partialKey(pk), indexNum(idx) {
     }
 #endif
-    SlicePred():indexNum(-1){
-        
+
+    SlicePred() : indexNum(-1) {
+
     }
 #ifdef CUCKOO_SI
 
@@ -118,6 +119,7 @@ struct SlicePred : public PRED {
             DeltaVersion<K, V> *dv = tbl->getCorrectDV(xact, e);
             if (dv != nullptr) {
                 results.insert(dv);
+                count ++;
             }
         }
         range->lock.ReleaseReadLock();
