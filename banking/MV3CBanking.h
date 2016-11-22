@@ -5,6 +5,7 @@
 #include <thread>
 #include <cstdio>
 #include "Banking.h"
+#include <random>
 namespace Banking {
     typedef GETP(Account) AccountGet;
     typedef DV(Account) AccountDV;
@@ -25,11 +26,17 @@ namespace Banking {
     forceinline TransactionReturnStatus feeFunction(Program *p, const AccountDV* advFee, uint cs = -1);
 
     struct mv3cTransfer : Program {
-        //        const AccountKey from, to;
+        AccountKey fromAcc, toAcc, feeAcc;
         const double amount;
         double fee;
 
         mv3cTransfer() : Program((char) 0), amount(200) {
+            std::default_random_engine g1;
+            std::uniform_int_distribution<uint32_t> accGen(0, numUserAccounts - 1);
+            std::uniform_int_distribution<uint32_t> feeAccGen(numUserAccounts, AccountSize - 1);
+            fromAcc = AccountKey(accGen(g1));  //not used 
+            toAcc = AccountKey(accGen(g1)); //not used 
+            feeAcc = AccountKey(feeAccGen(g1));
         }
 
         mv3cTransfer(const Transfer& t) : Program((char) 0), amount(t.amount) {
@@ -67,7 +74,7 @@ namespace Banking {
             if (status != SUCCESS)
                 return status;
 
-            new(&threadVar->getFee) AccountGet(AccountTable, &xact, FeeAccount, &threadVar->getFrom);
+            new(&threadVar->getFee) AccountGet(AccountTable, &xact, prg->feeAcc, &threadVar->getFrom);
             ExecutionProfiler::startProfile("getFee", tid);
             auto advFee = threadVar->getFee.evaluateAndExecute(&xact, feeFunction);
             ExecutionProfiler::endProfile("getFee", tid);

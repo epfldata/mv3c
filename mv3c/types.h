@@ -6,13 +6,13 @@
 #define CRITICAL_COMPENSATE false
 #define NUMPROG 1000000
 #define NUMWARE 1
-#define OMVCC false
+#define OMVCC true
 //#define POWER 2
 #define DTIMER 1
 //#define TRADING_TEST 1   
-#define BANKING_TEST 1
+//#define BANKING_TEST 1
 //#define BENCH 1
-//#define TPCC_TEST 1
+#define TPCC_TEST 1
 //#define TPCC2_TEST 1
 //#define RIPPLE_TEST 1
 #define NUMTHREADS 5
@@ -21,11 +21,11 @@
 #define ATTRIB_LEVEL 1
 //#define STORE_ENABLE 1
 #define CUCKOO true
-//#define CUCKOO_SI true
-#define CC_SI true
+#define CUCKOO_SI true
+//#define CC_SI true
 #define CCSI true
 #define CWW false
-#define VERIFY true
+//#define VERIFY false
 #define EXEC_PROFILE true
 //#define PERF_STAT true
 #endif

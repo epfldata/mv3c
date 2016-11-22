@@ -81,7 +81,7 @@ namespace tpcc_ns {
 //    const int sources[] = {16,16,12,16, 5,12,14,16, 9,10,11,12,13,14,15,16};  
 //  const int sources[] = {1 , 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16};  
     //    const std::string commandfile = TStore + "CavCommands" STRINGIFY(NUMWARE) ".txt";
-    const int wareSource = 1; //sources[numWare-1];
+    const int wareSource = 16; //sources[numWare-1];
     const std::string commandfile = TStore + "CavCommands"+ to_string(wareSource) + ".txt";   
     
     //const std::string inputTableDir = "/home/sachin/sem3/Project/test/input/";

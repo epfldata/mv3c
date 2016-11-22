@@ -1,6 +1,6 @@
 #!/bin/bash
 rm -rf *TPCC*.out
-rm -f 9b*.csv
+rm -f 9b*.csv 9b.avg 9b.pdf
 rm -f header out
 echo "TPCC  conflict test "
 for numThr in 10  
@@ -12,23 +12,23 @@ done | xargs  -n 2 -P10 ./compileTPCC.sh
 done
 
 rm ~/TStore/CavCommands*
-cp ~/Full2/CavCommands* ~/TStore/
-for i in 1 
-o
-for numThr in 10 
+cp ~/Full/CavCommands* ~/TStore/
+for i in {1..5} 
+do
+for numThr in 10
 do
 for p in 1 2 3 4 6 8 10 12 14 16
 do
-./mvccTPCC-$numThr-$p.out	
-./mv3cTPCC-$numThr-$p.out			
-./mv3cTPCC-cww-$numThr-$p.out			
+sudo ./mvccTPCC-$numThr-$p.out	
+sudo ./mv3cTPCC-$numThr-$p.out			
 done
 done
 done
 
-cat header out > 9b-full2.csv
+cat header out > 9b.csv
 rm -f header out
-
+python 9b.py
+gnuplot 9b.plot
 
 
 #rm ~/TStore/CavCommands*
@@ -47,22 +47,22 @@ rm -f header out
 #
 #
 #
-rm ~/TStore/CavCommands*
-cp ~/PY2/CavCommands* ~/TStore/
-for i in 1
-do
-for numThr in 10 
-do
-for p in 1 2 3 4 6 8 10 12 14 16
-do
-./mvccTPCC-$numThr-$p.out	
-./mv3cTPCC-$numThr-$p.out			
-./mv3cTPCC-cww-$numThr-$p.out			
-done
-done
-done
-
-cat header out > 9b-py2.csv
-rm -f header out
+#rm ~/TStore/CavCommands*
+#cp ~/PY2/CavCommands* ~/TStore/
+#for i in 1
+#do
+#for numThr in 10 
+#do
+#for p in 1 2 3 4 6 8 10 12 14 16
+#do
+#./mvccTPCC-$numThr-$p.out	
+#./mv3cTPCC-$numThr-$p.out			
+#./mv3cTPCC-cww-$numThr-$p.out			
+#done
+#done
+#done
+#
+#cat header out > 9b-py2.csv
+#rm -f header out
 
 

@@ -12,6 +12,10 @@
 #include "Tuple.h"
 #include "types.h"
 
+#ifndef FEEACCOUNTS
+#define FEEACCOUNTS 1
+#endif
+
 namespace Banking {
     typedef KeyTuple<uint32_t> AccountKey;
     typedef ValTuple<double> AccountVal;
@@ -22,14 +26,16 @@ namespace Banking {
     const uint numPrograms = 5040;
 #endif
     const uint numThreads = NUMTHREADS;
-    
-    const uint AccountSize = 2 * numThreads + 1;
+    const uint numFeeAccounts = FEEACCOUNTS;
+    const uint numUserAccounts = 2 * numThreads;
+    const uint AccountSize = numUserAccounts + numFeeAccounts;
     const uint AccountEntrySize = AccountSize;
     const uint AccountDVSize = AccountSize + numPrograms;
 
-    const AccountKey FeeAccount(AccountSize - 1);
+    //    const AccountKey FeeAccount(AccountSize - 1);
     const int txnTypes = 2;
     std::string prgNames[] = {"T", "TNC"};
+
     struct Transfer {
         uint32_t from, to;
         double amount;
@@ -49,25 +55,27 @@ namespace Banking {
         std::unordered_map<AccountKey, AccountVal, CityHasher<AccountKey>> iAccounts, oAccounts, fAccounts;
 
         BankDataGenerator() {
-//            transfers = new Transfer[numPrograms];
+            //            transfers = new Transfer[numPrograms];
         }
 
         void loadPrograms() {
             //        transfers = new Transfer[numPrograms];
-//            for (uint i = 0; i < AccountSize - 1; i += 2) {
-//                transfers[i / 2] = Transfer(i, i + 1, 200);
-//            }
+            //            for (uint i = 0; i < AccountSize - 1; i += 2) {
+            //                transfers[i / 2] = Transfer(i, i + 1, 200);
+            //            }
         }
 
         void loadData() {
-            for (uint i = 0; i < AccountSize - 1; i += 2) {
+            for (uint i = 0; i < numUserAccounts; i += 2) {
                 iAccounts.insert({AccountKey(i), AccountVal(300 * numPrograms)});
                 iAccounts.insert({AccountKey(i + 1), AccountVal(300 * numPrograms)});
-//                oAccounts.insert({AccountKey(i), AccountVal(798)});
-//                oAccounts.insert({AccountKey(i + 1), AccountVal(1200)});
+                //                oAccounts.insert({AccountKey(i), AccountVal(798)});
+                //                oAccounts.insert({AccountKey(i + 1), AccountVal(1200)});
             }
-            iAccounts.insert({FeeAccount, AccountVal(0)});
-            oAccounts.insert({FeeAccount, AccountVal(2 * numPrograms)});
+            for (uint i = numUserAccounts; i < AccountSize; ++i) {
+                iAccounts.insert({AccountKey(i), AccountVal(0)});
+            }
+            //            oAccounts.insert({FeeAccount, AccountVal(2 * numPrograms)});
         }
 
         void checkData() {
@@ -84,7 +92,7 @@ namespace Banking {
         }
 
         ~BankDataGenerator() {
-//            delete transfers;
+            //            delete transfers;
         }
     };
 }

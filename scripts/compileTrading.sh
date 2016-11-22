@@ -9,9 +9,9 @@ ww=-DALLOW_WW
 critrex=false
 store= #-DSTORE_ENABLE
 attrib= #-DATTRIB_LEVEL
-cuckoo=false
+cuckoo=true
 numThr=$1
 p=$2
 
-$CC -DOMVCC=true                       -DTRADING_TEST -DCUCKOO=$cuckoo -DNUMTHREADS=$numThr -m64 -O3 $profile $store $attrib -DPOWER=$p -DNDEBUG -DNUMPROG=$num  -Wno-attributes  -I"/usr/include/$CRYPTO" -I $ROOT/util -I $ROOT/mv3c -I $ROOT/trading -I $ROOT/banking -I $ROOT/tpcc -I $ROOT/tpcc2 -std=c++11  -o "mvccTrading-$numThr-$p.out"  $ROOT/mainTrading.cpp  -pthread -lcityhash "-l$CRYPTO"
-$CC $ww -DCRITICAL_COMPENSATE=$critrex -DTRADING_TEST -DCUCKOO=$cuckoo -DNUMTHREADS=$numThr -m64 -O3 $profile $store $attrib -DPOWER=$p -DNDEBUG -DNUMPROG=$num  -Wno-attributes  -I"/usr/include/$CRYPTO" -I $ROOT/util -I $ROOT/mv3c -I $ROOT/trading -I $ROOT/banking -I $ROOT/tpcc -I $ROOT/tpcc2 -std=c++11  -o "mv3cTrading-$numThr-$p.out"  $ROOT/mainTrading.cpp  -pthread -lcityhash "-l$CRYPTO"
+$CC -DOMVCC=true                       -DTRADING_TEST -DCUCKOO=$cuckoo -DNUMTHREADS=$numThr -m64 -O3 $profile $store $attrib -DPOWER=$p -DNDEBUG -DNUMPROG=$num  -Wno-attributes  -I"/usr/include/$CRYPTO" -I $ROOT/util -I $ROOT/mv3c -I $ROOT/trading -I $ROOT/banking -I $ROOT/tpcc -I $ROOT/tpcc2 -std=c++11  -o "mvccTrading-$numThr-$p.out"  $ROOT/mainTrading.cpp  -pthread -lcityhash "-l$CRYPTO" -ljemalloc
+$CC $ww -DCRITICAL_COMPENSATE=$critrex -DTRADING_TEST -DCUCKOO=$cuckoo -DNUMTHREADS=$numThr -m64 -O3 $profile $store $attrib -DPOWER=$p -DNDEBUG -DNUMPROG=$num  -Wno-attributes  -I"/usr/include/$CRYPTO" -I $ROOT/util -I $ROOT/mv3c -I $ROOT/trading -I $ROOT/banking -I $ROOT/tpcc -I $ROOT/tpcc2 -std=c++11  -o "mv3cTrading-$numThr-$p.out"  $ROOT/mainTrading.cpp  -pthread -lcityhash "-l$CRYPTO" -ljemalloc
