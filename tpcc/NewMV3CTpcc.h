@@ -25,6 +25,8 @@ namespace tpcc_ns {
 }
 using namespace tpcc_ns;
 
+// Using our own thread local variables
+
 struct ThreadLocal {
     DistGet dist;
     CustGet cust;
@@ -115,11 +117,12 @@ namespace tpcc_ns {
                 //                throw std::logic_error("New order cust");
                 return status;
             }
+
             total = 0;
             for (uint8_t i = 0; i < o_ol_cnt; ++i) {
                 total += threadVar->MV3CNewOrderOl_amt[i];
             }
-            total *= (1 + w_tax + d_tax)*(1 - c_disc);
+            total *= (1 + w_tax + d_tax)*(1 - c_disc); //Assumes that w_tax , d_tax and c_disc do not change (No dependencies added to dist, ware or cust)
             return SUCCESS;
         }
     };
@@ -128,6 +131,7 @@ namespace tpcc_ns {
         auto prg = (MV3CNewOrder *) p;
         Transaction& xact = p->xact;
         auto threadVar = prg->threadVar;
+        //We assume there are no missing items. ABORT is not handled, and if there are missing items, it will loop forever
         if (idv == nullptr) {
             cerr << "NewOrder Item missing" << endl;
             return ABORT;
@@ -151,17 +155,19 @@ namespace tpcc_ns {
         CreateValUpdate(Stock, newsv, sdv);
 
         if (newsv->_1 >= ol_qty + 10) {
-            newsv->_1 -= ol_qty;
+            newsv->_1 -= ol_qty; //qty
         } else {
             newsv->_1 += (91 - ol_qty);
         }
-        newsv->_12 += prg->quantity[ol_number];
-        newsv->_13++;
+        newsv->_12 += prg->quantity[ol_number]; //ytd
+        newsv->_13++; //order_cnt
         if (prg->w_id != prg->supware[ol_number]) {
-            newsv->_14++;
+            newsv->_14++; //remote_cnt
         }
 
         String<24>* dist_info = &newsv->_2 + (prg->d_id - 1);
+
+        //This can fail if concurrent new orders have same item
         if (StockTable->update(&xact, sdv->entry, MakeRecord(newsv), &threadVar->MV3CNewOrderStock[ol_number], false, col_type(1 << 1 | 1 << 12 | 1 << 13 | 1 << 14)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //            throw std::logic_error("NewOrder stock");
@@ -169,6 +175,7 @@ namespace tpcc_ns {
             return WW_ABORT;
         }
 
+        //This shouldnt fail
         new (&threadVar->orderLineKey) OrderLineKey(prg->o_id, prg->d_id, prg->w_id, ol_number + 1);
         CreateValInsert(OrderLine, newolv, prg->itemid[ol_number], prg->supware[ol_number], nulldate, prg->quantity[ol_number], threadVar->MV3CNewOrderOl_amt[ol_number], *dist_info);
         if (OrderLineTable->insert(&xact, threadVar->orderLineKey, MakeRecord(newolv), &threadVar->MV3CNewOrderStock[ol_number]) != OP_SUCCESS) {
@@ -188,7 +195,7 @@ namespace tpcc_ns {
         auto o_id = oldVal._9;
         prg->o_id = o_id;
 
-
+        //We want to insert to order first, so that we fail due to neworder-neworder  conflicts early
         new(&threadVar->orderKey) OrderKey(o_id, prg->d_id, prg->w_id);
         CreateValInsert(Order, newov, prg->c_id, prg->datetime, 0, prg->o_ol_cnt, prg->o_all_local);
         if (OrderTable->insert(&xact, threadVar->orderKey, MakeRecord(newov), &threadVar->dist) != OP_SUCCESS) {
@@ -196,6 +203,8 @@ namespace tpcc_ns {
             xact.failureCtr++;
             return WW_ABORT;
         }
+
+        //Insertion to order successful, we cant have conflict on districts due to another new-order. But we can have due to another payment
         CreateValUpdate(District, newdv, ddv);
         newdv->_9++;
         if (DistrictTable->update(&xact, ddv->entry, MakeRecord(newdv), &threadVar->dist, ALLOW_WW, col_type(1 << 9)) != OP_SUCCESS) {
@@ -205,12 +214,15 @@ namespace tpcc_ns {
             return WW_ABORT;
         }
 
+        //This shouldn't fail at all
         new(&threadVar->newOrderKey) NewOrderKey(o_id, prg->d_id, prg->w_id);
         CreateValInsert(NewOrder, newnov, true);
         if (NewOrderTable->insert(&xact, threadVar->newOrderKey, MakeRecord(newnov), &threadVar->dist) != OP_SUCCESS) {
             //            throw std::logic_error("NewOrder neworder");
             return WW_ABORT;
         }
+
+        //Process each item
         TransactionReturnStatus status;
         for (uint8_t ol_number = 0; ol_number < prg->o_ol_cnt; ol_number++) {
             uint32_t ol_i_id = prg->itemid[ol_number];
@@ -229,15 +241,17 @@ namespace tpcc_ns {
 
     forceinline TransactionReturnStatus neworder_custfn(Program* p, const CustDV* cdv, uint cs) {
         auto prg = (MV3CNewOrder *) p;
-        prg->c_disc = cdv->val._13;
+        prg->c_disc = cdv->val._13; //assumes that this value doesn't change
         return SUCCESS;
     }
 
     forceinline TransactionReturnStatus neworder_warefn(Program* p, const WareDV* wdv, uint cs) {
         auto prg = (MV3CNewOrder *) p;
-        prg->w_tax = wdv->val._7;
+        prg->w_tax = wdv->val._7; //assumes that this value doesn't change
         return SUCCESS;
     }
+
+    /****************************************************************************************************/
     forceinline TransactionReturnStatus payment_distfn(Program *p, const DistDV * ddv, uint cs = -1);
     forceinline TransactionReturnStatus payment_warefn(Program *p, const WareDV * wdv, uint cs = -1);
     forceinline TransactionReturnStatus payment_custfn(Program *p, const CustDV * cdv, uint cs = -1);
@@ -251,7 +265,7 @@ namespace tpcc_ns {
 
         TransactionReturnStatus execute() override {
             TransactionReturnStatus status = SUCCESS;
-            if (c_id != -1) {
+            if (c_id != -1) { //By id
                 new(&threadVar->custKey)CustomerKey(c_id, c_d_id, c_w_id);
                 new (&threadVar->cust) CustGet(CustomerTable, &xact, threadVar->custKey, nullptr, col_type(1 << 14 | 1 << 15 | 1 << 16));
                 auto cdv = threadVar->cust.evaluateAndExecute(&xact, payment_custfn);
@@ -259,7 +273,7 @@ namespace tpcc_ns {
                 if (status != SUCCESS) {
                     return status;
                 }
-            } else {
+            } else { //by name
                 new(&threadVar -> custPKey) CustomerPKey(c_d_id, c_w_id, c_last);
                 new(&threadVar -> custSl) CustSlice(CustomerTable, &xact, 0, threadVar->custPKey, nullptr, col_type(1 << 14 | 1 << 15 | 1 << 16));
                 auto cdvs = threadVar->custSl.evaluateAndExecute(&xact, payment_custfn2);
@@ -275,6 +289,8 @@ namespace tpcc_ns {
             if (status != SUCCESS) {
                 return status;
             }
+
+            //TOFIX :  WRONG! Should be inside district closure
             std::string dname = to_string(h_amount) + to_string(c_id) + to_string(d_id);
 
             new(&threadVar->wareKey) WarehouseKey(w_id);
@@ -285,8 +301,10 @@ namespace tpcc_ns {
             if (status != SUCCESS) {
                 return status;
             }
+            //TOFIX :   WRONG! Should be inside warehouse closure
             std::string wname = to_string(datetime);
 
+            // dependency on ware and dist not added, assuming wname and dname doesn't change
             std::string hdata = wname.substr(0, 10) + "    " + dname.substr(0, 10);
             String<24> hval;
             hval.insertAt(0, hdata.c_str(), 24);
@@ -307,7 +325,7 @@ namespace tpcc_ns {
         auto prg = (MV3CPayment *) p;
         Transaction& xact = p->xact;
         CreateValUpdate(District, newdv, ddv);
-        newdv->_8 += prg->h_amount;
+        newdv->_8 += prg->h_amount; // d_ytd
         if (DistrictTable->update(&xact, ddv->entry, MakeRecord(newdv), &prg->threadVar->dist, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //            throw std::logic_error("payment dist");
@@ -322,10 +340,12 @@ namespace tpcc_ns {
         auto prg = (MV3CPayment *) p;
         Transaction& xact = p->xact;
         CreateValUpdate(Customer, newcv, cdv);
-        newcv->_14 -= prg->h_amount;
-        newcv->_15 += prg->h_amount;
-        newcv->_16++;
-        //
+        newcv->_14 -= prg->h_amount; //bal
+        newcv->_15 += prg->h_amount; //ytd
+        newcv->_16++; //payment_cnt
+
+
+        //Inefficient string processing
         std::string newDATA = to_string(prg->c_id) + " " + to_string(prg->c_d_id) + " " + to_string(prg->c_w_id) + " " + to_string(prg->d_id) + " " + to_string(prg->w_id) + " " + to_string(prg->h_amount) + " " + to_string(prg->datetime) + " | ";
         std::string olddata = cdv->val._18.c_str();
         std::string newdata2 = newDATA + olddata.substr(0, 500 - newDATA.size());
@@ -348,6 +368,8 @@ namespace tpcc_ns {
         Transaction& xact = p->xact;
         const CustDV * cdvarray[cdvs.size()];
         int n = 0;
+
+        //Inefficient data structure handling, copying from unordered_set to array and then sorting
         for (auto it : cdvs) {
             cdvarray[n++] = it;
         }
@@ -359,9 +381,10 @@ namespace tpcc_ns {
 
 
         CreateValUpdate(Customer, newcv, cdv);
-        newcv->_14 -= prg->h_amount;
-        newcv->_15 += prg->h_amount;
-        newcv->_16++;
+        newcv->_14 -= prg->h_amount; //bal
+        newcv->_15 += prg->h_amount; //ytd
+        newcv->_16++; //payment_cnt
+
         //
         std::string newDATA = to_string(prg->c_id) + " " + to_string(prg->c_d_id) + " " + to_string(prg->c_w_id) + " " + to_string(prg->d_id) + " " + to_string(prg->w_id) + " " + to_string(prg->h_amount) + " " + to_string(prg->datetime) + " | ";
         std::string olddata = cdv->val._18.c_str();
@@ -384,7 +407,7 @@ namespace tpcc_ns {
         auto prg = (MV3CPayment *) p;
         Transaction& xact = p->xact;
         CreateValUpdate(Warehouse, newwv, wdv);
-        newwv->_8 += prg->h_amount;
+        newwv->_8 += prg->h_amount; // ytd
         if (WarehouseTable->update(&xact, wdv->entry, MakeRecord(newwv), &prg->threadVar->ware, ALLOW_WW, col_type(1 << 8)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment ware");
@@ -393,7 +416,9 @@ namespace tpcc_ns {
         }
         return SUCCESS;
     }
-    uint deliveryDistrictFailed = 0;
+
+    /**********************************************************************************************************/
+    uint deliveryDistrictFailed = 0; //debug information, not atomic, and could be incorrect
     forceinline TransactionReturnStatus delivery_distneworderfn(Program *p, const DistNODV* dnodv, uint cs);
     forceinline TransactionReturnStatus delivery_orderfn(Program *p, const OrderDV* odv, uint cs);
     forceinline TransactionReturnStatus delivery_custfn(Program *p, const CustDV* cdv, uint cs);
@@ -425,7 +450,8 @@ namespace tpcc_ns {
         auto prg = (MV3CDelivery *) p;
         Transaction& xact = p->xact;
         auto threadVar = p->threadVar;
-
+        //Following how Cavalia implemented delivery, as we are comparing against that system
+        //Using materialized table "District-NewOrder" instead of computing what is the next order id to be delivered
         CreateValUpdate(DistrictNewOrder, newdnov, dnodv);
         auto o_id = newdnov->_1++;
         if (DistrictNewOrderTable->update(&xact, dnodv->entry, MakeRecord(newdnov), &threadVar->distNOs[d_id], false, col_type(1 << 1)) != OP_SUCCESS) {
@@ -434,7 +460,10 @@ namespace tpcc_ns {
             //            else
             return WW_ABORT;
         }
+
+        //TOFIX: NOT REMOVING FROM NewOrder table. Operation not implemented yet!!!!!!!!!!!!!!!!!!! (Cavalia doesn't)
         //        prg->newOrdTable.remove(.............)
+
         new (&threadVar->orderKey) OrderKey(o_id, d_id + 1, prg->w_id);
         new (&threadVar->orders[d_id]) OrderGet(OrderTable, &xact, threadVar->orderKey, &threadVar->distNOs[d_id], col_type(1 << 1 | 1 << 3));
 
@@ -447,6 +476,7 @@ namespace tpcc_ns {
         auto prg = (MV3CDelivery *) p;
         Transaction& xact = p->xact;
         auto threadVar = p->threadVar;
+
         CreateValUpdate(Order, newov, odv);
         auto c_id = newov->_1;
         newov->_3 = prg->o_carrier_id;
@@ -469,6 +499,7 @@ namespace tpcc_ns {
         auto threadVar = p->threadVar;
         CreateValUpdate(Customer, newcv, cdv);
 
+        //Missing slice on orderline, computing total. Cavalia doesn't do this slice
         float ol_total = 1; //SHOULD BE OBTAINED from OrderlIne instead;
         newcv->_14 += ol_total;
         newcv->_17++;
@@ -480,6 +511,8 @@ namespace tpcc_ns {
         }
         return SUCCESS;
     }
+
+    /**************************************************************************/
     uint orderSuccess = 0, orderFailed = 0;
 
     struct MV3COrderStatus : OrderStatusById {
@@ -509,6 +542,7 @@ namespace tpcc_ns {
         }
     };
 
+    /**************************************************************************/
     struct MV3CStockLevel : StockLevel {
         size_t totalCount;
 
@@ -524,6 +558,10 @@ namespace tpcc_ns {
 
             auto d_next_o_id = ddv->val._9;
             totalCount = 0;
+
+            //Implemented as in Cavalia
+            //Not according to specifications. Should read stock qty of item and check if less than threshold
+            
             for (uint o_id = d_next_o_id - 5; o_id < d_next_o_id; ++o_id) {
                 OrderLineDV * sliceResults[15];
                 auto count = OrderLineTable->sliceReadOnly<OrderLinePKey>(&xact, OrderLinePKey(o_id, d_id, w_id), 0, sliceResults);
@@ -534,7 +572,8 @@ namespace tpcc_ns {
 
     };
 
-
+    /**************************************************************************/
+    //EXTRA TXN, NOT USED
     forceinline TransactionReturnStatus stockupdate_stockfn(Program *p, const StockDV* sdv, uint cs = -1);
 
     struct MV3CStockUpdate : StockUpdate {
