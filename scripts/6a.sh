@@ -14,8 +14,10 @@ for i in {1..5}
 do
 for numThr in {1..11}
 do
-sudo ./mvccTrading-$numThr-$p.out	
-sudo ./mv3cTrading-$numThr-$p.out	
+sudo ./mvccTrading-$numThr-$p-no.out	
+sudo ./mv3cTrading-$numThr-$p-no.out	
+sudo ./mvccTrading-$numThr-$p-je.out	
+sudo ./mv3cTrading-$numThr-$p-je.out	
 done
 done
 
@@ -23,6 +25,6 @@ cat header out > 6a.csv
 
 rm -f header out
 
-python 6a.py
-gnuplot 6a.plot
+#python 6a.py
+#gnuplot 6a.plot
 

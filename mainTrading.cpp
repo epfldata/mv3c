@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
     trade.loadPrograms();
     trade.loadSecurity();
     std::cout.imbue(std::locale(""));
-    header << "BenchName,Algo,Critical Compensate,Validation level,WW allowed,Store enabled,Cuckoo enabled,Power";
+    header << "BenchName,Algo,Critical Compensate,Validation level,WW allowed,Store enabled,Cuckoo enabled,Power,Malloc";
     cout << "Trading" << endl;
     fout << "Trading";
 #if OMVCC
@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
     fout << ",N";
 #endif
     cout << "Power factor = " << POWER << endl;
-    fout << "," << POWER;
+    fout << "," << POWER << "," << MALLOCTYPE;
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);

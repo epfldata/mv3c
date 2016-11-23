@@ -4,9 +4,9 @@ rm -f 9a*.csv 9a*.avg 9a*.pdf
 rm -f header out
 echo "TPCC  thread test "
 
-for p in 1
+for p in 1 2
 do
-for numThr in  {9..10}
+for numThr in  {1..11}
 do
 echo -n "$numThr $p " 
 done
@@ -14,16 +14,16 @@ done | xargs  -n 2 -P10 ./compileTPCC.sh
 
 rm ~/TStore/CavCommands*
 cp ~/Full/CavCommands* ~/TStore/
-for i in {1..1}
+for i in {1..5}
 do
-for p in 1
+for p in 1 2
 do
-for numThr in  {9..10}
+for numThr in  {1..11}
 do
-sudo ./mvccTPCC-$numThr-no-$p.out	
-sudo ./mv3cTPCC-$numThr-no-$p.out
-sudo ./mvccTPCC-$numThr-je-$p.out	
-sudo ./mv3cTPCC-$numThr-je-$p.out				
+sudo ./mvccTPCC-$numThr-$p-no.out	
+sudo ./mv3cTPCC-$numThr-$p-no.out
+sudo ./mvccTPCC-$numThr-$p-je.out	
+sudo ./mv3cTPCC-$numThr-$p-je.out				
 done
 done
 done

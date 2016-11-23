@@ -19,16 +19,18 @@ for numThr in 10
 do
 for p in 1 2 3 4 6 8 10 12 14 16
 do
-sudo ./mvccTPCC-$numThr-$p.out	
-sudo ./mv3cTPCC-$numThr-$p.out			
+sudo ./mvccTPCC-$numThr-$p-no.out	
+sudo ./mv3cTPCC-$numThr-$p-no.out			
+sudo ./mvccTPCC-$numThr-$p-je.out	
+sudo ./mv3cTPCC-$numThr-$p-je.out			
 done
 done
 done
 
 cat header out > 9b.csv
 rm -f header out
-python 9b.py
-gnuplot 9b.plot
+#python 9b.py
+#gnuplot 9b.plot
 
 
 #rm ~/TStore/CavCommands*

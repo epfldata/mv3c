@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
 
     bank.loadPrograms();
     bank.loadData();
-    header << "BenchName,Algo,Critical Compensate,Validation level,WW allowed,Store enabled,Cuckoo enabled,ConflictFraction,NumFeeAccounts";
+    header << "BenchName,Algo,Critical Compensate,Validation level,WW allowed,Store enabled,Cuckoo enabled,ConflictFraction,NumFeeAccounts,Malloc";
     cout << "Banking" << endl;
     fout << "Banking";
 #if OMVCC
@@ -87,8 +87,8 @@ int main(int argc, char** argv) {
     fout << "," << CONFLICT_FRACTION;
 
     cout << "Number of fee accounts  =" << numFeeAccounts << endl;
-    fout << "," << numFeeAccounts;
-
+    fout << "," << numFeeAccounts << "," << MALLOCTYPE;
+    
     Transaction t;
     Transaction *t0 = &t;
     transactionManager.begin(t0);

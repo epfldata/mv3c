@@ -15,8 +15,10 @@ for i in {1..5}
 do
 for p in 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0
 do
-sudo ./mvccBanking-$numThr-$p.out
-sudo ./mv3cBanking-$numThr-$p.out			
+sudo ./mvccBanking-$numThr-$p-no.out
+sudo ./mv3cBanking-$numThr-$p-no.out			
+sudo ./mvccBanking-$numThr-$p-je.out
+sudo ./mv3cBanking-$numThr-$p-je.out			
 done
 done
 
@@ -24,5 +26,5 @@ cat header out > 7b.csv
 
 rm -f header out
 
-python 7b.py
-gnuplot 7b.plot
+#python 7b.py
+#gnuplot 7b.plot
