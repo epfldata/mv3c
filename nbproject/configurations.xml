@@ -19,25 +19,33 @@
       <itemPath>scripts/10a.sh</itemPath>
       <itemPath>scripts/10b.sh</itemPath>
       <itemPath>scripts/6.sh</itemPath>
-      <itemPath>scripts/6a.plot</itemPath>
-      <itemPath>scripts/6a.py</itemPath>
+      <itemPath>scripts/6a-st.plot</itemPath>
+      <itemPath>scripts/6a-st.py</itemPath>
+      <itemPath>scripts/6a-thr.plot</itemPath>
+      <itemPath>scripts/6a-thr.py</itemPath>
       <itemPath>scripts/6a.sh</itemPath>
-      <itemPath>scripts/6b.plot</itemPath>
-      <itemPath>scripts/6b.py</itemPath>
+      <itemPath>scripts/6b-st.plot</itemPath>
+      <itemPath>scripts/6b-st.py</itemPath>
+      <itemPath>scripts/6b-thr.plot</itemPath>
+      <itemPath>scripts/6b-thr.py</itemPath>
       <itemPath>scripts/6b.sh</itemPath>
       <itemPath>scripts/7.sh</itemPath>
-      <itemPath>scripts/7a.plot</itemPath>
-      <itemPath>scripts/7a.py</itemPath>
+      <itemPath>scripts/7a-st.plot</itemPath>
+      <itemPath>scripts/7a-st.py</itemPath>
+      <itemPath>scripts/7a-thr.plot</itemPath>
+      <itemPath>scripts/7a-thr.py</itemPath>
       <itemPath>scripts/7a.sh</itemPath>
-      <itemPath>scripts/7b.plot</itemPath>
-      <itemPath>scripts/7b.py</itemPath>
+      <itemPath>scripts/7b-st.plot</itemPath>
+      <itemPath>scripts/7b-st.py</itemPath>
+      <itemPath>scripts/7b-thr.plot</itemPath>
+      <itemPath>scripts/7b-thr.py</itemPath>
       <itemPath>scripts/7b.sh</itemPath>
       <itemPath>scripts/9.sh</itemPath>
-      <itemPath>scripts/9a.plot</itemPath>
-      <itemPath>scripts/9a.py</itemPath>
+      <itemPath>scripts/9a-st.plot</itemPath>
+      <itemPath>scripts/9a-st.py</itemPath>
+      <itemPath>scripts/9a-thr.plot</itemPath>
+      <itemPath>scripts/9a-thr.py</itemPath>
       <itemPath>scripts/9a.sh</itemPath>
-      <itemPath>scripts/9b.plot</itemPath>
-      <itemPath>scripts/9b.py</itemPath>
       <itemPath>scripts/9b.sh</itemPath>
       <itemPath>scripts/all.sh</itemPath>
       <itemPath>scripts/bench.sh</itemPath>
@@ -189,43 +197,59 @@
       </item>
       <item path="scripts/6.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6a.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6a.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6a-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6a-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/6a.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6b.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6b-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6b.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6b-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6b-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6b-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/6b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/7.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7a.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7a.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7a-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7a-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/7a.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7b.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7b-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7b.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7b-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7b-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7b-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/7b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/9.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/9a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/9a-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/9a-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/9a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/9a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/9b.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/9b.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/9b.sh" ex="false" tool="3" flavor2="0">
       </item>
@@ -386,43 +410,59 @@
       </item>
       <item path="scripts/6.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6a.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6a.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6a-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6a-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/6a.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6b.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6b-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6b.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6b-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6b-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6b-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/6b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/7.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7a.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7a.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7a-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7a-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/7a.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7b.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7b-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7b.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7b-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7b-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7b-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/7b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/9.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/9a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/9a-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/9a-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/9a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/9a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/9b.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/9b.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/9b.sh" ex="false" tool="3" flavor2="0">
       </item>
@@ -582,43 +622,59 @@
       </item>
       <item path="scripts/6.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6a.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6a.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6a-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6a-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/6a.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6b.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6b-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/6b.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/6b-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6b-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/6b-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/6b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/7.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7a.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7a.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7a-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7a-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/7a.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7b.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7b-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/7b.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/7b-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7b-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/7b-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/7b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/9.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/9a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/9a-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/9a-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/9a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/9a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/9b.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/9b.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/9b.sh" ex="false" tool="3" flavor2="0">
       </item>

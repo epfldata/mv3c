@@ -1,4 +1,4 @@
-name = '6a'
+name = '7a-st'
 set datafile separator ","
 set auto y
 set auto x

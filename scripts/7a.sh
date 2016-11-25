@@ -5,23 +5,32 @@ rm -f 7a*.csv 7a.avg 7a.pdf
 rm -f header out
 echo "Banking  thread test"
 p=1.0
+
+#Compile
 for numThr in  {1..11}
 do
 echo -n "$numThr $p " 
 done | xargs  -n 2 -P10 ./compileBanking.sh
 
-for i in {1..5}
-do
+#MVCC
 for numThr in  {1..11}
 do
-sudo ./mvccBanking-$numThr-$p-no.out
-sudo ./mv3cBanking-$numThr-$p-no.out
-sudo ./mvccBanking-$numThr-$p-je.out
-sudo ./mv3cBanking-$numThr-$p-je.out
-#sudo ./mv3cBankingCrit-$numThr-$p-$feeAccs.out	
-
+for i in {1..10}
+do
+sudo ./mvccBanking-$numThr-$p.out
 done
-done 
+done
+
+#MV3C
+for numThr in  {1..11}
+do
+for i in {1..10}
+do
+sudo ./mv3cBanking-$numThr-$p.out
+done
+done
+
+ 
 cat header out > 7a.csv
 rm -f header out
 

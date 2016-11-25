@@ -105,7 +105,7 @@ struct TransactionManager {
                         DELTA * childChildDV = childChild->DVsInClosureHead;
                         while (childChildDV != nullptr) {
                             childChildDV->removeFromVersionChain(xact->threadId);
-                             childChildDV = childChildDV -> nextInDVsInClosure;
+                            childChildDV = childChildDV -> nextInDVsInClosure;
                         }
                         childChild = childChild->nextChild;
                     }
@@ -130,7 +130,7 @@ struct TransactionManager {
                             DELTA * childChildDV = childChild->DVsInClosureHead;
                             while (childChildDV != nullptr) {
                                 childChildDV->removeFromVersionChain(xact->threadId);
-                                 childChildDV = childChildDV -> nextInDVsInClosure;
+                                childChildDV = childChildDV -> nextInDVsInClosure;
                             }
                             childChild = childChild->nextChild;
                         }
@@ -265,7 +265,7 @@ struct TransactionManager {
         xact->commitTime += DDurationNS(end - start);
     }
 
-    forceinline bool validateAndCommit(Transaction *xact, Program *state = nullptr) {
+    forceinline bool validateAndCommit(Transaction *xact, Program *state = nullptr, bool critical_compensate = false) {
         if (xact->undoBufferHead == nullptr) {
             commitLock.lock();
             commit(xact);
@@ -326,52 +326,52 @@ struct TransactionManager {
                 counterLock.lock();
                 xact->startTS = timestampGen++;
                 counterLock.unlock();
-#if CRITICAL_COMPENSATE
 
-                //Remove rolledback versions from undobuffer
-                while (dv != nullptr) {
-                    if (dv->op != INVALID) {
-                        if (prev == nullptr)
-                            xact->undoBufferHead = dv;
-                        else
-                            prev->nextInUndoBuffer = dv;
-                        prev = dv;
+                if (critical_compensate) {
+                    //Remove rolledback versions from undobuffer
+                    while (dv != nullptr) {
+                        if (dv->op != INVALID) {
+                            if (prev == nullptr)
+                                xact->undoBufferHead = dv;
+                            else
+                                prev->nextInUndoBuffer = dv;
+                            prev = dv;
+                        }
+                        dv = dv->nextInUndoBuffer;
                     }
-                    dv = dv->nextInUndoBuffer;
-                }
-                if (prev == nullptr)
-                    xact->undoBufferHead = nullptr;
-                else
-                    prev->nextInUndoBuffer = nullptr;
+                    if (prev == nullptr)
+                        xact->undoBufferHead = nullptr;
+                    else
+                        prev->nextInUndoBuffer = nullptr;
 
-                auto status = reexecute(xact, state);
-                if (status != SUCCESS) {
-                    cerr << "Cannot fail execution during critical reexecution";
-                    exit(-6);
-                }
-                xact->prevCommitted = startXact;
-                committedXactsTail = xact;
-                commit(xact); //will release commitLock internally
-                return false;
-#else
-                commitLock.unlock();
-                //Remove rolledback versions from undobuffer
-                while (dv != nullptr) {
-                    if (dv->op != INVALID) {
-                        if (prev == nullptr)
-                            xact->undoBufferHead = dv;
-                        else
-                            prev->nextInUndoBuffer = dv;
-                        prev = dv;
+                    auto status = reexecute(xact, state);
+                    if (status != SUCCESS) {
+                        cerr << "Cannot fail execution during critical reexecution";
+                        exit(-6);
                     }
-                    dv = dv->nextInUndoBuffer;
+                    xact->prevCommitted = startXact;
+                    committedXactsTail = xact;
+                    commit(xact); //will release commitLock internally
+                    return false;
+                } else {
+                    commitLock.unlock();
+                    //Remove rolledback versions from undobuffer
+                    while (dv != nullptr) {
+                        if (dv->op != INVALID) {
+                            if (prev == nullptr)
+                                xact->undoBufferHead = dv;
+                            else
+                                prev->nextInUndoBuffer = dv;
+                            prev = dv;
+                        }
+                        dv = dv->nextInUndoBuffer;
+                    }
+                    if (prev == nullptr)
+                        xact->undoBufferHead = nullptr;
+                    else
+                        prev->nextInUndoBuffer = nullptr;
+                    return false;
                 }
-                if (prev == nullptr)
-                    xact->undoBufferHead = nullptr;
-                else
-                    prev->nextInUndoBuffer = nullptr;
-                return false;
-#endif
 
             }
 #endif

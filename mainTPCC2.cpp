@@ -63,17 +63,14 @@ int main(int argc, char** argv) {
     fout << "TPCC_2";
 #if OMVCC
     cout << "OMVCC" << endl;
-    fout << ", OMVCC, X";
+    fout << ",OMVCC,0";
 #else
     cout << "MV3C" << endl;
-    fout << ", MV3C";
-#if(CRITICAL_COMPENSATE)
-    cout << "Compensate done inside critical section" << endl;
-    fout << ", Y";
-#else
-    cout << "Compensate done outside critical section" << endl;
-    fout << ", N";
-#endif
+    fout << ",MV3C";
+
+    cout << "Critical Compensate threshold = " << CRITICAL_COMPENSATE_THRESHOLD << endl;
+    fout << "," << CRITICAL_COMPENSATE_THRESHOLD;
+
 #endif
 #ifdef ATTRIB_LEVEL
     cout << "Attribute level validation " << endl;

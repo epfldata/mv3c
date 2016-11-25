@@ -6,24 +6,34 @@ rm -f header out
 echo "Trading conflict test"
 
 numThr=10
+
+#Compile
 for p in 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0 2.1 2.2 2.3 2.4
 do
 echo -n "$numThr $p " 
 done | xargs  -n 2 -P10 ./compileTrading.sh
 
-for i in {1..5}
-do
+#MVCC
 for p in 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0 2.1 2.2 2.3 2.4
 do
-sudo ./mvccTrading-$numThr-$p-no.out	
-sudo ./mv3cTrading-$numThr-$p-no.out	
-sudo ./mvccTrading-$numThr-$p-je.out	
-sudo ./mv3cTrading-$numThr-$p-je.out	
+for i in {1..10}
+do
+sudo ./mvccTrading-$numThr-$p.out			
 done
 done
+
+
+#MV3C
+for p in 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0 2.1 2.2 2.3 2.4
+do
+for i in {1..10}
+do	
+sudo ./mv3cTrading-$numThr-$p.out		
+done
+done
+
 
 cat header out > 6b.csv
-
 rm -f header out
 
 #python 6b.py

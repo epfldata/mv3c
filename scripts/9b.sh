@@ -3,6 +3,8 @@ rm -rf *TPCC*.out
 rm -f 9b*.csv 9b.avg 9b.pdf
 rm -f header out
 echo "TPCC  conflict test "
+
+#Compile
 for numThr in 10  
 do
 for p in 1 2 3 4 6 8 10 12 14 16   
@@ -13,22 +15,36 @@ done
 
 rm ~/TStore/CavCommands*
 cp ~/Full/CavCommands* ~/TStore/
-for i in {1..5} 
-do
+
+#MVCC
 for numThr in 10
 do
 for p in 1 2 3 4 6 8 10 12 14 16
 do
-sudo ./mvccTPCC-$numThr-$p-no.out	
-sudo ./mv3cTPCC-$numThr-$p-no.out			
-sudo ./mvccTPCC-$numThr-$p-je.out	
-sudo ./mv3cTPCC-$numThr-$p-je.out			
+for i in {1..10} 
+do
+sudo ./mvccTPCC-$numThr-$p.out							
+done
+done
+done
+
+
+#MV3C
+for numThr in 10
+do
+for p in 1 2 3 4 6 8 10 12 14 16
+do
+for i in {1..10} 
+do
+sudo ./mv3cTPCC-$numThr-$p-1.out						
 done
 done
 done
 
 cat header out > 9b.csv
 rm -f header out
+
+
 #python 9b.py
 #gnuplot 9b.plot
 

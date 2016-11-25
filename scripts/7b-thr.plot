@@ -1,11 +1,11 @@
-name = '7b'
+name = '7b-thr'
 set datafile separator ","
 set auto y
 set auto x
 set grid ytics
 set offset graph 0, graph 0, graph 0.2, graph 0
 set xlabel "Percentage of  conflict in concurrent transactions"
-set ylabel "Time to process 5 million transactions"
+set ylabel "Throughput"
 set style data histogram
 set style histogram cluster gap 1
 set style fill solid border rgb"black"

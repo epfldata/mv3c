@@ -1,32 +1,32 @@
 import csv
 from collections import defaultdict
 from sets import Set
-name='9b'
+name = '6b'
 dataseries = ['MV3C','OMVCC']
 alldata = defaultdict(lambda : dict(map(lambda d: (d, []), dataseries)))
-#alldata = dict(map(lambda x: (x,defaultdict(list)), dataseries))
-#xpoints = Set()
+
 def aggregate(l):
-	print l
-	return sum(l)/len(l)	
+	#print l
+	#return (l[-1] + l[-2] + l[-3])/3 #last 3
+	#return (l[-1] + l[-2] + l[-3] + l[-4] + l[-5])/5 #last 5
+	#return sum(l)/len(l)	#average
+	l.sort(reverse=True)
+	return (l[0]+l[1]+l[2])/3 #best 3
+	#return (l[0]+l[1]+l[2]+l[3]+l[4])/5 #best 5	
+
 with open(name+'.csv', 'r') as csvfile:
 	reader = csv.DictReader(csvfile)
 	for row in reader:
 		d = row['Algo']
-		x = int(row['NumWare'])
-		p = row['ScaledTime']
-		#if(row['Critical Compensate'] != 'N'):
+		x = row['Power']
+		p = row['Throughput(ktps)']		
 		alldata[x][d].append(float(p))
-		#xpoints.add(fee)
-with open(name+'.avg', 'w') as csvfile:
+
+with open(name+'-thr.avg', 'w') as csvfile:
 	writer = csv.writer(csvfile)
 	writer.writerow([','] + dataseries)
 	for x in sorted(alldata.keys()):
 		row = [x]
 		for d in dataseries:
 			row.append(aggregate(alldata[x][d]))
-		writer.writerow(row)	
-
-	#rows = map(lambda x: [x[0]] + map(lambda y: aggregate(y), x[1].values()), alldata.iteritems())
-	#rows2 = map(lambda x: [str(x[0])+'%'] + x[1:], sorted(rows))
-	#writer.writerows(sorted(rows))
+		writer.writerow(row)

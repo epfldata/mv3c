@@ -1,10 +1,10 @@
-name = '6b'
+name = '6b-thr'
 set datafile separator ","
 set auto y
 set auto x
 set grid ytics
 set offset graph 0, graph 0, graph 0.2, graph 0.1
-set ylabel "Time to process 5 million transactions"
+set ylabel "Throughput"
 set xlabel "Zipf parameter (α) for s_id distribution in TradeOrder and UpdatePrice"
 set style data histogram
 set style histogram cluster gap 1

@@ -4,6 +4,7 @@ rm -f 9a*.csv 9a*.avg 9a*.pdf
 rm -f header out
 echo "TPCC  thread test "
 
+#Compile
 for p in 1 2
 do
 for numThr in  {1..11}
@@ -14,21 +15,63 @@ done | xargs  -n 2 -P10 ./compileTPCC.sh
 
 rm ~/TStore/CavCommands*
 cp ~/Full/CavCommands* ~/TStore/
-for i in {1..5}
-do
-for p in 1 2
+
+#MVCC 1
+for p in 1
 do
 for numThr in  {1..11}
 do
-sudo ./mvccTPCC-$numThr-$p-no.out	
-sudo ./mv3cTPCC-$numThr-$p-no.out
-sudo ./mvccTPCC-$numThr-$p-je.out	
-sudo ./mv3cTPCC-$numThr-$p-je.out				
+for i in {1..10}
+do
+sudo ./mvccTPCC-$numThr-$p.out						
 done
 done
 done
 
-cat header out > 9a.csv
+
+#MV3C 1
+for p in 1
+do
+for numThr in  {1..11}
+do
+for i in {1..10}
+do
+sudo ./mv3cTPCC-$numThr-$p.out						
+done
+done
+done
+
+cat header out > 9a1.csv
+rm -f header out
+
+
+
+#MVCC 2
+for p in 2
+do
+for numThr in  {1..11}
+do
+for i in {1..10}
+do
+sudo ./mvccTPCC-$numThr-$p.out						
+done
+done
+done
+
+
+#MV3C 2
+for p in 2
+do
+for numThr in  {1..11}
+do
+for i in {1..10}
+do
+sudo ./mv3cTPCC-$numThr-$p.out						
+done
+done
+done
+
+cat header out > 9a2.csv
 rm -f header out
 #python 9a.py
 #gnuplot 9a.plot

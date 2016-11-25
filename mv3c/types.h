@@ -1,21 +1,21 @@
 #ifndef TYPES_H
 #define TYPES_H
-//ALLOW_WW=true CRITICAL_COMPENSATE=true NUMPROG=5000000 NUMWARE=5 OMVCC=true POWER=2 TRADING_TEST
+//ALLOW_WW=true  NUMPROG=5000000 NUMWARE=5 OMVCC=true POWER=2 TRADING_TEST
 #ifdef NB  //Netbeans
 #define ALLOW_WW true
-#define CRITICAL_COMPENSATE false
+#define CRITICAL_COMPENSATE_THRESHOLD 1
 #define NUMPROG 1000000
 #define NUMWARE 1
 #define OMVCC false
 //#define POWER 2
-#define DTIMER 1
+//#define DTIMER 1
 //#define TRADING_TEST 1   
 //#define BANKING_TEST 1
 //#define BENCH 1
 #define TPCC_TEST 1
 //#define TPCC2_TEST 1
 //#define RIPPLE_TEST 1
-#define NUMTHREADS 1
+#define NUMTHREADS 10
 //Tuned for yper server. Should change for IC server
 #define CONFLICT_FRACTION 1.0
 #define ATTRIB_LEVEL 1
@@ -26,7 +26,7 @@
 #define CCSI true
 #define CWW false
 //#define VERIFY false
-#define EXEC_PROFILE true
+#define EXEC_PROFILE false
 #define MALLOCTYPE "normal"
 //#define PERF_STAT true
 #endif
@@ -133,8 +133,8 @@ forceinline T unmark(T t) {
 #define CUCKOO true
 #endif
 
-#ifndef CRITICAL_COMPENSATE
-#define CRITICAL_COMPENSATE false
+#ifndef CRITICAL_COMPENSATE_THRESHOLD
+#define CRITICAL_COMPENSATE_THRESHOLD 5
 #endif
 
 #define  TABLE(x) Table<x##Key, x##Val>

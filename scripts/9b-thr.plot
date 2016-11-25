@@ -1,10 +1,10 @@
-name = '9b'
+name = '9b-thr'
 set datafile separator ","
 set auto y
 set auto x
 set grid ytics
 set offset graph 0, graph 0, graph 0.2, graph 0.1
-set ylabel "Time to process 1 million transactions"
+set ylabel "Throughput"
 set xlabel "# of warehouses in TPC-­C benchmark"
 set style data histogram
 set style histogram cluster gap 1

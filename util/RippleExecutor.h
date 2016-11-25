@@ -151,7 +151,9 @@ struct RippleExecutor {
                     continue;
                 }
 #else
-                while (!tm.validateAndCommit(&cur->xact, cur)) {
+                const int critical_compensate_threshold = CRITICAL_COMPENSATE_THRESHOLD;
+                bool critical_compensate = false;
+                while (!tm.validateAndCommit(&cur->xact, cur, critical_compensate)) {
                     failedValPerTxn[cur->prgType]++;
                     thisPrgFailedVal++;
                     if (thisPrgFailedVal > maxFailedValidationProgram) {
@@ -161,14 +163,16 @@ struct RippleExecutor {
                         cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!TOO MANY VALIDATION FAILURE !!!!!!!" << endl;
                         hasFinished = true;
                     }
-#if CRITICAL_COMPENSATE
+if(critical_compensate)
                     break;
-#endif
+
                     auto status = tm.reexecute(&cur->xact, cur);
                     if (status != SUCCESS) {
                         cerr << "Cannot fail execution during reexecution" << endl;
                         exit(-5);
                     }
+                    if(thisPrgFailedVal > critical_compensate_threshold)
+                        critical_compensate = true;
                 }
 #endif
                 finishedPerTxn[cur->prgType]++;

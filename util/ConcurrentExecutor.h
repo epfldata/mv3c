@@ -167,25 +167,29 @@ struct ConcurrentExecutor {
                     continue;
                 }
 #else
-                while (!tm.validateAndCommit(&p->xact, p)) {
+                const int critical_compensate_threshold = CRITICAL_COMPENSATE_THRESHOLD;
+                bool critical_compensate = false;
+                while (!tm.validateAndCommit(&p->xact, p, critical_compensate)) {
                     failedValPerTxn[p->prgType]++;
                     thisPrgFailedVal++;
                     if (thisPrgFailedVal > maxFailedValidationProgram) {
                         maxFailedValidationProgram = thisPrgFailedVal;
                     }
-                    if (thisPrgFailedVal > 10000) {
-                        cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!TOO MANY VALIDATION FAILURE !!!!!!!" << endl;
-                        hasFinished = true;
-                    }
-#if CRITICAL_COMPENSATE
-                    break;
-#endif
+                    if(critical_compensate)
+                        break;
+//                    if (thisPrgFailedVal > 10000) {
+//                        cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!TOO MANY VALIDATION FAILURE !!!!!!!" << endl;
+//                        hasFinished = true;
+//                    }
                     auto status = tm.reexecute(&p->xact, p);
                     if (status != SUCCESS) {
                         cerr << "Cannot fail execution during reexecution" << endl;
                         exit(-5);
                     }
+                    if(thisPrgFailedVal > critical_compensate_threshold)
+                        critical_compensate = true;
                 }
+
 #endif
                 finishedPerTxn[p->prgType]++;
                 pid++;
