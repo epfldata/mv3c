@@ -1,12 +1,15 @@
 import csv
 from collections import defaultdict
 from sets import Set
-name = '9a'
-dataseries = ['MV3C','OMVCC']
+name='8b'
+dataseries = ['MV3C','OMVCC','OCC','SILO']
 alldata = defaultdict(lambda : dict(map(lambda d: (d, []), dataseries)))
 
 def aggregate(l):
 	#print l
+	n = len(l)
+	if(n != 10):
+		print("Count should be 10, instead it is " + str(n))
 	#return (l[-1] + l[-2] + l[-3])/3 #last 3
 	#return (l[-1] + l[-2] + l[-3] + l[-4] + l[-5])/5 #last 5
 	#return sum(l)/len(l)	#average
@@ -18,10 +21,18 @@ with open(name+'.csv', 'r') as csvfile:
 	reader = csv.DictReader(csvfile)
 	for row in reader:
 		d = row['Algo']
-		x = int(row['NumThreads'])
-		p = row['Throughput(ktps)']		
+		x = int(row['NumWare'])
+		p = row['Throughput(ktps)']
 		alldata[x][d].append(float(p))
-		
+
+with open('tpcc-results-cavalia_b.csv', 'r') as csvfile:
+	reader = csv.DictReader(csvfile)
+	for row in reader:
+		d = row[' Algo']
+		x = int(row[' NumWare'])
+		p = row[' Throughput(ktps)']
+		alldata[x][d].append(float(p))		
+
 with open(name+'-thr.avg', 'w') as csvfile:
 	writer = csv.writer(csvfile)
 	writer.writerow([','] + dataseries)
@@ -29,4 +40,4 @@ with open(name+'-thr.avg', 'w') as csvfile:
 		row = [x]
 		for d in dataseries:
 			row.append(aggregate(alldata[x][d]))
-		writer.writerow(row)
+		writer.writerow(row)	

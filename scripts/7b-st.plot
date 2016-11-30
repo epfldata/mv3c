@@ -12,4 +12,4 @@ set style fill solid border rgb"black"
 set boxwidth 0.9
 set terminal pdf
 set output name.".pdf"
-plot name.".avg" using 2:xtic(1) lc rgb"blue" fs pattern 3 title col, name.".avg" using 3:xtic(1) lc rgb"red" fs pattern 2 title col
+plot name.".avg" using 2:xtic(1) lc rgb"#A74A44" fs pattern 3 title col, name.".avg" using 3:xtic(1) lc rgb"#89A24C" fs pattern 2 title col

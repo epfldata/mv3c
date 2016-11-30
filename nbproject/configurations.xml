@@ -16,8 +16,10 @@
       <itemPath>mv3c/types.h</itemPath>
     </logicalFolder>
     <logicalFolder name="scripts" displayName="scripts" projectFiles="true">
-      <itemPath>scripts/10a.sh</itemPath>
-      <itemPath>scripts/10b.sh</itemPath>
+      <itemPath>scripts/10.plot</itemPath>
+      <itemPath>scripts/10.py</itemPath>
+      <itemPath>scripts/11.plot</itemPath>
+      <itemPath>scripts/11.py</itemPath>
       <itemPath>scripts/6.sh</itemPath>
       <itemPath>scripts/6a-st.plot</itemPath>
       <itemPath>scripts/6a-st.py</itemPath>
@@ -40,13 +42,17 @@
       <itemPath>scripts/7b-thr.plot</itemPath>
       <itemPath>scripts/7b-thr.py</itemPath>
       <itemPath>scripts/7b.sh</itemPath>
-      <itemPath>scripts/9.sh</itemPath>
-      <itemPath>scripts/9a-st.plot</itemPath>
-      <itemPath>scripts/9a-st.py</itemPath>
-      <itemPath>scripts/9a-thr.plot</itemPath>
-      <itemPath>scripts/9a-thr.py</itemPath>
-      <itemPath>scripts/9a.sh</itemPath>
-      <itemPath>scripts/9b.sh</itemPath>
+      <itemPath>scripts/8.sh</itemPath>
+      <itemPath>scripts/8a-st.plot</itemPath>
+      <itemPath>scripts/8a-st.py</itemPath>
+      <itemPath>scripts/8a-thr.plot</itemPath>
+      <itemPath>scripts/8a-thr.py</itemPath>
+      <itemPath>scripts/8a.sh</itemPath>
+      <itemPath>scripts/8b-st.plot</itemPath>
+      <itemPath>scripts/8b-st.py</itemPath>
+      <itemPath>scripts/8b-thr.plot</itemPath>
+      <itemPath>scripts/8b-thr.py</itemPath>
+      <itemPath>scripts/8b.sh</itemPath>
       <itemPath>scripts/all.sh</itemPath>
       <itemPath>scripts/bench.sh</itemPath>
       <itemPath>scripts/compileBanking.sh</itemPath>
@@ -54,6 +60,8 @@
       <itemPath>scripts/compileTPCC.sh</itemPath>
       <itemPath>scripts/compileTPCC2.sh</itemPath>
       <itemPath>scripts/compileTrading.sh</itemPath>
+      <itemPath>scripts/tpcc2a.sh</itemPath>
+      <itemPath>scripts/tpcc2b.sh</itemPath>
     </logicalFolder>
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
@@ -191,9 +199,13 @@
       </item>
       <item path="mv3c/types.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/10a.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/10.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/10b.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/10.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/11.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/11.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/6.sh" ex="false" tool="3" flavor2="0">
       </item>
@@ -239,19 +251,27 @@
       </item>
       <item path="scripts/7b.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-st.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-st.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-st.py" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-thr.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-thr.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-thr.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9b.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8b-st.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b-thr.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/all.sh" ex="false" tool="3" flavor2="0">
       </item>
@@ -266,6 +286,10 @@
       <item path="scripts/compileTPCC2.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/compileTrading.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/tpcc2a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/tpcc2b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="tpcc/NewMV3CTpcc.h" ex="false" tool="3" flavor2="0">
       </item>
@@ -404,9 +428,13 @@
       </item>
       <item path="mv3c/types.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/10a.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/10.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/10b.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/10.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/11.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/11.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/6.sh" ex="false" tool="3" flavor2="0">
       </item>
@@ -452,19 +480,27 @@
       </item>
       <item path="scripts/7b.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-st.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-st.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-st.py" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-thr.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-thr.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-thr.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9b.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8b-st.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b-thr.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/all.sh" ex="false" tool="3" flavor2="0">
       </item>
@@ -479,6 +515,10 @@
       <item path="scripts/compileTPCC2.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/compileTrading.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/tpcc2a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/tpcc2b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="tpcc/NewMV3CTpcc.h" ex="false" tool="3" flavor2="0">
       </item>
@@ -616,9 +656,13 @@
       </item>
       <item path="mv3c/types.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/10a.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/10.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/10b.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/10.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/11.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/11.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/6.sh" ex="false" tool="3" flavor2="0">
       </item>
@@ -664,19 +708,27 @@
       </item>
       <item path="scripts/7b.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-st.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-st.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-st.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-st.py" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-thr.plot" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-thr.plot" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a-thr.py" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a-thr.py" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9a.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8a.sh" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="scripts/9b.sh" ex="false" tool="3" flavor2="0">
+      <item path="scripts/8b-st.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b-st.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b-thr.plot" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b-thr.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/8b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/all.sh" ex="false" tool="3" flavor2="0">
       </item>
@@ -691,6 +743,10 @@
       <item path="scripts/compileTPCC2.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scripts/compileTrading.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/tpcc2a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scripts/tpcc2b.sh" ex="false" tool="3" flavor2="0">
       </item>
       <item path="tpcc/NewMV3CTpcc.h" ex="false" tool="3" flavor2="0">
       </item>
