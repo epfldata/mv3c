@@ -1,113 +1,117 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configurationDescriptor version="100">
   <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
-    <logicalFolder name="banking" displayName="banking" projectFiles="true">
-      <itemPath>banking/Banking.h</itemPath>
-      <itemPath>banking/MV3CBanking.h</itemPath>
+    <logicalFolder name="src" displayName="src" projectFiles="true">
+      <logicalFolder name="allocator" displayName="allocator" projectFiles="true">
+        <itemPath>src/allocator/ConcurrentStore.h</itemPath>
+        <itemPath>src/allocator/MemoryPool.h</itemPath>
+        <itemPath>src/allocator/MemoryPool.tcc</itemPath>
+        <itemPath>src/allocator/Store.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="executor" displayName="executor" projectFiles="true">
+        <itemPath>src/executor/ConcurrentExecutor.h</itemPath>
+        <itemPath>src/executor/RippleExecutor.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="index" displayName="index" projectFiles="true">
+        <itemPath>src/index/ConcurrentCuckooSecondaryIndex.h</itemPath>
+        <itemPath>src/index/CuckooSecondaryIndex.h</itemPath>
+        <itemPath>src/index/HashIndexMT.h</itemPath>
+        <itemPath>src/index/MultiMapIndexMT.h</itemPath>
+        <itemPath>src/index/SIndex.h</itemPath>
+        <itemPath>src/index/SecondaryIndex.h</itemPath>
+        <itemPath>src/index/TreeIndexMT.h</itemPath>
+        <itemPath>src/index/UnordereredIndex.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="lock" displayName="lock" projectFiles="true">
+        <itemPath>src/lock/RWLock.h</itemPath>
+        <itemPath>src/lock/SpinLock.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="predicate" displayName="predicate" projectFiles="true">
+        <itemPath>src/predicate/Predicate.h</itemPath>
+        <itemPath>src/predicate/Predicate.hpp</itemPath>
+      </logicalFolder>
+      <logicalFolder name="profile" displayName="profile" projectFiles="true">
+        <itemPath>src/profile/ExecutionProfiler.h</itemPath>
+        <itemPath>src/profile/System.hpp</itemPath>
+        <itemPath>src/profile/Timer.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="storage" displayName="storage" projectFiles="true">
+        <itemPath>src/storage/DeltaVersion.h</itemPath>
+        <itemPath>src/storage/Entry.h</itemPath>
+        <itemPath>src/storage/Table.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="transaction" displayName="transaction" projectFiles="true">
+        <itemPath>src/transaction/Transaction.h</itemPath>
+        <itemPath>src/transaction/TransactionManager.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="util" displayName="util" projectFiles="true">
+        <itemPath>src/util/CustomString.h</itemPath>
+        <itemPath>src/util/Program.h</itemPath>
+        <itemPath>src/util/Tuple.h</itemPath>
+        <itemPath>src/util/tuple_gen.py</itemPath>
+        <itemPath>src/util/types.h</itemPath>
+      </logicalFolder>
     </logicalFolder>
-    <logicalFolder name="mv3c" displayName="mv3c" projectFiles="true">
-      <itemPath>mv3c/DeltaVersion.h</itemPath>
-      <itemPath>mv3c/Entry.h</itemPath>
-      <itemPath>mv3c/Predicate.h</itemPath>
-      <itemPath>mv3c/Predicate.hpp</itemPath>
-      <itemPath>mv3c/Table.h</itemPath>
-      <itemPath>mv3c/Transaction.h</itemPath>
-      <itemPath>mv3c/TransactionManager.h</itemPath>
-      <itemPath>mv3c/types.h</itemPath>
-    </logicalFolder>
-    <logicalFolder name="scripts" displayName="scripts" projectFiles="true">
-      <itemPath>scripts/10.plot</itemPath>
-      <itemPath>scripts/10.py</itemPath>
-      <itemPath>scripts/11.plot</itemPath>
-      <itemPath>scripts/11.py</itemPath>
-      <itemPath>scripts/6.sh</itemPath>
-      <itemPath>scripts/6a-st.plot</itemPath>
-      <itemPath>scripts/6a-st.py</itemPath>
-      <itemPath>scripts/6a-thr.plot</itemPath>
-      <itemPath>scripts/6a-thr.py</itemPath>
-      <itemPath>scripts/6a.sh</itemPath>
-      <itemPath>scripts/6b-st.plot</itemPath>
-      <itemPath>scripts/6b-st.py</itemPath>
-      <itemPath>scripts/6b-thr.plot</itemPath>
-      <itemPath>scripts/6b-thr.py</itemPath>
-      <itemPath>scripts/6b.sh</itemPath>
-      <itemPath>scripts/7.sh</itemPath>
-      <itemPath>scripts/7a-st.plot</itemPath>
-      <itemPath>scripts/7a-st.py</itemPath>
-      <itemPath>scripts/7a-thr.plot</itemPath>
-      <itemPath>scripts/7a-thr.py</itemPath>
-      <itemPath>scripts/7a.sh</itemPath>
-      <itemPath>scripts/7b-st.plot</itemPath>
-      <itemPath>scripts/7b-st.py</itemPath>
-      <itemPath>scripts/7b-thr.plot</itemPath>
-      <itemPath>scripts/7b-thr.py</itemPath>
-      <itemPath>scripts/7b.sh</itemPath>
-      <itemPath>scripts/8.sh</itemPath>
-      <itemPath>scripts/8a-st.plot</itemPath>
-      <itemPath>scripts/8a-st.py</itemPath>
-      <itemPath>scripts/8a-thr.plot</itemPath>
-      <itemPath>scripts/8a-thr.py</itemPath>
-      <itemPath>scripts/8a.sh</itemPath>
-      <itemPath>scripts/8b-st.plot</itemPath>
-      <itemPath>scripts/8b-st.py</itemPath>
-      <itemPath>scripts/8b-thr.plot</itemPath>
-      <itemPath>scripts/8b-thr.py</itemPath>
-      <itemPath>scripts/8b.sh</itemPath>
-      <itemPath>scripts/all.sh</itemPath>
-      <itemPath>scripts/bench.sh</itemPath>
-      <itemPath>scripts/compileBanking.sh</itemPath>
-      <itemPath>scripts/compileBench.sh</itemPath>
-      <itemPath>scripts/compileTPCC.sh</itemPath>
-      <itemPath>scripts/compileTPCC2.sh</itemPath>
-      <itemPath>scripts/compileTrading.sh</itemPath>
-      <itemPath>scripts/tpcc2a.sh</itemPath>
-      <itemPath>scripts/tpcc2b.sh</itemPath>
-    </logicalFolder>
-    <logicalFolder name="SourceFiles"
-                   displayName="Source Files"
-                   projectFiles="true">
-      <itemPath>mainBanking.cpp</itemPath>
-      <itemPath>mainBench.cpp</itemPath>
-      <itemPath>mainRipple.cpp</itemPath>
-      <itemPath>mainTPCC.cpp</itemPath>
-      <itemPath>mainTPCC2.cpp</itemPath>
-      <itemPath>mainTrading.cpp</itemPath>
-    </logicalFolder>
-    <logicalFolder name="tpcc" displayName="tpcc" projectFiles="true">
-      <itemPath>tpcc/NewMV3CTpcc.h</itemPath>
-      <itemPath>tpcc/TPCC.h</itemPath>
-    </logicalFolder>
-    <logicalFolder name="tpcc2" displayName="tpcc2" projectFiles="true">
-      <itemPath>tpcc2/mv3ctpcc2.h</itemPath>
-      <itemPath>tpcc2/tpcc2.h</itemPath>
-    </logicalFolder>
-    <logicalFolder name="trading" displayName="trading" projectFiles="true">
-      <itemPath>trading/Trading.h</itemPath>
-      <itemPath>trading/mv3cTrading.h</itemPath>
-    </logicalFolder>
-    <logicalFolder name="util" displayName="util" projectFiles="true">
-      <itemPath>util/ConcurrentCuckooSecondaryIndex.h</itemPath>
-      <itemPath>util/ConcurrentExecutor.h</itemPath>
-      <itemPath>util/ConcurrentStore.h</itemPath>
-      <itemPath>util/CuckooSecondaryIndex.h</itemPath>
-      <itemPath>util/CustomString.h</itemPath>
-      <itemPath>util/ExecutionProfiler.h</itemPath>
-      <itemPath>util/HashIndexMT.h</itemPath>
-      <itemPath>util/MemoryPool.h</itemPath>
-      <itemPath>util/MemoryPool.tcc</itemPath>
-      <itemPath>util/MultiMapIndexMT.h</itemPath>
-      <itemPath>util/Program.h</itemPath>
-      <itemPath>util/RWLock.h</itemPath>
-      <itemPath>util/RippleExecutor.h</itemPath>
-      <itemPath>util/SIndex.h</itemPath>
-      <itemPath>util/SecondaryIndex.h</itemPath>
-      <itemPath>util/SpinLock.h</itemPath>
-      <itemPath>util/Store.h</itemPath>
-      <itemPath>util/System.hpp</itemPath>
-      <itemPath>util/Timer.h</itemPath>
-      <itemPath>util/TreeIndexMT.h</itemPath>
-      <itemPath>util/Tuple.h</itemPath>
-      <itemPath>util/UnordereredIndex.h</itemPath>
+    <logicalFolder name="tests" displayName="tests" projectFiles="true">
+      <logicalFolder name="banking" displayName="banking" projectFiles="true">
+        <itemPath>tests/banking/Banking.h</itemPath>
+        <itemPath>tests/banking/MV3CBanking.h</itemPath>
+        <itemPath>tests/banking/mainBanking.cpp</itemPath>
+        <itemPath>tests/banking/mainRipple.cpp</itemPath>
+      </logicalFolder>
+      <logicalFolder name="scripts" displayName="scripts" projectFiles="true">
+        <logicalFolder name="execute" displayName="execute" projectFiles="true">
+          <itemPath>tests/scripts/execute/6a.sh</itemPath>
+          <itemPath>tests/scripts/execute/6b.sh</itemPath>
+          <itemPath>tests/scripts/execute/7a.sh</itemPath>
+          <itemPath>tests/scripts/execute/7b.sh</itemPath>
+          <itemPath>tests/scripts/execute/8a.sh</itemPath>
+          <itemPath>tests/scripts/execute/8b.sh</itemPath>
+          <itemPath>tests/scripts/execute/bench.sh</itemPath>
+          <itemPath>tests/scripts/execute/compileBanking.sh</itemPath>
+          <itemPath>tests/scripts/execute/compileBench.sh</itemPath>
+          <itemPath>tests/scripts/execute/compileTPCC.sh</itemPath>
+          <itemPath>tests/scripts/execute/compileTrading.sh</itemPath>
+        </logicalFolder>
+        <logicalFolder name="plot" displayName="plot" projectFiles="true">
+          <itemPath>tests/scripts/plot/10.sh</itemPath>
+          <itemPath>tests/scripts/plot/11.sh</itemPath>
+          <itemPath>tests/scripts/plot/6a.sh</itemPath>
+          <itemPath>tests/scripts/plot/6b.sh</itemPath>
+          <itemPath>tests/scripts/plot/7a.sh</itemPath>
+          <itemPath>tests/scripts/plot/7b.sh</itemPath>
+          <itemPath>tests/scripts/plot/7c.sh</itemPath>
+          <itemPath>tests/scripts/plot/8a.sh</itemPath>
+          <itemPath>tests/scripts/plot/8b.sh</itemPath>
+        </logicalFolder>
+        <logicalFolder name="process" displayName="process" projectFiles="true">
+          <itemPath>tests/scripts/process/10.sh</itemPath>
+          <itemPath>tests/scripts/process/11.sh</itemPath>
+          <itemPath>tests/scripts/process/6a.sh</itemPath>
+          <itemPath>tests/scripts/process/6b.sh</itemPath>
+          <itemPath>tests/scripts/process/7a.sh</itemPath>
+          <itemPath>tests/scripts/process/7b.sh</itemPath>
+          <itemPath>tests/scripts/process/7c.sh</itemPath>
+          <itemPath>tests/scripts/process/8a.sh</itemPath>
+          <itemPath>tests/scripts/process/8b.sh</itemPath>
+        </logicalFolder>
+      </logicalFolder>
+      <logicalFolder name="tpcc" displayName="tpcc" projectFiles="true">
+        <itemPath>tests/tpcc/NewMV3CTpcc.h</itemPath>
+        <itemPath>tests/tpcc/TPCC.h</itemPath>
+        <itemPath>tests/tpcc/mainTPCC.cpp</itemPath>
+      </logicalFolder>
+      <logicalFolder name="tpcc2" displayName="tpcc2" projectFiles="true">
+        <itemPath>tests/tpcc2/mainTPCC2.cpp</itemPath>
+        <itemPath>tests/tpcc2/mv3ctpcc2.h</itemPath>
+        <itemPath>tests/tpcc2/tpcc2.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="trading" displayName="trading" projectFiles="true">
+        <itemPath>tests/trading/Trading.h</itemPath>
+        <itemPath>tests/trading/mainTrading.cpp</itemPath>
+        <itemPath>tests/trading/mv3cTrading.h</itemPath>
+      </logicalFolder>
+      <itemPath>tests/mainBench.cpp</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
                    displayName="Test Files"
@@ -129,6 +133,8 @@
     <Elem>trading</Elem>
     <Elem>scripts</Elem>
     <Elem>tpcc2</Elem>
+    <Elem>tests</Elem>
+    <Elem>src</Elem>
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
@@ -144,14 +150,10 @@
           <standard>8</standard>
           <incDir>
             <pElem>/usr/local/include</pElem>
-            <pElem>mv3c</pElem>
-            <pElem>trading</pElem>
-            <pElem>tpcc</pElem>
-            <pElem>util</pElem>
-            <pElem>banking</pElem>
             <pElem>/usr/include/cryptopp</pElem>
-            <pElem>tpcc2</pElem>
             <pElem>/usr/include/boost148</pElem>
+            <pElem>src</pElem>
+            <pElem>tests</pElem>
           </incDir>
           <commandLine>-Wno-reorder</commandLine>
           <preprocessorList>
@@ -167,188 +169,171 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
-      <item path="banking/Banking.h" ex="false" tool="3" flavor2="0">
+      <item path="src/allocator/ConcurrentStore.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="banking/MV3CBanking.h" ex="false" tool="3" flavor2="0">
+      <item path="src/allocator/MemoryPool.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainBanking.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/allocator/MemoryPool.tcc" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainBench.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/allocator/Store.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainRipple.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/executor/ConcurrentExecutor.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainTPCC.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/executor/RippleExecutor.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainTPCC2.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="mainTrading.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="mv3c/DeltaVersion.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Entry.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Predicate.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Predicate.hpp" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Table.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Transaction.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/TransactionManager.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/types.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/10.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/10.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/11.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/11.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/all.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/bench.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileBanking.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileBench.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileTPCC.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileTPCC2.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileTrading.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/tpcc2a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/tpcc2b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc/NewMV3CTpcc.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc/TPCC.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc2/mv3ctpcc2.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc2/tpcc2.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="trading/Trading.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="trading/mv3cTrading.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="util/ConcurrentCuckooSecondaryIndex.h"
+      <item path="src/index/ConcurrentCuckooSecondaryIndex.h"
             ex="false"
             tool="3"
             flavor2="0">
       </item>
-      <item path="util/ConcurrentExecutor.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/CuckooSecondaryIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/ConcurrentStore.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/HashIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/CuckooSecondaryIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/MultiMapIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/CustomString.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/SIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/ExecutionProfiler.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/SecondaryIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/HashIndexMT.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/TreeIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/MemoryPool.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/UnordereredIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/MemoryPool.tcc" ex="false" tool="3" flavor2="0">
+      <item path="src/lock/RWLock.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/MultiMapIndexMT.h" ex="false" tool="3" flavor2="0">
+      <item path="src/lock/SpinLock.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/Program.h" ex="false" tool="3" flavor2="0">
+      <item path="src/predicate/Predicate.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/RWLock.h" ex="false" tool="3" flavor2="0">
+      <item path="src/predicate/Predicate.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/RippleExecutor.h" ex="false" tool="3" flavor2="0">
+      <item path="src/profile/ExecutionProfiler.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/SIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/profile/System.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/SecondaryIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/profile/Timer.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/SpinLock.h" ex="false" tool="3" flavor2="0">
+      <item path="src/storage/DeltaVersion.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/Store.h" ex="false" tool="3" flavor2="0">
+      <item path="src/storage/Entry.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/System.hpp" ex="false" tool="3" flavor2="0">
+      <item path="src/storage/Table.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/Timer.h" ex="false" tool="3" flavor2="0">
+      <item path="src/transaction/Transaction.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/TreeIndexMT.h" ex="false" tool="3" flavor2="0">
+      <item path="src/transaction/TransactionManager.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
       </item>
-      <item path="util/Tuple.h" ex="false" tool="3" flavor2="0">
+      <item path="src/util/CustomString.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/UnordereredIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/util/Program.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/util/Tuple.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/util/tuple_gen.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/util/types.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/banking/Banking.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/banking/MV3CBanking.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/banking/mainBanking.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/banking/mainRipple.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/mainBench.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/6a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/6b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/7a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/7b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/8a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/8b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/bench.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileBanking.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileBench.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileTPCC.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileTrading.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/10.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/11.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/6a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/6b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/7a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/7b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/7c.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/8a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/8b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/10.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/11.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/6a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/6b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/7a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/7b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/7c.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/8a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/8b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc/NewMV3CTpcc.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc/TPCC.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc/mainTPCC.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/tpcc2/mainTPCC2.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/tpcc2/mv3ctpcc2.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc2/tpcc2.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/trading/Trading.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/trading/mainTrading.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/trading/mv3cTrading.h" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
     <conf name="Release" type="1">
@@ -367,14 +352,10 @@
           <standard>8</standard>
           <incDir>
             <pElem>/usr/local/include</pElem>
-            <pElem>mv3c</pElem>
-            <pElem>trading</pElem>
-            <pElem>tpcc</pElem>
-            <pElem>util</pElem>
-            <pElem>banking</pElem>
             <pElem>/usr/include/cryptopp</pElem>
-            <pElem>tpcc2</pElem>
             <pElem>/usr/include/boost148</pElem>
+            <pElem>src</pElem>
+            <pElem>tests</pElem>
           </incDir>
           <commandLine>-DNDEBUG</commandLine>
           <preprocessorList>
@@ -396,188 +377,171 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
-      <item path="banking/Banking.h" ex="false" tool="3" flavor2="0">
+      <item path="src/allocator/ConcurrentStore.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="banking/MV3CBanking.h" ex="false" tool="3" flavor2="0">
+      <item path="src/allocator/MemoryPool.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainBanking.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/allocator/MemoryPool.tcc" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainBench.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/allocator/Store.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainRipple.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/executor/ConcurrentExecutor.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainTPCC.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/executor/RippleExecutor.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainTPCC2.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="mainTrading.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="mv3c/DeltaVersion.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Entry.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Predicate.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Predicate.hpp" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Table.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Transaction.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/TransactionManager.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/types.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/10.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/10.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/11.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/11.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/all.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/bench.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileBanking.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileBench.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileTPCC.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileTPCC2.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileTrading.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/tpcc2a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/tpcc2b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc/NewMV3CTpcc.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc/TPCC.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc2/mv3ctpcc2.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc2/tpcc2.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="trading/Trading.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="trading/mv3cTrading.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="util/ConcurrentCuckooSecondaryIndex.h"
+      <item path="src/index/ConcurrentCuckooSecondaryIndex.h"
             ex="false"
             tool="3"
             flavor2="0">
       </item>
-      <item path="util/ConcurrentExecutor.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/CuckooSecondaryIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/ConcurrentStore.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/HashIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/CuckooSecondaryIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/MultiMapIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/CustomString.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/SIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/ExecutionProfiler.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/SecondaryIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/HashIndexMT.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/TreeIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/MemoryPool.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/UnordereredIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/MemoryPool.tcc" ex="false" tool="3" flavor2="0">
+      <item path="src/lock/RWLock.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/MultiMapIndexMT.h" ex="false" tool="3" flavor2="0">
+      <item path="src/lock/SpinLock.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/Program.h" ex="false" tool="3" flavor2="0">
+      <item path="src/predicate/Predicate.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/RWLock.h" ex="false" tool="3" flavor2="0">
+      <item path="src/predicate/Predicate.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/RippleExecutor.h" ex="false" tool="3" flavor2="0">
+      <item path="src/profile/ExecutionProfiler.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/SIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/profile/System.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/SecondaryIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/profile/Timer.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/SpinLock.h" ex="false" tool="3" flavor2="0">
+      <item path="src/storage/DeltaVersion.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/Store.h" ex="false" tool="3" flavor2="0">
+      <item path="src/storage/Entry.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/System.hpp" ex="false" tool="3" flavor2="0">
+      <item path="src/storage/Table.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/Timer.h" ex="false" tool="3" flavor2="0">
+      <item path="src/transaction/Transaction.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/TreeIndexMT.h" ex="false" tool="3" flavor2="0">
+      <item path="src/transaction/TransactionManager.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
       </item>
-      <item path="util/Tuple.h" ex="false" tool="3" flavor2="0">
+      <item path="src/util/CustomString.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/UnordereredIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/util/Program.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/util/Tuple.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/util/tuple_gen.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/util/types.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/banking/Banking.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/banking/MV3CBanking.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/banking/mainBanking.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/banking/mainRipple.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/mainBench.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/6a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/6b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/7a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/7b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/8a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/8b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/bench.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileBanking.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileBench.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileTPCC.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileTrading.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/10.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/11.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/6a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/6b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/7a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/7b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/7c.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/8a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/8b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/10.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/11.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/6a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/6b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/7a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/7b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/7c.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/8a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/8b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc/NewMV3CTpcc.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc/TPCC.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc/mainTPCC.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/tpcc2/mainTPCC2.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/tpcc2/mv3ctpcc2.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc2/tpcc2.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/trading/Trading.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/trading/mainTrading.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/trading/mv3cTrading.h" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
     <conf name="DiagRelease" type="1">
@@ -596,14 +560,10 @@
           <standard>8</standard>
           <incDir>
             <pElem>/usr/local/include</pElem>
-            <pElem>mv3c</pElem>
-            <pElem>trading</pElem>
-            <pElem>tpcc</pElem>
-            <pElem>util</pElem>
-            <pElem>banking</pElem>
             <pElem>/usr/include/cryptopp</pElem>
-            <pElem>tpcc2</pElem>
             <pElem>/usr/include/boost148</pElem>
+            <pElem>src</pElem>
+            <pElem>tests</pElem>
           </incDir>
           <commandLine>-Wreturn-type</commandLine>
           <preprocessorList>
@@ -624,188 +584,171 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
-      <item path="banking/Banking.h" ex="false" tool="3" flavor2="0">
+      <item path="src/allocator/ConcurrentStore.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="banking/MV3CBanking.h" ex="false" tool="3" flavor2="0">
+      <item path="src/allocator/MemoryPool.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainBanking.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/allocator/MemoryPool.tcc" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainBench.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/allocator/Store.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainRipple.cpp" ex="false" tool="1" flavor2="0">
+      <item path="src/executor/ConcurrentExecutor.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainTPCC.cpp" ex="false" tool="1" flavor2="8">
+      <item path="src/executor/RippleExecutor.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="mainTPCC2.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="mainTrading.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="mv3c/DeltaVersion.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Entry.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Predicate.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Predicate.hpp" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Table.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/Transaction.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/TransactionManager.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="mv3c/types.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/10.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/10.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/11.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/11.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/6b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/7b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-st.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-st.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-thr.plot" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b-thr.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/8b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/all.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/bench.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileBanking.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileBench.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileTPCC.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileTPCC2.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/compileTrading.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/tpcc2a.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="scripts/tpcc2b.sh" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc/NewMV3CTpcc.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc/TPCC.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc2/mv3ctpcc2.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tpcc2/tpcc2.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="trading/Trading.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="trading/mv3cTrading.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="util/ConcurrentCuckooSecondaryIndex.h"
+      <item path="src/index/ConcurrentCuckooSecondaryIndex.h"
             ex="false"
             tool="3"
             flavor2="0">
       </item>
-      <item path="util/ConcurrentExecutor.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/CuckooSecondaryIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/ConcurrentStore.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/HashIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/CuckooSecondaryIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/MultiMapIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/CustomString.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/SIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/ExecutionProfiler.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/SecondaryIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/HashIndexMT.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/TreeIndexMT.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/MemoryPool.h" ex="false" tool="3" flavor2="0">
+      <item path="src/index/UnordereredIndex.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/MemoryPool.tcc" ex="false" tool="3" flavor2="0">
+      <item path="src/lock/RWLock.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/MultiMapIndexMT.h" ex="false" tool="3" flavor2="0">
+      <item path="src/lock/SpinLock.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/Program.h" ex="false" tool="3" flavor2="0">
+      <item path="src/predicate/Predicate.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/RWLock.h" ex="false" tool="3" flavor2="0">
+      <item path="src/predicate/Predicate.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/RippleExecutor.h" ex="false" tool="3" flavor2="0">
+      <item path="src/profile/ExecutionProfiler.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/SIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/profile/System.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/SecondaryIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/profile/Timer.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/SpinLock.h" ex="false" tool="3" flavor2="0">
+      <item path="src/storage/DeltaVersion.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/Store.h" ex="false" tool="3" flavor2="0">
+      <item path="src/storage/Entry.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/System.hpp" ex="false" tool="3" flavor2="0">
+      <item path="src/storage/Table.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/Timer.h" ex="false" tool="3" flavor2="0">
+      <item path="src/transaction/Transaction.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/TreeIndexMT.h" ex="false" tool="3" flavor2="0">
+      <item path="src/transaction/TransactionManager.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
       </item>
-      <item path="util/Tuple.h" ex="false" tool="3" flavor2="0">
+      <item path="src/util/CustomString.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="util/UnordereredIndex.h" ex="false" tool="3" flavor2="0">
+      <item path="src/util/Program.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/util/Tuple.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/util/tuple_gen.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/util/types.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/banking/Banking.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/banking/MV3CBanking.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/banking/mainBanking.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/banking/mainRipple.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/mainBench.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/6a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/6b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/7a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/7b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/8a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/8b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/bench.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileBanking.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileBench.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileTPCC.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/execute/compileTrading.sh"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/10.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/11.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/6a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/6b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/7a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/7b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/7c.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/8a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/plot/8b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/10.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/11.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/6a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/6b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/7a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/7b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/7c.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/8a.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/scripts/process/8b.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc/NewMV3CTpcc.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc/TPCC.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc/mainTPCC.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/tpcc2/mainTPCC2.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/tpcc2/mv3ctpcc2.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/tpcc2/tpcc2.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/trading/Trading.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/trading/mainTrading.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/trading/mv3cTrading.h" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
   </confs>
