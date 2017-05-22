@@ -5,6 +5,7 @@ fi
 
 ROOT="$(dirname "$0")/../../.."
 EXE_DIR="$(dirname "$0")/../output/executable/$1"
+DATA_DIR=`realpath "$ROOT/../DataGen"`
 mkdir -p $EXE_DIR
 CC=g++
 
@@ -20,7 +21,7 @@ si=-DCUCKOO_SI
 p=$3
 numThr=$2
 
-flags="-DTPCC_TEST $si -DCWW=false -DNUMTHREADS=$numThr -m64 -O3 $profile $store $attrib -DNUMWARE=$p -DCUCKOO=$cuckoo -DNDEBUG -DNUMPROG=$num  -Wno-attributes -I $ROOT/src -I $ROOT/tests -std=c++11  -DMALLOCTYPE=\"normal\" "
+flags="-DTPCC_TEST $si -DCWW=false -DNUMTHREADS=$numThr -DTPCC_DATA_ROOT=\"$DATA_DIR\" -m64 -O3 $profile $store $attrib -DNUMWARE=$p -DCUCKOO=$cuckoo -DNDEBUG -DNUMPROG=$num  -Wno-attributes -I $ROOT/src -I $ROOT/tests -std=c++11  -DMALLOCTYPE=\"normal\" "
 src="$ROOT/tests/tpcc/mainTPCC.cpp"
 libs="-pthread -lcityhash" 
 

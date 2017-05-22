@@ -20,8 +20,6 @@ echo -n "$numThr $p "
 done
 done | xargs  -n 2 -P10 "$SCRIPT_DIR/compileTPCC.sh" 8a
 
-rm ~/TStore/CavCommands*   #FIX THIS
-cp ~/Full/CavCommands* ~/TStore/  #FIX THIS
 
 #MVCC 1
 for p in 1

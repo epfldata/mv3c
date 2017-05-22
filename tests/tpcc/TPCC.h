@@ -73,19 +73,15 @@ namespace tpcc_ns {
     const size_t StockIndexSize = numWare * ItemIndexSize;
     const size_t HistoryIndexSize = OrderIndexSize;
 
-#ifdef PROJECT_ROOT
-    const std::string TStore = PROJECT_ROOT;
-#else
-    const std::string TStore = "/home/sachin/TStore/";
-#endif
+
+    const std::string TStore = TPCC_DATA_ROOT;
+
     //    const int sources[] = {16,16,12,16, 5,12,14,16, 9,10,11,12,13,14,15,16};  
     //  const int sources[] = {1 , 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16};  
     //    const std::string commandfile = TStore + "CavCommands" STRINGIFY(NUMWARE) ".txt";
     const int wareSource = 16; //sources[numWare-1];
     const std::string commandfile = TStore + "CavCommands" + to_string(wareSource) + ".txt";
 
-    //const std::string inputTableDir = "/home/sachin/sem3/Project/test/input/";
-    //const std::string outputTableDir = "/home/sachin/sem3/Project/test/output/";
     const std::string inputTableDir = TStore + "bench/systems/tpcc/mysql/db" STRINGIFY(NUMWARE) "innodb/";
     const std::string outputTableDir = TStore + "bench/systems/tpcc/mysql/results_db" STRINGIFY(NUMWARE) "innodb/";
 
