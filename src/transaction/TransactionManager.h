@@ -289,8 +289,7 @@ struct TransactionManager {
 
     forceinline bool validateAndCommit(Transaction *xact, Program *state = nullptr, bool critical_compensate = false) {
         if (xact->undoBufferHead == nullptr) { //Read only transaction
-            commitLock.lock();
-            commit(xact);
+            xact->commitTS = xact->startTS;
             return true;
         }
 
