@@ -1,7 +1,8 @@
 #!/bin/bash 
 
-INPUT_DIR="$(dirname "$0")/../output/average"
-OUTPUT_DIR="$(dirname "$0")/../output/graphs"
+INPUT_DIR=`readlink -f "$(dirname "$0")/../output/average"`
+OUTPUT_DIR=`readlink -f "$(dirname "$0")/../output/graphs"`
+mkdir -p $OUTPUT_DIR
 FILE="$INPUT_DIR/7c.csv"
 
 gnuplot << EOF

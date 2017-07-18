@@ -1,7 +1,8 @@
 #!/bin/bash 
 
-INPUT_DIR="$(dirname "$0")/../output/average"
-OUTPUT_DIR="$(dirname "$0")/../output/graphs"
+INPUT_DIR=`readlink -f "$(dirname "$0")/../output/average"`
+OUTPUT_DIR=`readlink -f "$(dirname "$0")/../output/graphs"`
+mkdir -p $OUTPUT_DIR
 FILE="$INPUT_DIR/10.csv"
 
 gnuplot << EOF
@@ -27,7 +28,7 @@ set style line 2 lt rgb "#89A24C" lw 3 pt 9
 set grid ytics
 
 set xlabel "{/Times-Bold=20 # of concurrent transactions}"
-set ylabel "{/Times-Bold=20 Throughput \n (kilo tuples/second)}"
+set ylabel "{/Times-Bold=20 Throughput \n (kilo transactions/second)}"
 
 plot '$FILE' using 1:2  w linespoints ls 1 title columnheader(2) , '$FILE' using 1:3 w linespoints ls 2 title columnheader(3)
 EOF

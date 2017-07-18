@@ -1,7 +1,8 @@
 #!/bin/bash 
 
-INPUT_DIR="$(dirname "$0")/../output/average"
-OUTPUT_DIR="$(dirname "$0")/../output/graphs"
+INPUT_DIR=`readlink -f "$(dirname "$0")/../output/average"`
+OUTPUT_DIR=`readlink -f "$(dirname "$0")/../output/graphs"`
+mkdir -p $OUTPUT_DIR
 FILE="$INPUT_DIR/8b.csv"
 
 gnuplot << EOF
@@ -25,7 +26,7 @@ set grid ytics
 set key tmargin horizontal font ",16"
 
 set tics scale 0
-set ylabel "{/Times-Bold=20 Throughput\n(kilo tuples/second)}"
+set ylabel "{/Times-Bold=20 Throughput\n(kilo transactions/second)}"
 set xlabel "{/Times-Bold=20 # of warehouses in TPC-­C benchmark}"
 
 set style data histogram

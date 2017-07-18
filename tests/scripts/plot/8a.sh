@@ -1,7 +1,8 @@
 #!/bin/bash 
 
-INPUT_DIR="$(dirname "$0")/../output/average"
-OUTPUT_DIR="$(dirname "$0")/../output/graphs"
+INPUT_DIR=`readlink -f "$(dirname "$0")/../output/average"`
+OUTPUT_DIR=`readlink -f "$(dirname "$0")/../output/graphs"`
+mkdir -p $OUTPUT_DIR
 FILE1="$INPUT_DIR/8a1.csv"
 FILE2="$INPUT_DIR/8a2.csv"
 
@@ -33,7 +34,7 @@ set style line 4 lt rgb "#524265" lw 3 pt 3
 set grid ytics
 
 set xlabel "{/Times-Bold=20 # of worker threads}"
-set ylabel "{/Times-Bold=20 Throughput\n(kilo tuples/second)}"
+set ylabel "{/Times-Bold=20 Throughput\n(kilo transactions/second)}"
 
 plot '$FILE1' using 1:2  w linespoints ls 1 title columnheader(2) , '$FILE1' using 1:3 w linespoints ls 2 title columnheader(3) , '$FILE1' using 1:4 w linespoints ls 3 title columnheader(4) , '$FILE1' using 1:5 w linespoints ls 4 title columnheader(5)
 

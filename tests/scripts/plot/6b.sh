@@ -1,7 +1,8 @@
 #!/bin/bash 
 
-INPUT_DIR="$(dirname "$0")/../output/average"
-OUTPUT_DIR="$(dirname "$0")/../output/graphs"
+INPUT_DIR=`readlink -f "$(dirname "$0")/../output/average"`
+OUTPUT_DIR=`readlink -f "$(dirname "$0")/../output/graphs"`
+mkdir -p $OUTPUT_DIR
 FILE="$INPUT_DIR/6b.csv"
 
 gnuplot << EOF
@@ -26,8 +27,8 @@ set grid ytics
 
 set key font ",16"
 
-set ylabel "{/Times-Bold=16 Throughput\n(kilo tuples/second)}"
-set xlabel "{/Times-Bold=16 Zipf parameter (α) for s_id distribution }"
+set ylabel "{/Times-Bold=16 Throughput\n(kilo transactions/second)}"
+set xlabel "{/Times-Bold=16 Zipf parameter (α) for s\\\_id distribution }" 
 
 set style data histogram
 set style histogram cluster gap 1
