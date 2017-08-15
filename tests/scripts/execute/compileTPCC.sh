@@ -4,8 +4,8 @@ if [ "$#" -ne 3 ]; then
 fi
 
 ROOT="$(dirname "$0")/../../.."
-EXE_DIR="$(dirname "$0")/../output/executable/$1"
-DATA_DIR=`realpath "$ROOT/../DataGen"`
+EXE_DIR=`readlink -m "$(dirname "$0")/../output/executable/$1"`
+DATA_DIR=`readlink -m "$ROOT/../MV3C_SingleThreaded"`/
 mkdir -p $EXE_DIR
 CC=g++
 

@@ -1,15 +1,17 @@
 #!/bin/bash 
 
-INPUT_DIR=`readlink -f "$(dirname "$0")/../output/average"`
-OUTPUT_DIR=`readlink -f "$(dirname "$0")/../output/graphs"`
+INPUT_DIR=`readlink -m "$(dirname "$0")/../output/average"`
+OUTPUT_DIR=`readlink -m "$(dirname "$0")/../output/graphs"`
 mkdir -p $OUTPUT_DIR
 FILE="$INPUT_DIR/7b.csv"
-
+OUTFILE="$OUTPUT_DIR/banking-percentage.pdf"
+echo "  Saving result graph as $OUTFILE"
+echo " "
 gnuplot << EOF
 set datafile separator ","
 set terminal pdf size 12cm,5cm
 set termoption enhanced
-set output "$OUTPUT_DIR/banking-percentage.pdf"
+set output "$OUTFILE"
 
 set lmargin at screen 0.18;
 set rmargin at screen 0.99;
@@ -26,7 +28,7 @@ set border 3
 set tics scale 0
 set key font ",16"
 
-set ylabel "{/Times-Bold=20 Throughput\n(kilo transactions/second)}"
+set ylabel "{/Times-Bold=20 Throughput}\n(kilo transactions/second)"
 set xlabel "{/Times-Bold=20 Percentage of conflict in concurrent transactions}"
 
 set style data histogram

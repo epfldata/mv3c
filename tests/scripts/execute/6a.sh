@@ -1,42 +1,53 @@
 #!/bin/bash
 SCRIPT_DIR="$(dirname "$0")"
-EXE_DIR="$(dirname "$0")/../output/executable/6a"
-RAW_DIR="$(dirname "$0")/../output/raw"
+EXE_DIR=`readlink -m "$SCRIPT_DIR/../output/executable/6a"`
+RAW_DIR=`readlink -m "$SCRIPT_DIR/../output/raw"`
 
-rm -rf "$EXE_DIR/*"
+rm -rf "$EXE_DIR"
+mkdir -p $EXE_DIR $RAW_DIR
 rm -f header out
-echo "Trading thread test"
-p=1.4
-threads="1 2 3 4 5 6 7 8 9 10 11"
-iterations=10
+echo "Experiment : Trading-Thread (Figure 6a)"
+
+alpha=1.4
+iterations=${NUMITERS:-5}
+maxThreads=$((NUMCORES-1))
+threads=`seq $maxThreads`
 
 #Compile
+echo "  Generating executables ..."
 for numThr in $threads
 do
-echo -n "$numThr $p " 
-done | xargs  -n 2 -P10 "$SCRIPT_DIR/compileTrading.sh" 6a
+	echo -n "$numThr $alpha " 
+done | xargs  -n 2 -P $maxThreads "$SCRIPT_DIR/compileTrading.sh" 6a
+echo "  Running with Alpha = $alpha"
 
-
-#MVCC
+#OMVCC
+echo "  OMVCC :"
 for numThr in $threads
 do
-for i in `seq $iterations`
-do
-sudo "$EXE_DIR/mvccTrading-$numThr-$p.out"		
-done
+	echo -n "    Thread = $numThr     Iterations ->"
+	for i in `seq $iterations`
+	do
+		echo -n " $i "
+	    RUN "$EXE_DIR/mvccTrading-$numThr-$alpha.out" /dev/null		
+	done
+	echo ""
 done
 
 
 #MV3C
+echo "  MV3C :"
 for numThr in $threads
 do
-for i in `seq $iterations`
-do
-sudo "$EXE_DIR/mv3cTrading-$numThr-$p.out"
+	echo -n "    Thread = $numThr     Iterations ->"
+	for i in `seq $iterations`
+	do
+	  echo -n " $i "
+	 RUN "$EXE_DIR/mv3cTrading-$numThr-$alpha.out"  /dev/null
+	done
+	echo ""
 done
-done
+echo ""
 
 cat header out > "$RAW_DIR/6a.csv"
 rm -f header out
-
-

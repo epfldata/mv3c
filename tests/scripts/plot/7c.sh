@@ -1,14 +1,16 @@
 #!/bin/bash 
-
-INPUT_DIR=`readlink -f "$(dirname "$0")/../output/average"`
-OUTPUT_DIR=`readlink -f "$(dirname "$0")/../output/graphs"`
+  
+INPUT_DIR=`readlink -m "$(dirname "$0")/../output/average"`
+OUTPUT_DIR=`readlink -m "$(dirname "$0")/../output/graphs"`
 mkdir -p $OUTPUT_DIR
+OUTFILE="$OUTPUT_DIR/banking-ripple.pdf"
 FILE="$INPUT_DIR/7c.csv"
-
+echo "  Saving result graph as $OUTFILE"
+echo " "
 gnuplot << EOF
 set datafile separator ","
 set terminal pdf size 12cm,5cm
-set output "$OUTPUT_DIR/banking-ripple.pdf"
+set output "$OUTFILE"
 
 set lmargin at screen 0.18;
 set rmargin at screen 0.95;

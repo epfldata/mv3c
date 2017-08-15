@@ -10,22 +10,23 @@ datafile12 = os.path.join(os.path.dirname(__file__), '../output/raw/8a2.csv')
 datafile2 = os.path.join(os.path.dirname(__file__), '../output/raw/tpcc-results-cavalia_a.csv')
 outfile1 = os.path.join(os.path.dirname(__file__), '../output/average/8a1.csv')
 outfile2 = os.path.join(os.path.dirname(__file__), '../output/average/8a2.csv')
-
+outdir = os.path.dirname(outfile1)
+try:
+    os.stat(outdir)
+except:
+    os.mkdir(outdir)
 dataseries = ['MV3C','OMVCC','OCC','SILO']
 alldata1 = defaultdict(lambda : dict(map(lambda d: (d, []), dataseries)))
 alldata2 = defaultdict(lambda : dict(map(lambda d: (d, []), dataseries)))
 
-def aggregate(l,x,d):
-	n = len(l)
-	if(n != 10):
-		print("Count should be 10, instead it is " + str(n) + "for xpoint " +str(x)+ " and dataseries " + d)
-	#print l
-	#return (l[-1] + l[-2] + l[-3])/3 #last 3
-	#return (l[-1] + l[-2] + l[-3] + l[-4] + l[-5])/5 #last 5
-	#return sum(l)/len(l)	#average
+def aggregate(l):
 	l.sort(reverse=True)
-	return (l[0]+l[1]+l[2])/3 #best 3
-	#return (l[0]+l[1]+l[2]+l[3]+l[4])/5 #best 5	
+	if(len(l) >= 3):
+		return (l[0]+l[1]+l[2])/3 #best 3
+	elif(len(l) == 2):
+		return (l[0]+l[1])/2
+	else: 
+		return l[0]	
 
 with open(datafile11, 'r') as csvfile:
 	reader = csv.DictReader(csvfile)
@@ -50,7 +51,7 @@ with open(outfile1, 'w') as csvfile:
 	for x in sorted(alldata1.keys()):
 		row = [x]
 		for d in dataseries:
-			row.append(aggregate(alldata1[x][d],x,d))
+			row.append(aggregate(alldata1[x][d]))
 		writer.writerow(row)
 
 		
@@ -77,5 +78,5 @@ with open(outfile2, 'w') as csvfile:
 	for x in sorted(alldata2.keys()):
 		row = [x]
 		for d in dataseries:
-			row.append(aggregate(alldata2[x][d],x,d))
+			row.append(aggregate(alldata2[x][d]))
 		writer.writerow(row)

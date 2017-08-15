@@ -2,8 +2,8 @@
 if [ "$#" -ne 3 ]; then
     echo "Illegal number of parameters"
 fi
-ROOT="$(dirname "$0")/../../.."
-EXE_DIR="$(dirname "$0")/../output/executable/$1"
+ROOT=`readlink -m "$(dirname "$0")/../../.."`
+EXE_DIR=`readlink -m "$(dirname "$0")/../output/executable/$1"`
 mkdir -p $EXE_DIR
 CC=g++
 

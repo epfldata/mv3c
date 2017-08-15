@@ -1,42 +1,54 @@
 #!/bin/bash
 SCRIPT_DIR="$(dirname "$0")"
-EXE_DIR="$(dirname "$0")/../output/executable/6b"
-RAW_DIR="$(dirname "$0")/../output/raw"
+EXE_DIR=`readlink -m "$SCRIPT_DIR/../output/executable/6b"`
+RAW_DIR=`readlink -m "$SCRIPT_DIR/../output/raw"`
 
-rm -rf "$EXE_DIR/*"
+rm -rf "$EXE_DIR"
+mkdir -p $EXE_DIR $RAW_DIR
 rm -f header out
 
-echo "Trading conflict test"
+echo "Experiment : Trading-Conflict (Figure 6b)"
 
-numThr=10
-pList="1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0 2.1 2.2 2.3 2.4"
-iterations=10
+numThr=$((NUMCORES-2))
+alphaList="1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0 2.1 2.2 2.3 2.4"
+iterations=${NUMITERS:-5}
 
+echo "  Generating executables ... "
 #Compile
-for p in $pList
+for alpha in $alphaList
 do
-echo -n "$numThr $p " 
-done | xargs  -n 2 -P10 "$SCRIPT_DIR/compileTrading.sh" 6b
+	echo -n "$numThr $alpha " 
+done | xargs  -n 2 -P $numThr "$SCRIPT_DIR/compileTrading.sh" 6b
+
+echo "  Running with $numThr threads"
 
 #MVCC
-for p in $pList
+echo "  OMVCC:"
+for alpha in $alphaList
 do
-for i in `seq $iterations`
-do
-sudo "$EXE_DIR/mvccTrading-$numThr-$p.out"			
-done
+	echo -n  "    Alpha = $alpha      Iterations -> "
+	for i in `seq $iterations`
+	do
+		 echo -n " $i "
+		 RUN "$EXE_DIR/mvccTrading-$numThr-$alpha.out" /dev/null		
+	done
+	echo ""
 done
 
 
 #MV3C
-for p in $pList
+echo "   MV3C:"
+for alpha in $alphaList
 do
-for i in `seq $iterations`
-do	
-sudo "$EXE_DIR/mv3cTrading-$numThr-$p.out"		
+	echo -n  "    Alpha = $alpha      Iterations -> "
+	for i in `seq $iterations`
+	do	
+		echo -n " $i "
+		RUN "$EXE_DIR/mv3cTrading-$numThr-$alpha.out" /dev/null	
+	done
+	echo ""
 done
-done
-
+echo ""
 
 cat header out > "$RAW_DIR/6b.csv"
 rm -f header out

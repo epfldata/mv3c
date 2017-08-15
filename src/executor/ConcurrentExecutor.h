@@ -12,7 +12,6 @@
 #include "tpcc/NewMV3CTpcc.h"
 #include "banking/MV3CBanking.h"
 #include "trading/mv3cTrading.h"
-#include "tpcc2/mv3ctpcc2.h"
 
 struct ConcurrentExecutor {
     std::thread* workers;

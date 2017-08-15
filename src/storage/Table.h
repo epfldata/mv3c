@@ -91,15 +91,22 @@ struct Table {
             e = new(EntryType::store.add(xact->threadId)) Entry<K, V>(this, k);
             auto ret = primaryIndex.insert(k, e);
             if (ret) { //attempt to insert successful
-                //add to secondary indexes
-                for (uint8_t i = 0; i < numIndexes; ++i) {
-                    secondaryIndexes[i]->insert(e, dv->val);
-                }
+                
+                //must initialize e->dv and dv->xactid before adding to secondary index, as during a slice, many entries that were just inserted could be checked
+                //for their visibility. This is not the case with primary index (at least in the current set of benchmarks)
+
                 //initialize other fields of the DV.
                 dv->initialize(e, PTRtoTS(xact), xact->undoBufferHead, INSERT, parent);
 
                 xact->undoBufferHead = dv; //add to undo buffer
                 e->dv.store(dv); //add to version chain
+
+
+                //add to secondary indexes
+                for (uint8_t i = 0; i < numIndexes; ++i) {
+                    secondaryIndexes[i]->insert(e, dv->val);
+                }
+                
                 return OP_SUCCESS;
             } else { //another concurrent transaction inserted first
                 DVType::store.remove(dv, xact->threadId);

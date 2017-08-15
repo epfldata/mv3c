@@ -1,14 +1,16 @@
 #!/bin/bash 
 
-INPUT_DIR=`readlink -f "$(dirname "$0")/../output/average"`
-OUTPUT_DIR=`readlink -f "$(dirname "$0")/../output/graphs"`
+INPUT_DIR=`readlink -m "$(dirname "$0")/../output/average"`
+OUTPUT_DIR=`readlink -m "$(dirname "$0")/../output/graphs"`
 mkdir -p $OUTPUT_DIR
+OUTFILE="$OUTPUT_DIR/trading-percentage.pdf"
 FILE="$INPUT_DIR/6b.csv"
-
+echo "  Saving result graph as $OUTFILE"
+echo " "
 gnuplot << EOF
 set datafile separator ","
 set terminal pdf size 12cm,5cm
-set output "$OUTPUT_DIR/trading-percentage.pdf"
+set output "$OUTFILE"
 
 set lmargin at screen 0.2;
 set rmargin at screen 0.99;
@@ -27,7 +29,7 @@ set grid ytics
 
 set key font ",16"
 
-set ylabel "{/Times-Bold=16 Throughput\n(kilo transactions/second)}"
+set ylabel "{/Times-Bold=16 Throughput}\n(kilo transactions/second)"
 set xlabel "{/Times-Bold=16 Zipf parameter (α) for s\\\_id distribution }" 
 
 set style data histogram

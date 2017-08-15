@@ -1,5 +1,6 @@
 #ifndef TYPES_H
 #define TYPES_H
+#include "mapping.h"
 //ALLOW_WW=true  NUMPROG=5000000 NUMWARE=5 OMVCC=true POWER=2 TRADING_TEST
 #ifdef NB  //Netbeans configuration
 #define ALLOW_WW true
@@ -153,7 +154,7 @@ forceinline T unmark(T t) {
 #define setAffinity(thread_id)\
     cpu_set_t cpuset;\
     CPU_ZERO(&cpuset);\
-    CPU_SET(thread_id+1, &cpuset);\
+    CPU_SET(THREAD_TO_CORE_MAPPING(thread_id+1), &cpuset);\
     auto s = sched_setaffinity(0, sizeof (cpu_set_t), &cpuset);\
     if (s != 0)\
         throw std::runtime_error("Cannot set affinity");

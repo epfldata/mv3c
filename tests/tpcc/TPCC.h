@@ -580,6 +580,7 @@ namespace tpcc_ns {
         }
 
         void loadPrograms() {
+            cout << "Loading commands from " << commandfile << endl;
             std::ifstream fin(commandfile);
             std::string line;
             size_t curPrg = 0;
