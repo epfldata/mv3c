@@ -85,32 +85,3 @@ addCommandAlias("unit10", ";unit -i 10; reloadDB") ++
 addCommandAlias("unit11", ";unit -i 11; reloadDB")
 
 addCommandAlias("test-mvconcurrent", ";test-only ddbt.lib.mvconcurrent.*")
-
-// --------- LMS codegen, enabled with ddbt.lms = 1 in conf/config.properties
-{
-  val prop=new java.util.Properties(); try { prop.load(new java.io.FileInputStream("conf/config.properties")) } catch { case _:Throwable => }
-  if (prop.getProperty("ddbt.lms","0")!="1") Seq() else Seq(
-    // assemblyOption in assembly ~= { _.copy(includeScala = false) }
-    sources in Compile ~= (fs => fs.filter(f=> !f.toString.endsWith("codegen/LMSGen.scala"))), // ++ (new java.io.File("lms") ** "*.scala").get
-    scalaSource in Compile <<= baseDirectory / "lms", // incorrect; but fixes dependency and allows incremental compilation (SBT 0.13.0)
-    //unmanagedSourceDirectories in Compile += file("lms"),
-    // LMS-specific options
-    scalaOrganization := "org.scala-lang.virtualized",
-    scalaVersion := "2.10.2-RC1",
-    libraryDependencies ++= Seq(
-      "com.typesafe.akka" %% "akka-actor"     % "2.2.3",
-      "com.typesafe.akka" %% "akka-remote"    % "2.2.3",
-      "org.scala-lang.virtualized" % "scala-library" % scalaVersion.value,
-      "org.scala-lang.virtualized" % "scala-compiler" % scalaVersion.value,
-      "org.apache.logging.log4j" % "log4j-api" % "2.0-rc1",
-      "org.apache.logging.log4j" % "log4j-core" % "2.0-rc1",
-      "org.slf4j" % "slf4j-api" % "1.7.2",
-      "org.slf4j" % "slf4j-ext" % "1.7.2",
-      "mysql" % "mysql-connector-java" % "5.1.28",
-      "org.scalariform" %% "scalariform" % "0.1.4",
-      "org.scalatest" %% "scalatest" % "2.0",
-      "EPFL" %% "lms" % "0.3-SNAPSHOT"
-    ),
-    scalacOptions ++= List("-Yvirtualize")
-  )
-}
