@@ -17,8 +17,8 @@ iterations=${NUMITERS:-5}
 
 if [ $GENDATA -eq 1 ]; then
 	echo "  Generating fresh commands ... "
-	$ROOT_DIR/bench/tpcc-cmd-log.sh $NUMXACTS 1 $ROOT_DIR/commands1.txt > /dev/null #Generate data for w 1
-	$ROOT_DIR/bench/tpcc-cmd-log.sh $NUMXACTS 2 $ROOT_DIR/commands2.txt > /dev/null #Generate data for w 2
+	$ROOT_DIR/bench/tpcc-cmd-log.sh $NUMXACTS 1 $ROOT_DIR/commands1.txt > /dev/null 2>&1 #Generate data for w 1
+	$ROOT_DIR/bench/tpcc-cmd-log.sh $NUMXACTS 2 $ROOT_DIR/commands2.txt > /dev/null 2>&1 #Generate data for w 2
 fi
 
 

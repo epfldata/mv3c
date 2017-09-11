@@ -26,7 +26,7 @@ done | xargs  -n 2 -P $numThr "$SCRIPT_DIR/compileTPCC.sh" 8b
 
 if [ $GENDATA -eq 1 ]; then
 	for w in $wares; do
-		$ROOT_DIR/bench/tpcc-cmd-log.sh $NUMXACTS $w $ROOT_DIR/commands$w.txt > /dev/null #Generate data for w
+		$ROOT_DIR/bench/tpcc-cmd-log.sh $NUMXACTS $w $ROOT_DIR/commands$w.txt > /dev/null 2>&1 #Generate data for w
 	done
 fi
 

@@ -553,7 +553,7 @@ namespace tpcc_ns {
                     programs[curPrg++] = o;
                 } else if (type == "PaymentByName") {
                     Payment* o = new Payment();
-                    o_cid = -1;
+                    o->c_id = -1;
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_last >> o->h_amount;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusById") {
