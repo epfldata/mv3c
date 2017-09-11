@@ -330,6 +330,7 @@ namespace tpcc_ns {
             c_id = that->c_id;
             w_id = that->w_id;
             d_id = that->d_id;
+            c_last = that->c_last;
         }
 
         virtual std::ostream& print(std::ostream & s) {
