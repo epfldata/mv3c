@@ -291,7 +291,7 @@ int main(int argc, char** argv) {
                 newp = new MV3CDelivery(p);
                 delivery++;
                 break;
-            case ORDERSTATUSBYID:
+            case ORDERSTATUS:
                 newp = new MV3COrderStatus(p);
                 orderstatus++;
                 break;
@@ -421,7 +421,7 @@ int main(int argc, char** argv) {
             case DELIVERY:
                 newp = new MV3CDelivery(p);
                 break;
-            case ORDERSTATUSBYID:
+            case ORDERSTATUS:
                 newp = new MV3COrderStatus(p);
                 break;
             case STOCKLEVEL:

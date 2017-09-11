@@ -231,7 +231,7 @@ namespace tpcc_ns {
     };
 
     enum TPCC_Programs : char {
-        NEWORDER, PAYMENT, ORDERSTATUSBYID, DELIVERY, STOCKLEVEL, STOCKUPDATE, ORDERSTATUSBYNAME
+        NEWORDER, PAYMENT, ORDERSTATUS, DELIVERY, STOCKLEVEL, STOCKUPDATE
     };
     const int txnTypes = 6;
     std::string prgNames[] = {"NO", "PY", "OS", "DE", "SL", "SU"};
@@ -315,55 +315,28 @@ namespace tpcc_ns {
 
     };
 
-    struct OrderStatusById : public Program {
+    struct OrderStatus : public Program {
         uint32_t c_id;
         uint8_t w_id, d_id;
-        //OUTPUT
+        String<16> c_last;
 
-        OrderStatusById() : Program(ORDERSTATUSBYID) {
+        //OUTPUT
+        OrderStatus() : Program(ORDERSTATUS) {
         }
 
-        OrderStatusById(const Program* p) : Program(p) {
-            assert(p->prgType == ORDERSTATUSBYID);
-            const OrderStatusById* that = (const OrderStatusById*) p;
+        OrderStatus(const Program* p) : Program(p) {
+            assert(p->prgType == ORDERSTATUS);
+            const OrderStatus* that = (const OrderStatus*) p;
             c_id = that->c_id;
             w_id = that->w_id;
             d_id = that->d_id;
         }
 
         virtual std::ostream& print(std::ostream & s) {
-            s << "OrderStatusById  " << w_id << "  " << d_id << "  " << c_id << std::endl;
+            s << "OrderStatus  " << w_id << "  " << d_id << "  " << c_id << "  " << c_last << std::endl;
             return s;
         }
 
-    };
-
-    struct OrderStatusByName : public Program {
-        uint8_t w_id;
-        uint8_t d_id;
-        String<16> c_last;
-        //OUTPUT
-        std::stringstream orderlinesSTR;
-
-        OrderStatusByName() : Program(ORDERSTATUSBYNAME) {
-        }
-
-        OrderStatusByName(const Program * p) : Program(p) {
-            assert(p->prgType == ORDERSTATUSBYNAME);
-            const OrderStatusByName* that = (const OrderStatusByName*) p;
-            w_id = that->w_id;
-            d_id = that->d_id;
-            c_last = that->c_last;
-        }
-
-        virtual std::ostream& print(std::ostream & s) {
-            s << "OrderStatusByName  " << w_id << "  " << d_id << "  " << c_last << std::endl;
-            return s;
-        }
-
-        virtual Program* clone() {
-            return nullptr;
-        }
     };
 
     struct StockLevel : public Program {
@@ -557,11 +530,12 @@ namespace tpcc_ns {
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_last >> o->h_amount;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusById") {
-                    OrderStatusById* o = new OrderStatusById();
+                    OrderStatus* o = new OrderStatus();
                     ss >> o->w_id >> o->d_id >> o->c_id;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusByName") {
-                    OrderStatusByName* o = new OrderStatusByName();
+                    OrderStatus* o = new OrderStatus();
+                    o->c_id = -1;
                     ss >> o->w_id >> o->d_id >> o->c_last;
                     programs[curPrg++] = o;
                 } else if (type == "Delivery") {

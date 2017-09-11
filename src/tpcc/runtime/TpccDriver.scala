@@ -89,9 +89,9 @@ class TpccDriver(conn: java.sql.Connection,
     var j = 0
     while (j < ol_cnt) {
       itemid(j) = Util.nuRand(8191, 1, MAXITEMS)
-      // if ((j == ol_cnt - 1) && (rbk == 1)) {
-      //   itemid(j) = notfound
-      // }
+      if ((j == ol_cnt - 1) && (rbk == 1)) {
+         itemid(j) = notfound
+      }
       if (ALLOW_MULTI_WAREHOUSE_TX) {
         if (Util.randomNumber(1, 100) != 1) {
           supware(j) = w_id

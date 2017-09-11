@@ -58,6 +58,7 @@ struct ThreadLocal {
     DistrictNewOrderKey distNOkey;
 
     StockGet stockGet;
+    CustDV* custDVs[3000];
 };
 namespace tpcc_ns {
     TABLE(Customer) * CustomerTable;
@@ -515,14 +516,21 @@ namespace tpcc_ns {
     /**************************************************************************/
     uint orderSuccess = 0, orderFailed = 0;
 
-    struct MV3COrderStatus : OrderStatusById {
+    struct MV3COrderStatus : OrderStatus {
 
         MV3COrderStatus(const Program* p) :
-        OrderStatusById(p) {
+        OrderStatus(p) {
         }
 
         TransactionReturnStatus execute() override {
-
+            if(c_id == -1) {
+                auto n = CustomerTable->sliceReadOnly<CustomerPKey>(&xact, CustomerPKey(d_id, w_id, c_last), 0, threadVar->custDVs);
+                std::sort(threadVar->custDVs, threadVar->custDVs + n, [](const CustDV *c1, const CustDV * c2) {
+                    return c1->val._1 < c2->val._1;
+                });
+                n = (n - 1) / 2;
+                c_id = threadVar->custDVs[n]->entry->key._1;
+            }
             auto osdv = OrderTable->getFirst<OrderPKey>(&xact, OrderPKey(d_id, w_id, c_id), 0);
             if (osdv == nullptr) {
                 orderFailed++;
