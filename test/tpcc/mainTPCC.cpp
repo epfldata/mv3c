@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
     custTbl.numIndexes = 1;
 #endif
 
-#ifdef VERIFY
+#ifdef VERIFY_TPCC_MT_ST
 
     TABLE(Customer) custTblVerify(CustomerIndexSize);
     TABLE(District) distTblVerify(DistrictIndexSize);
@@ -220,7 +220,7 @@ int main(int argc, char** argv) {
     for (const auto&it : tpcc.iWarehouse) {
         wareTbl.insertVal(t0, it.first, it.second);
     }
-#ifdef VERIFY
+#ifdef VERIFY_TPCC_MT_ST
     for (const auto&it : tpcc.iCustomer) {
         custTblVerify.insertVal(t0, it.first, it.second);
     }
@@ -389,7 +389,7 @@ int main(int argc, char** argv) {
         cout << "\t Compensate time = " << compensateTimes[i] / 1000000.0 << endl;
 
     }
-#ifdef VERIFY
+#ifdef VERIFY_TPCC_MT_ST
 
     CustomerTable = &custTblVerify;
     DistrictTable = &distTblVerify;
@@ -405,8 +405,6 @@ int main(int argc, char** argv) {
     std::sort(programs, programs + numPrograms, [](Program *p1, Program * p2) {
         return p1->xact.commitTS < p2->xact.commitTS;
     });
-    //    Program ** programsVerify;
-    //    programsVerify = new Program*[numPrograms];
     uint verifiedPrg = 0;
     ThreadLocal local;
     for (uint i = 0; i < numPrograms; ++i) {
@@ -433,7 +431,6 @@ int main(int argc, char** argv) {
             default:
                 throw std::runtime_error("Unknown program");
         }
-        //        programsVerify[i] = newp;
         newp->xact.threadId = 0;
         newp->threadVar = &local;
         transactionManager.begin(&newp->xact);
@@ -451,47 +448,7 @@ int main(int argc, char** argv) {
     }
     Transaction tf;
     transactionManager.begin(&tf);
-    auto allCust = custTbl.getAll(&tf);
-    for (auto it : allCust) {
-        tpcc.fCustomer.insert({*it.first, *it.second});
-    }
-    auto allDist = distTbl.getAll(&tf);
-    for (auto it : allDist) {
-        tpcc.fDistrict.insert({*it.first, *it.second});
-    }
-    auto allWare = wareTbl.getAll(&tf);
-    for (auto it : allWare) {
-        tpcc.fWarehouse.insert({*it.first, *it.second});
-    }
-    auto allItem = itemTbl.getAll(&tf);
-    for (auto it : allItem) {
-        tpcc.fItem.insert({*it.first, *it.second});
-    }
-    auto allStock = stockTbl.getAll(&tf);
-    for (auto it : allStock) {
-        tpcc.fStock.insert({*it.first, *it.second});
-    }
-    auto allHist = historyTbl.getAll(&tf);
-    for (auto it : allHist) {
-        tpcc.fHistory.insert({*it.first, *it.second});
-    }
-    auto allDistNo = distNoTbl.getAll(&tf);
-    for (auto it : allDistNo) {
-        tpcc.fDistrictNewOrder.insert({*it.first, *it.second});
-    }
-    auto allOrd = ordTbl.getAll(&tf);
-    for (auto it : allOrd) {
-        tpcc.fOrder.insert({*it.first, *it.second});
-    }
-    auto allOrdL = ordLTbl.getAll(&tf);
-    for (auto it : allOrdL) {
-        tpcc.fOrderLine.insert({*it.first, *it.second});
-    }
-    auto allNewO = newOrdTbl.getAll(&tf);
-    for (auto it : allNewO) {
-        tpcc.fNewOrder.insert({*it.first, *it.second});
-    }
-
+    
     auto allCustVerify = custTblVerify.getAll(&tf);
     for (auto it : allCustVerify) {
         tpcc.oCustomer.insert({*it.first, *it.second});
@@ -533,6 +490,54 @@ int main(int argc, char** argv) {
     for (auto it : allNewOVerify) {
         tpcc.oNewOrder.insert({*it.first, *it.second});
     }
+#endif
+    
+#ifdef VERIFY_TPCC_ST_SQL
+    Transaction tf;
+    transactionManager.begin(&tf);
+#endif
+    
+#if defined(VERIFY_TPCC_MT_ST) || defined(VERIFY_TPCC_ST_SQL)
+    auto allCust = custTbl.getAll(&tf);
+    for (auto it : allCust) {
+        tpcc.fCustomer.insert({*it.first, *it.second});
+    }
+    auto allDist = distTbl.getAll(&tf);
+    for (auto it : allDist) {
+        tpcc.fDistrict.insert({*it.first, *it.second});
+    }
+    auto allWare = wareTbl.getAll(&tf);
+    for (auto it : allWare) {
+        tpcc.fWarehouse.insert({*it.first, *it.second});
+    }
+    auto allItem = itemTbl.getAll(&tf);
+    for (auto it : allItem) {
+        tpcc.fItem.insert({*it.first, *it.second});
+    }
+    auto allStock = stockTbl.getAll(&tf);
+    for (auto it : allStock) {
+        tpcc.fStock.insert({*it.first, *it.second});
+    }
+    auto allHist = historyTbl.getAll(&tf);
+    for (auto it : allHist) {
+        tpcc.fHistory.insert({*it.first, *it.second});
+    }
+    auto allDistNo = distNoTbl.getAll(&tf);
+    for (auto it : allDistNo) {
+        tpcc.fDistrictNewOrder.insert({*it.first, *it.second});
+    }
+    auto allOrd = ordTbl.getAll(&tf);
+    for (auto it : allOrd) {
+        tpcc.fOrder.insert({*it.first, *it.second});
+    }
+    auto allOrdL = ordLTbl.getAll(&tf);
+    for (auto it : allOrdL) {
+        tpcc.fOrderLine.insert({*it.first, *it.second});
+    }
+    auto allNewO = newOrdTbl.getAll(&tf);
+    for (auto it : allNewO) {
+        tpcc.fNewOrder.insert({*it.first, *it.second});
+    }
 
     tpcc.checkCustomerResults();
     tpcc.checkDistrictResults();
@@ -543,7 +548,7 @@ int main(int argc, char** argv) {
     tpcc.checkOrderResults();
     tpcc.checkStockResults();
     tpcc.checkWarehouseResults();
-
+    
 #endif    
     for (uint i = 0; i < numPrograms; ++i) {
         delete programs[i];
@@ -552,9 +557,6 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < numThreads; ++i) {
         cout << "Thread " << i << endl;
-
-        //        header << ",Thread " << i << ",finished NO,finished PY,failedEx NO,failedEx PY,failedVal NO,failedVal PY,maxFailedEx,maxFailedVal";
-        //        fout << ",";
 
         for (uint j = 0; j < txnTypes; ++j) {
             cout << "\t" << prgNames[j] << ":\n\t  finished=" << exec.finishedPerThread[j][i] << endl;

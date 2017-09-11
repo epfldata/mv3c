@@ -76,11 +76,8 @@ namespace tpcc_ns {
 
     const std::string TStore = TPCC_DATA_ROOT;
 
-    //    const int sources[] = {16,16,12,16, 5,12,14,16, 9,10,11,12,13,14,15,16};  
-    //  const int sources[] = {1 , 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16};  
-    //    const std::string commandfile = TStore + "CavCommands" STRINGIFY(NUMWARE) ".txt";
-    const int wareSource = 16; //sources[numWare-1];
-    const std::string commandfile = TStore + "CavCommands" + to_string(wareSource) + ".txt";
+    const int wareSource = 16; //always reading commands for 16 warehouses and scaling down
+    const std::string commandfile = TStore + "commands" + to_string(wareSource) + ".txt";
 
     const std::string inputTableDir = TStore + "bench/systems/tpcc/mysql/db" STRINGIFY(NUMWARE) "innodb/";
     const std::string outputTableDir = TStore + "bench/systems/tpcc/mysql/results_db" STRINGIFY(NUMWARE) "innodb/";
@@ -126,19 +123,6 @@ namespace tpcc_ns {
     typedef ValTuple<uint8_t, String<24>, String<24>, String<24>, String<24>, String<24>, String<24>, String<24>, String<24>, String<24>, String<24>, uint32_t, u_int16_t, uint16_t, String<50> > StockVal;
     //-----------------------------------------------------------------------------------------
 
-    //float rnd2(float f) {
-    //    float f1 = f * 100;
-    //    int i = f1;
-    //    f1 -= i;
-    //    if (f1 < 0.5)
-    //        return i / 100.0;
-    //    if (f1 > 0.5)
-    //        return (i + 1) / 100.0;
-    //    if (i % 2)
-    //        return (i + 1) / 100.0;
-    //    return i / 100.0;
-    //}
-
     inline bool OLVequals(const OrderLineVal& t1, const OrderLineVal& t2) {
         if (!(t1.isNotNull && t2.isNotNull)) return !(t1.isNotNull || t2.isNotNull);
         return t1._1 == t2._1 && t1._2 == t2._2 && t1._3 == t2._3 && t1._4 == t2._4 && fabs(t1._5 - t2._5) <= 0.01 && t1._6 == t2._6;
@@ -161,8 +145,6 @@ namespace tpcc_ns {
 
         CustomerPKey(uint8_t d_id, uint8_t w_id, const String<16>& c_last) :
         d_id(d_id), w_id(w_id), c_last(c_last) {
-            //            int padding = sizeof (CustomerPKey) - (sizeof (c_last) + 2);
-            //            memset((char *) this +sizeof (c_last) + 2, 0, padding);
         }
 
         CustomerPKey(const Entry<CustomerKey, CustomerVal> *e, const CustomerVal& v) {
@@ -212,7 +194,7 @@ namespace tpcc_ns {
                 return c_id < that.c_id;
         }
     };
-    //
+
 
     struct OrderLinePKey {
         uint32_t o_id;
@@ -247,39 +229,6 @@ namespace tpcc_ns {
         }
 
     };
-    //
-    //        static inline size_t hash(const OrderLineKey& k) {
-    //            size_t hash = 0xcafebabe;
-    //            const unsigned int mask = (CHAR_BIT * sizeof (size_t) - 1);
-    //            size_t mix = OrderLineKey::h1(k._1)*0xcc9e2d51;
-    //            mix = (mix << 15) | (mix >> ((-15) & mask));
-    //            mix = (mix * 0x1b873593) ^ hash;
-    //            mix = (mix << 13) | (mix >> ((-13) & mask));
-    //            hash = (mix << 1) + mix + 0xe6546b64;
-    //            mix = OrderLineKey::h2(k._2)*0xcc9e2d51;
-    //            mix = (mix << 15) | (mix >> ((-15) & mask));
-    //            mix = (mix * 0x1b873593) ^ hash;
-    //            mix = (mix << 13) | (mix >> ((-13) & mask));
-    //            hash = (mix << 1) + mix + 0xe6546b64;
-    //            mix = OrderLineKey::h3(k._3)*0xcc9e2d51;
-    //            mix = (mix << 15) | (mix >> ((-15) & mask));
-    //            mix = (mix * 0x1b873593) ^ hash;
-    //            mix = (mix << 13) | (mix >> ((-13) & mask));
-    //            hash = (mix << 1) + mix + 0xe6546b64;
-    //            hash ^= 3;
-    //            hash ^= (hash >> 16);
-    //            hash *= 0x85ebca6b;
-    //            hash ^= (hash >> 13);
-    //            hash *= 0xc2b2ae35;
-    //            hash ^= (hash >> 16);
-    //            return hash;
-    //        }
-    //
-    //        static inline bool equals(const OrderLineKey& k1, const OrderLineKey& k2) {
-    //            return k1._1 == k2._1 && k1._2 == k2._2 && k1._3 == k2._3;
-    //        }
-    //    };
-    //-----------------------------------------
 
     enum TPCC_Programs : char {
         NEWORDER, PAYMENT, ORDERSTATUSBYID, DELIVERY, STOCKLEVEL, STOCKUPDATE, ORDERSTATUSBYNAME
@@ -576,7 +525,6 @@ namespace tpcc_ns {
             for (size_t i = 0; i < numPrograms; i++)
                 delete programs[i];
             delete programs;
-            //            cerr << "TPCC deleted" << endl;
         }
 
         void loadPrograms() {
@@ -591,9 +539,6 @@ namespace tpcc_ns {
                 if (type == "NewOrder") {
                     NewOrder* o = new NewOrder();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_id >> o->o_ol_cnt;
-                    //                    if (wareSource % numWare != 0) {
-                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     for (int i = 0; i < 15; i++)
                         ss >> o->itemid[i];
@@ -607,47 +552,27 @@ namespace tpcc_ns {
                 } else if (type == "Payment") {
                     Payment* o = new Payment();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_id >> o->c_last >> o->h_amount;
-                    //                    if (wareSource % numWare != 0) {
-                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     o->c_w_id = o->c_w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusById") {
                     OrderStatusById* o = new OrderStatusById();
                     ss >> o->w_id >> o->d_id >> o->c_id;
-                    //                    if (wareSource % numWare != 0) {
-                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusByName") {
                     OrderStatusByName* o = new OrderStatusByName();
                     ss >> o->w_id >> o->d_id >> o->c_last;
-                    //                    if (wareSource % numWare != 0) {
-                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "Delivery") {
                     Delivery* o = new Delivery();
                     ss >> o->datetime >> o->w_id >> o->o_carrier_id;
-                    //                    if (wareSource % numWare != 0) {
-                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "StockLevel") {
-                    //Reading stock level as StockUPDATE
-                    //                    StockUpdate * o = new StockUpdate();
-                    //                    ss >> o->w_id >> o->k;
-                    //                    uint8_t t;
-                    //                    ss >> t;
                     StockLevel* o = new StockLevel();
                     ss >> o->w_id >> o->d_id >> o->threshold;
-                    //                    if (wareSource % numWare != 0) {
-                    //                        throw std::logic_error("Using scaled programs from w"+to_string(wareSource));
-                    //                    }
                     o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else {
