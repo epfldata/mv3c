@@ -5,9 +5,7 @@ export NUMITERS=5   #Number of times an experiment is run to aggregate results
 export GENDATA=0    #Generate fresh data for experiments 8 10 11
 ####################################################################################
 
-CAV_DIR=`readlink -m ../../../ThirdParty/Cavalia`
-ST_DIR=`readlink -m ../../../MV3C_SingleThreaded`
-ST_SCRIPTS_DIR=`readlink -m $ST_DIR/test/cpp/scripts`
+ROOT_DIR=`readlink -m ../..`
 echo ""
 echo "Disabling hyper-threading and setting cpu governer to performance"
 
@@ -24,10 +22,10 @@ RUN() {
 }
 export -f RUN
 
-source $ST_DIR/bench/prep/hyper-threading.sh 0
+source $ROOT_DIR/bench/prep/hyper-threading.sh 0
 
 
-MAP_H=`readlink -m ../../src/mapping.h`
+MAP_H=$ROOT_DIR/src/mapping.h
 echo""
 echo "Preparation complete..."
 
@@ -66,48 +64,29 @@ while [ $secs -gt 0 ]; do
    : $((secs--))
 done
 
-  execute/6a.sh
-  process/6a.sh
-  plot/6a.sh
+execute/trading-thread.sh
+process/trading-thread.sh
+plot/trading-thread.sh
 
-  execute/6b.sh
-  process/6b.sh
-  plot/6b.sh
-
-
-  execute/7a.sh
-  process/7a.sh
-  plot/7a.sh
-
-  execute/7b.sh
- process/7b.sh
-  plot/7b.sh
-
-  $ST_SCRIPTS_DIR/7c.sh
-  mv 7c*.csv output/raw/
-  process/7c.sh
-  plot/7c.sh
+execute/trading-conflict.sh
+process/trading-conflict.sh
+plot/trading-conflict.sh
 
 
-execute/8a.sh
-$CAV_DIR/scripts/grid-tpcc-a.sh
-mv $CAV_DIR/../CavaliaData/tpcc-results-cavalia*.csv output/raw/
-process/8a.sh
-plot/8a.sh
+execute/banking-thread.sh
+process/banking-thread.sh
+plot/banking-thread.sh
+
+execute/banking-conflict.sh
+process/banking-conflict.sh
+plot/banking-conflict.sh
 
 
-execute/8b.sh
-$CAV_DIR/scripts/grid-tpcc-b.sh
-mv $CAV_DIR/../CavaliaData/tpcc-results-cavalia*.csv output/raw/
-process/8b.sh
-plot/8b.sh
+execute/tpcc-thread.sh
+process/tpcc-thread.sh
+plot/tpcc-thread.sh
 
- $ST_SCRIPTS_DIR/10.sh
- mv 10*.csv output/raw/
- process/10.sh
- plot/10.sh
 
- $ST_SCRIPTS_DIR/11.sh
- mv 11*.csv output/raw/
- process/11.sh
- plot/11.sh
+execute/tpcc-conflict.sh
+process/tpcc-conflict.sh
+plot/tpcc-conflict.sh

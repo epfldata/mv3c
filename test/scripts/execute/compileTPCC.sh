@@ -5,7 +5,7 @@ fi
 
 ROOT="$(dirname "$0")/../../.."
 EXE_DIR=`readlink -m "$(dirname "$0")/../output/executable/$1"`
-DATA_DIR=`readlink -m "$ROOT/../MV3C_SingleThreaded"`/
+DATA_DIR="$ROOT/"
 mkdir -p $EXE_DIR
 CC=g++
 
@@ -15,7 +15,6 @@ ww=-DALLOW_WW
 store= #-DSTORE_ENABLE
 attrib=-DATTRIB_LEVEL
 cuckoo=true
-#cww=false
 si=-DCUCKOO_SI
 
 p=$3

@@ -13,7 +13,7 @@ try:
     os.stat(outdir)
 except:
     os.mkdir(outdir)
-dataseries = ['MV3C','OMVCC','OCC','SILO']
+dataseries = ['MV3C','OMVCC']
 alldata = defaultdict(lambda : dict(map(lambda d: (d, []), dataseries)))
 
 def aggregate(l):
