@@ -17,10 +17,10 @@ import TransactionManager._
  * concurrency control mechanism (that is MVCC).
  */
 object TransactionManager {
-	type AtomicLongType = java.util.concurrent.atomic.AtomicLong
-	// type AtomicLongType = ddbt.lib.util.BackOffAtomicLong
+	// type AtomicLongType = java.util.concurrent.atomic.AtomicLong
+	type AtomicLongType = ddbt.lib.util.BackOffAtomicLong
 
-	val TRANSACTION_ID_GEN_START = (1L << 63)
+	val TRANSACTION_ID_GEN_START = (1L << 32)
 	val TRANSACTION_STRAT_TS_GEN_START = 1L
 
 	type Table = String
@@ -56,7 +56,7 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 	// }
 
 	val transactionIdGen = new AtomicLongType(TransactionManager.TRANSACTION_ID_GEN_START)
-	val startAndCommitTimestampGen = new AtomicLongType(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
+	val startAndCommitTimestampGen = new java.util.concurrent.atomic.AtomicLong(TransactionManager.TRANSACTION_STRAT_TS_GEN_START)
 	val isGcActive = new AtomicBoolean(DISABLE_GC)
 
 	val activeXacts = new Array[AtomicReference[Transaction]](numConn)
@@ -96,24 +96,13 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 	 */
 	def begin(name: String, readOnly: Boolean=false)(implicit tInfo: ThreadInfo): Transaction = {
 		var startTS = 0L
-		var xactId = 0L
-		if(readOnly) {
-			timestampLock.lock
-			try {
-			  startTS = startAndCommitTimestampGen.get
-			} finally {
-				timestampLock.unlock
-			}
-			xactId = startTS
-		} else {
-			timestampLock.lock
-			try {
-			  startTS = startAndCommitTimestampGen.getAndIncrement
-			} finally {
-				timestampLock.unlock
-			}
-			xactId = transactionIdGen.getAndIncrement
+		timestampLock.lock
+		try {
+			startTS = startAndCommitTimestampGen.getAndIncrement
+		} finally {
+			timestampLock.unlock
 		}
+		val xactId = transactionIdGen.getAndIncrement
 		val xact = new Transaction(this, name, startTS, xactId, readOnly, tInfo)
 
 		// instead of accessing the atomic reference from the array
@@ -132,7 +121,7 @@ class TransactionManager(numConn:Int, isUnitTestEnabled: =>Boolean) {
 		// val xactThreadId = xact.tInfo.tid
 		if(xact.isDefinedReadOnly) {
 			// debug("(defined read-only) commit succeeded (with commitTS = %d)".format(xact.commitTS))
-			// xact.xactId = xact.startTS
+			xact.xactId = xact.startTS
 			true
 		} else if(xact.isReadOnly) {
 			// we assume that a Transaction object cannot be instantiated

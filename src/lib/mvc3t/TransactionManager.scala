@@ -14,7 +14,7 @@ import TransactionManager._
  * concurrency control mechanism (that is MVC3T).
  */
 object TransactionManager {
-	val TRANSACTION_ID_GEN_START = (1L << 63)
+	val TRANSACTION_ID_GEN_START = (1L << 32)
 	val TRANSACTION_STRAT_TS_GEN_START = 1L
 
 	type Table = String
