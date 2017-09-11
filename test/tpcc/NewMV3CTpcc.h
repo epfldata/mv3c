@@ -131,7 +131,7 @@ namespace tpcc_ns {
         auto prg = (MV3CNewOrder *) p;
         Transaction& xact = p->xact;
         auto threadVar = prg->threadVar;
-        //We assume there are no missing items. ABORT is not handled, and if there are missing items, it will loop forever
+        
         if (idv == nullptr) {
             cerr << "NewOrder Item missing" << endl;
             return ABORT;

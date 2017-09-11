@@ -148,19 +148,26 @@ struct ConcurrentExecutor {
             auto status = p->execute();
             auto dend = DNow;
             p->xact.executeTime += DDurationNS(dend - dstart);
-            if (status != SUCCESS) { //if execution fails, rollback and restart
+            if (status != SUCCESS) { //if execution fails, rollback
                 //                 cerr << "Thread "<<thread_id<< " aborted " << pid << endl;
                 tm.rollback(&p->xact);
-                thisPrgFailedExec++;
-                failedExPerTxn[p->prgType]++;
-                if (thisPrgFailedExec > maxFailedExecutionProgram) {
-                    maxFailedExecutionProgram = thisPrgFailedExec;
-                }
-                if (thisPrgFailedExec > numPrograms) {
-                    //Debug info. We really dont want a single program to fail more than the total number of programs
-                    cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!";
-                    cout << p->xact.failureCtr << "  " << thisPrgFailedExec << "  " << p->prgType << endl;
-                    hasFinished = true;
+                if(status == ABORT) { //skip if ABORT
+                    finishedPerTxn[p->prgType]++;
+                    pid++;
+                    thisPrgFailedExec = 0;
+                    thisPrgFailedVal = 0;              
+                } else {  //restart if not ABORT
+                    thisPrgFailedExec++;
+                    failedExPerTxn[p->prgType]++;
+                    if (thisPrgFailedExec > maxFailedExecutionProgram) {
+                        maxFailedExecutionProgram = thisPrgFailedExec;
+                    }
+                    if (thisPrgFailedExec > numPrograms) {
+                        //Debug info. We really dont want a single program to fail more than the total number of programs
+                        cout << "TOO MANY FAILURES !!!!!!!!!!!!!!!!!!!";
+                        cout << p->xact.failureCtr << "  " << thisPrgFailedExec << "  " << p->prgType << endl;
+                        hasFinished = true;
+                    }
                 }
             } else {
                 //successful execution, now do validate and commit.

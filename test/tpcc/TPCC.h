@@ -547,9 +547,14 @@ namespace tpcc_ns {
                     for (int i = 0; i < 15; i++)
                         ss >> o->quantity[i];
                     programs[curPrg++] = o;
-                } else if (type == "Payment") {
+                } else if (type == "PaymentById") {
                     Payment* o = new Payment();
-                    ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_id >> o->c_last >> o->h_amount;
+                    ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_id >> o->h_amount;
+                    programs[curPrg++] = o;
+                } else if (type == "PaymentByName") {
+                    Payment* o = new Payment();
+                    o_cid = -1;
+                    ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_last >> o->h_amount;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusById") {
                     OrderStatusById* o = new OrderStatusById();
