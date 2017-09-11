@@ -2,8 +2,10 @@
 SCRIPT_DIR="$(dirname "$0")"
 EXE_DIR=`readlink -m "$SCRIPT_DIR/../output/executable/8b"`
 RAW_DIR=`readlink -m "$SCRIPT_DIR/../output/raw"`
-ST_DIR=`readlink -m ../../../MV3C_SingleThreaded`
-CAV2_DIR=`readlink -m ../../../ThirdParty/Cavalia-MV3C`
+ROOT_DIR=`readlink -m ../../`
+
+export NUMXACTS=1000000
+
 rm -rf "$EXE_DIR"
 mkdir -p $EXE_DIR $RAW_DIR
 rm -f header out
@@ -23,8 +25,9 @@ done | xargs  -n 2 -P $numThr "$SCRIPT_DIR/compileTPCC.sh" 8b
 
 
 if [ $GENDATA -eq 1 ]; then
-	echo "  Generating fresh commands ... "
-	$CAV2_DIR/genCommands.sh $ST_DIR > /dev/null #Generate fresh commands from Cavalia
+	for w in $wares; do
+		$ROOT_DIR/bench/tpcc-cmd-log.sh $NUMXACTS $w $ROOT_DIR/commands$w.txt > /dev/null #Generate data for w
+	done
 fi
 
 echo "  Running with $numThr threads"

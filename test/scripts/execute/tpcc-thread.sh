@@ -2,8 +2,10 @@
 SCRIPT_DIR="$(dirname "$0")"
 EXE_DIR=`readlink -m "$SCRIPT_DIR/../output/executable/8a"`
 RAW_DIR=`readlink -m "$SCRIPT_DIR/../output/raw"`
-ST_DIR=`readlink -m ../../../MV3C_SingleThreaded`
-CAV2_DIR=`readlink -m ../../../ThirdParty/Cavalia-MV3C`
+ROOT_DIR=`readlink -m ../..`
+
+export NUMXACTS=1000000
+
 rm -rf "$EXE_DIR"
 mkdir -p $EXE_DIR $RAW_DIR
 rm -f header out
@@ -15,7 +17,8 @@ iterations=${NUMITERS:-5}
 
 if [ $GENDATA -eq 1 ]; then
 	echo "  Generating fresh commands ... "
-	$CAV2_DIR/genCommands.sh $ST_DIR > /dev/null #Generate fresh commands from Cavalia
+	$ROOT_DIR/bench/tpcc-cmd-log.sh $NUMXACTS 1 $ROOT_DIR/commands1.txt > /dev/null #Generate data for w 1
+	$ROOT_DIR/bench/tpcc-cmd-log.sh $NUMXACTS 2 $ROOT_DIR/commands2.txt > /dev/null #Generate data for w 2
 fi
 
 

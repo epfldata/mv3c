@@ -9,7 +9,7 @@ DATA_DIR="$ROOT/"
 mkdir -p $EXE_DIR
 CC=g++
 
-num=1000000
+num=${NUMXACTS:-1000000}
 profile= #-DDTIMER 
 ww=-DALLOW_WW
 store= #-DSTORE_ENABLE

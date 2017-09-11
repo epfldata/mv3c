@@ -76,8 +76,8 @@ namespace tpcc_ns {
 
     const std::string TStore = TPCC_DATA_ROOT;
 
-    const int wareSource = 16; //always reading commands for 16 warehouses and scaling down
-    const std::string commandfile = TStore + "commands" + to_string(wareSource) + ".txt";
+    
+    const std::string commandfile = TStore + "commands" STRINGIFY(NUMWARE) ".txt";
 
     const std::string inputTableDir = TStore + "bench/systems/tpcc/mysql/db" STRINGIFY(NUMWARE) "innodb/";
     const std::string outputTableDir = TStore + "bench/systems/tpcc/mysql/results_db" STRINGIFY(NUMWARE) "innodb/";
@@ -539,12 +539,10 @@ namespace tpcc_ns {
                 if (type == "NewOrder") {
                     NewOrder* o = new NewOrder();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_id >> o->o_ol_cnt;
-                    o->w_id = o->w_id % numWare + 1;
                     for (int i = 0; i < 15; i++)
                         ss >> o->itemid[i];
                     for (int i = 0; i < 15; i++) {
                         ss >> o->supware[i];
-                        o->supware[i] = o->supware[i] % numWare + 1;
                     }
                     for (int i = 0; i < 15; i++)
                         ss >> o->quantity[i];
@@ -552,28 +550,22 @@ namespace tpcc_ns {
                 } else if (type == "Payment") {
                     Payment* o = new Payment();
                     ss >> o->datetime >> o->w_id >> o->d_id >> o->c_w_id >> o->c_d_id >> o->c_id >> o->c_last >> o->h_amount;
-                    o->w_id = o->w_id % numWare + 1;
-                    o->c_w_id = o->c_w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusById") {
                     OrderStatusById* o = new OrderStatusById();
                     ss >> o->w_id >> o->d_id >> o->c_id;
-                    o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "OrderStatusByName") {
                     OrderStatusByName* o = new OrderStatusByName();
                     ss >> o->w_id >> o->d_id >> o->c_last;
-                    o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "Delivery") {
                     Delivery* o = new Delivery();
                     ss >> o->datetime >> o->w_id >> o->o_carrier_id;
-                    o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else if (type == "StockLevel") {
                     StockLevel* o = new StockLevel();
                     ss >> o->w_id >> o->d_id >> o->threshold;
-                    o->w_id = o->w_id % numWare + 1;
                     programs[curPrg++] = o;
                 } else {
                     std::cerr << "UNKNOWN PROGRAM TYPE" << type << std::endl;
