@@ -1,1 +1,0 @@
-#define THREAD_TO_CORE_MAPPING(x) x

@@ -29,7 +29,7 @@ MAP_H=$ROOT_DIR/src/mapping.h
 echo""
 echo "Preparation complete..."
 
-if [ -f MAP_H ]; then
+if [ -f $MAP_H ]; then
   echo "Using manually defined mapping function"
 else
   if [ $FLAG1 -eq 1 ]; then

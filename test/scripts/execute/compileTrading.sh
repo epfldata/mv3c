@@ -23,7 +23,7 @@ p=$3
 
 
 src="$ROOT/test/trading/mainTrading.cpp"
-flags="-DTRADING_TEST -DCUCKOO=$cuckoo -DNUMTHREADS=$numThr -m64 -O3 $profile $store $attrib -DPOWER=$p -DNDEBUG -DNUMPROG=$num  -Wno-attributes  -I /usr/include/$CRYPTO -I $ROOT/src -I $ROOT/tests -std=c++11  -DMALLOCTYPE=\"normal\" "
+flags="-DTRADING_TEST -DCUCKOO=$cuckoo -DNUMTHREADS=$numThr -m64 -O3 $profile $store $attrib -DPOWER=$p -DNDEBUG -DNUMPROG=$num  -Wno-attributes  -I /usr/include/$CRYPTO -I $ROOT/src -I $ROOT/test -std=c++11  -DMALLOCTYPE=\"normal\" "
 libs="-pthread -lcityhash -l$CRYPTO"
 
 $CC -DOMVCC=true  $flags -o "$EXE_DIR/mvccTrading-$numThr-$p.out"  $src $libs 
