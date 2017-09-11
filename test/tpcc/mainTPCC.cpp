@@ -187,7 +187,6 @@ int main(int argc, char** argv) {
     cout << "CWW = " << CWW << endl;
     fout << "," << CWW;
     cout << "Number of warehouse = " << numWare << endl;
-    cout << "warehouse source= " << wareSource << endl;
     fout << "," << numWare << "," << MALLOCTYPE;
     Transaction t;
     Transaction *t0 = &t;
