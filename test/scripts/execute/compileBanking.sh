@@ -19,7 +19,7 @@ feeAccs=1
 p=$3
 numThr=$2
 
-src="$ROOT/tests/banking/mainBanking.cpp"
+src="$ROOT/test/banking/mainBanking.cpp"
 flags="-DBANKING_TEST -DNUMTHREADS=$numThr -DFEEACCOUNTS=$feeAccs -m64 -O3 $profile $store $attrib -DCONFLICT_FRACTION=$p -DCUCKOO=$cuckoo -DNDEBUG -DNUMPROG=$num  -Wno-attributes -I $ROOT/src -I $ROOT/tests -std=c++11  -DMALLOCTYPE=\"normal\""
 libs="-pthread -lcityhash"
 

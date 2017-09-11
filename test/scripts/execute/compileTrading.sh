@@ -22,7 +22,7 @@ numThr=$2
 p=$3
 
 
-src="$ROOT/tests/trading/mainTrading.cpp"
+src="$ROOT/test/trading/mainTrading.cpp"
 flags="-DTRADING_TEST -DCUCKOO=$cuckoo -DNUMTHREADS=$numThr -m64 -O3 $profile $store $attrib -DPOWER=$p -DNDEBUG -DNUMPROG=$num  -Wno-attributes  -I /usr/include/$CRYPTO -I $ROOT/src -I $ROOT/tests -std=c++11  -DMALLOCTYPE=\"normal\" "
 libs="-pthread -lcityhash -l$CRYPTO"
 
