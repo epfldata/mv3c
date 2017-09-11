@@ -5,7 +5,7 @@ fi
 
 ROOT="$(dirname "$0")/../../.."
 EXE_DIR=`readlink -m "$(dirname "$0")/../output/executable/$1"`
-DATA_DIR="$ROOT/"
+DATA_DIR=`readlink -m $ROOT`/
 mkdir -p $EXE_DIR
 CC=g++
 
