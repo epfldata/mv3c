@@ -134,7 +134,7 @@ namespace tpcc_ns {
         auto threadVar = prg->threadVar;
         
         if (idv == nullptr) {
-            cerr << "NewOrder Item missing" << endl;
+            //cerr << "NewOrder Item missing" << endl;
             return ABORT;
         }
         threadVar->MV3CNewOrderOl_amt[ol_number] = idv->val._3 * prg->quantity[ol_number];
