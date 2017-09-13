@@ -39,9 +39,9 @@ set grid ytics
 set xlabel "{/Times-Bold=20 # of worker threads}"
 set ylabel "{/Times-Bold=20 Throughput}\n(kilo transactions/second)"
 
-plot '$FILE1' using 1:2  w linespoints ls 1 title columnheader(2) , '$FILE1' using 1:3 w linespoints ls 2 title columnheader(3) , '$FILE1' using 1:4 w linespoints ls 3 title columnheader(4) , '$FILE1' using 1:5 w linespoints ls 4 title columnheader(5)
+plot '$FILE1' using 1:2  w linespoints ls 1 title columnheader(2) , '$FILE1' using 1:3 w linespoints ls 2 title columnheader(3)
 
 
 set output "$OUTFILE2"
-plot '$FILE2' using 1:2  w linespoints ls 1 title columnheader(2) , '$FILE2' using 1:3 w linespoints ls 2 title columnheader(3) , '$FILE2' using 1:4 w linespoints ls 3 title columnheader(4) , '$FILE2' using 1:5 w linespoints ls 4 title columnheader(5)
+plot '$FILE2' using 1:2  w linespoints ls 1 title columnheader(2) , '$FILE2' using 1:3 w linespoints ls 2 title columnheader(3)
 EOF

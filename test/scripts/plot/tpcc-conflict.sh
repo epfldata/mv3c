@@ -35,5 +35,5 @@ set style data histogram
 set style histogram cluster gap 1
 set boxwidth 0.8
 
-plot '$FILE' using 2:xtic(1) lc rgb"#A74A44" fs pattern 2 border rgb "#77342E" title col, '$FILE' using 3:xtic(1) lc rgb"#89A24C" fs solid border rgb"#6C7F3C" title col, '$FILE' using 4:xtic(1) lc rgb"#66A1DD" fs pattern 6 border rgb"#295177" title col, '$FILE' using 5:xtic(1) lc rgb"#524265" fs pattern 7 border rgb"#564769" title col
+plot '$FILE' using 2:xtic(1) lc rgb"#A74A44" fs pattern 2 border rgb "#77342E" title col, '$FILE' using 3:xtic(1) lc rgb"#89A24C" fs solid border rgb"#6C7F3C" title col
 EOF

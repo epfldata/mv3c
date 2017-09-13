@@ -5,8 +5,7 @@ import os
 from collections import defaultdict
 from sets import Set
 
-datafile1 = os.path.join(os.path.dirname(__file__), '../output/raw/8b.csv')
-datafile2 = os.path.join(os.path.dirname(__file__), '../output/raw/tpcc-results-cavalia_b.csv')
+datafile = os.path.join(os.path.dirname(__file__), '../output/raw/8b.csv')
 outfile = os.path.join(os.path.dirname(__file__), '../output/average/8b.csv')
 outdir = os.path.dirname(outfile)
 try:
@@ -25,21 +24,13 @@ def aggregate(l):
 	else: 
 		return l[0]	
 
-with open(datafile1, 'r') as csvfile:
+with open(datafile, 'r') as csvfile:
 	reader = csv.DictReader(csvfile)
 	for row in reader:
 		d = row['Algo']
 		x = int(row['NumWare'])
 		p = row['Throughput(ktps)']
 		alldata[x][d].append(float(p))
-
-with open(datafile2, 'r') as csvfile:
-	reader = csv.DictReader(csvfile)
-	for row in reader:
-		d = row[' Algo']
-		x = int(row[' NumWare'])
-		p = row[' Throughput(ktps)']
-		alldata[x][d].append(float(p))		
 
 with open(outfile, 'w') as csvfile:
 	writer = csv.writer(csvfile)
