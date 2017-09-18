@@ -2,7 +2,7 @@
 
 ######################  CONFIGURATION ##############################################
 export NUMITERS=5   #Number of times an experiment is run to aggregate results
-export GENDATA=0    #Generate fresh data for experiments 8 10 11
+export GENDATA=1    #Generate fresh data for experiments 8 10 11
 ####################################################################################
 
 ROOT_DIR=`readlink -m ../..`
