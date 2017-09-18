@@ -83,6 +83,7 @@ RUN pip install lxml
 
 
 COPY . /mv3c
+RUN cp /mv3c/conf/tpcc.properties.example /mv3c/conf/tpcc.properties
 
 WORKDIR /mv3c/test/scripts
 ENTRYPOINT service mysql start && /bin/bash
