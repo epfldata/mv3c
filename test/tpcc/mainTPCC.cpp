@@ -61,6 +61,12 @@ int main(int argc, char** argv) {
     OrderLineIndexes[0] = &OrderLineIndex;
     ordLTbl.secondaryIndexes = OrderLineIndexes;
     ordLTbl.numIndexes = 1;
+	
+	MultiMapIndexMT<CustomerKey, CustomerVal, CustomerPKey> CustomerIndex;
+	SecondaryIndex<CustomerKey, CustomerVal> * CustomerIndexes[1];
+    CustomerIndexes[0] = &CustomerIndex;
+    custTbl.secondaryIndexes = CustomerIndexes;
+    custTbl.numIndexes = 1;
 #endif
 
 #ifdef CUCKOO_SI
@@ -113,6 +119,12 @@ int main(int argc, char** argv) {
     OrderLineIndexesVerify[0] = &OrderLineIndexVerify;
     ordLTblVerify.secondaryIndexes = OrderLineIndexesVerify;
     ordLTblVerify.numIndexes = 1;
+	
+	MultiMapIndexMT<CustomerKey, CustomerVal, CustomerPKey> CustomerIndexVerify;
+	SecondaryIndex<CustomerKey, CustomerVal> * CustomerIndexesVerify[1];
+    CustomerIndexesVerify[0] = &CustomerIndexVerify;
+    custTblVerify.secondaryIndexes = CustomerIndexesVerify;
+    custTblVerify.numIndexes = 1;
 #endif
 
 #ifdef CUCKOO_SI
@@ -127,6 +139,12 @@ int main(int argc, char** argv) {
     OrderLineIndexesVerify[0] = &OrderLineIndexVerify;
     ordLTblVerify.secondaryIndexes = OrderLineIndexesVerify;
     ordLTblVerify.numIndexes = 1;
+	
+	CuckooSecondaryIndex<CustomerKey, CustomerVal, CustomerPKey> CustomerIndexVerify;
+    SecondaryIndex<CustomerKey, CustomerVal> * CustomerIndexesVerify[1];
+    CustomerIndexesVerify[0] = &CustomerIndexVerify;
+    custTblVerify.secondaryIndexes = CustomerIndexesVerify;
+    custTblVerify.numIndexes = 1;
 #endif
 #endif
 
@@ -415,7 +433,7 @@ int main(int argc, char** argv) {
             case NEWORDER:
                 newp = new MV3CNewOrder(p);
                 break;
-            case PAYMENTBYID:
+            case PAYMENT:
                 newp = new MV3CPayment(p);
                 break;
             case DELIVERY:
@@ -443,6 +461,8 @@ int main(int argc, char** argv) {
         }
     }
     if (verifiedPrg != exec.finishedPrograms) {
+	cerr << "Exec finished = " << exec.finishedPrograms << endl;
+	cerr << "Verify finished = "  << verifiedPrg << endl;
         throw std::logic_error("Num finished programs doesnt match");
     }
     Transaction tf;

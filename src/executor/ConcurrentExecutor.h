@@ -141,8 +141,12 @@ struct ConcurrentExecutor {
         uint thisPrgFailedExec = 0;
         uint thisPrgFailedVal = 0;
 
-        //Execution is stopped as soon as the first thread finishes its programs
-        while (pid < ppt && (p = threadPrgs[pid]) && !hasFinished) {
+        //Execution is stopped as soon as the first thread finishes its programs unless it is verify
+	bool executeAll = false;
+#ifdef EXEC_ALL
+	executeAll = true;
+#endif
+        while (pid < ppt && (p = threadPrgs[pid]) && (!hasFinished || executeAll))  {
             tm.begin(&p->xact);
             auto dstart = DNow;
             auto status = p->execute();
@@ -152,7 +156,6 @@ struct ConcurrentExecutor {
                 //                 cerr << "Thread "<<thread_id<< " aborted " << pid << endl;
                 tm.rollback(&p->xact);
                 if(status == ABORT) { //skip if ABORT
-                    finishedPerTxn[p->prgType]++;
                     pid++;
                     thisPrgFailedExec = 0;
                     thisPrgFailedVal = 0;              

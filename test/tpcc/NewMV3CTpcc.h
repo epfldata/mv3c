@@ -395,7 +395,7 @@ namespace tpcc_ns {
         newcv->_18 = newdata;
 
 
-        if (CustomerTable->update(&xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->cust, CWW, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
+        if (CustomerTable->update(&xact, cdv->entry, MakeRecord(newcv), &prg->threadVar->custSl, CWW, col_type(1 << 14 | 1 << 15 | 1 << 16)) != OP_SUCCESS) {
             //            if (ALLOW_WW)
             //                throw std::logic_error("payment cust");
             //            else
