@@ -205,10 +205,14 @@ struct ConcurrentExecutor {
                     //                        hasFinished = true;
                     //                    }
                     auto status = tm.reexecute(&p->xact, p);
-                    if (status != SUCCESS) {
+                    /*
+ 		    // SBJ: This check was logically true for TPC-C benchmark if we exclude PaymentByName transactions. But it is not, in general, correct. Thus,it is disabled.
+		    if (status != SUCCESS) {
                         cerr << "Cannot fail execution during reexecution" << endl;
+                        cerr << "Type = " << p->prgType << "  Thread Id  = " << thread_id << "  pid = " << pid << " status = " << status << endl;
                         exit(-5);
                     }
+		    */
                     //If a transaction fails validation more than a threshold, next time, we repair it within the critical section
                     if (thisPrgFailedVal > critical_compensate_threshold)
                         critical_compensate = true;
