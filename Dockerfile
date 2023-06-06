@@ -48,11 +48,12 @@ liblz4-dev \
 libzmq5-dev \
 mysql-server-5.7 \
 mysql-client \
-oracle-java8-installer \
+openjdk-8-jdk \
 gnuplot \
 ttf-mscorefonts-installer \
 libcppunit-dev \
 vim \
+wget \
  && rm -rf /var/lib/apt/lists/*
 
 RUN echo secure_file_priv=\"\" |  tee --append /etc/mysql/mysql.conf.d/mysqld.cnf && \
@@ -64,7 +65,7 @@ RUN  wget www.scala-lang.org/files/archive/scala-2.11.7.deb && \
      dpkg -i scala-2.11.7.deb && \
      rm scala-2.11.7.deb
 
-RUN wget https://dl.bintray.com/sbt/debian/sbt-0.13.15.deb && \
+RUN wget https://repo.scala-sbt.org/scalasbt/debian/sbt-0.13.15.deb && \
 	dpkg -i sbt-0.13.15.deb && \
 	rm sbt-0.13.15.deb
 
